@@ -910,7 +910,12 @@ class StaffController extends Controller
     // Module 3: Notifications
     public function getNotifications()
     {
+        if (\App\Models\Setting::get('enable_notifications', '1') == '0') {
+            return redirect()->route('staff.dashboard')->with('info', 'Thông báo hiện đang bị tắt bởi quản trị viên.');
+        }
+
         $notifications = Auth::user()->notifications()->latest()->paginate(20);
+
         return view('staff.notifications.index', compact('notifications'));
     }
 

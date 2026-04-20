@@ -11,7 +11,12 @@ class NotificationController extends Controller
 {
     public function index()
     {
+        if (\App\Models\Setting::get('enable_notifications', '1') == '0') {
+            return response()->json([]);
+        }
+
         $notifications = Notification::where('notifiable_id', Auth::id())
+
             ->where('notifiable_type', get_class(Auth::user()))
             ->orderBy('created_at', 'desc')
             ->take(20)

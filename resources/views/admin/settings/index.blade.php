@@ -221,18 +221,26 @@
                                 <span class="slider"></span>
                             </label>
                         </div>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div class="flex items-center justify-between p-4 rounded-xl border border-slate-800/50">
-                                <div>
-                                    <p class="font-semibold text-white">Tự động phân bổ kỹ thuật</p>
-                                    <p class="text-xs text-slate-500">AI tự gán thợ dựa trên kỹ năng & độ trống</p>
+
+                        <!-- Global Notification Toggle -->
+                        <div class="flex items-center justify-between p-4 rounded-xl bg-slate-900/50 border border-slate-800/50">
+                            <div class="flex gap-4">
+                                <div class="p-2 bg-indigo-500/10 rounded-lg h-fit">
+                                    <span class="material-icons-round text-indigo-400">notifications_active</span>
                                 </div>
-                                <label class="switch">
-                                    <input type="hidden" name="auto_assign_tech" value="0">
-                                    <input name="auto_assign_tech" type="checkbox" value="1" {{ \App\Models\Setting::get('auto_assign_tech', '1') == '1' ? 'checked' : '' }}/>
-                                    <span class="slider"></span>
-                                </label>
+                                <div class="flex-1">
+                                    <p class="font-semibold text-white">Thông Báo Hệ Thống</p>
+                                    <p class="text-sm text-slate-500">Bật/Tắt tất cả các thông báo và nút thông báo cho Nhân viên & Khách hàng.</p>
+                                </div>
                             </div>
+                            <label class="switch">
+                                <input type="hidden" name="enable_notifications" value="0">
+                                <input name="enable_notifications" type="checkbox" value="1" {{ \App\Models\Setting::get('enable_notifications', '1') == '1' ? 'checked' : '' }}/>
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div class="flex items-center justify-between p-4 rounded-xl border border-slate-800/50">
                                 <div>
                                     <p class="font-semibold text-white">Bật Kiểm Tra 3D</p>

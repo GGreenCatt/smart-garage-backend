@@ -235,10 +235,13 @@
                     <i class="fas fa-moon hidden dark:inline-block"></i>
                 </button>
 
+                @if(\App\Models\Setting::get('enable_notifications', '1') == '1')
                 <button class="w-10 h-10 rounded-full bg-gray-100 dark:bg-[#1e293b] text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-slate-700 transition flex items-center justify-center relative">
                     <i class="fas fa-bell"></i>
                     <span class="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full"></span>
                 </button>
+                @endif
+
                 <div class="h-8 w-px bg-gray-200 dark:bg-[#1e293b]"></div>
                 <span class="text-sm font-bold text-slate-500 dark:text-slate-400">{{ date('l, d M Y') }}</span>
             </div>

@@ -42,6 +42,7 @@
             </div>
             <div class="flex items-center gap-4">
                 @auth
+                    @if(\App\Models\Setting::get('enable_notifications', '1') == '1')
                     <!-- Notification Bell for Customer -->
                     <div class="relative" id="customer-notification-dropdown-container">
                         <button onclick="toggleCustomerNotifications()" class="relative w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 text-white transition flex items-center justify-center border border-white/10">
@@ -61,6 +62,7 @@
                             </div>
                         </div>
                     </div>
+                    @endif
 
                     <a href="{{ route('customer.dashboard') }}" class="px-6 py-2.5 bg-cyan-600/20 hover:bg-cyan-600/30 text-cyan-400 rounded-lg font-semibold transition border border-cyan-600/30 hidden md:inline-flex">
                         <i class="fas fa-home mr-1"></i> Trang Chủ
@@ -266,10 +268,12 @@
             });
         }
 
+        @if(\App\Models\Setting::get('enable_notifications', '1') == '1')
         window.addEventListener('load', () => {
             fetchCustomerNotifications();
             custNotiPollInterval = setInterval(fetchCustomerNotifications, 10000);
         });
+        @endif
     </script>
     @endauth
 </body>

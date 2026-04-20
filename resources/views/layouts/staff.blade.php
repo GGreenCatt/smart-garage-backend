@@ -139,10 +139,12 @@
                 <span class="font-medium">Tin Nhắn</span>
             </a>
 
+            @if(\App\Models\Setting::get('enable_notifications', '1') == '1')
             <a href="{{ route('staff.notifications.index') }}" class="sidebar-link flex items-center gap-3 px-3 py-3 rounded-lg text-slate-600 dark:text-slate-400 font-medium hover:bg-gray-100 dark:hover:bg-white/5 hover:text-indigo-600 dark:hover:text-white {{ request()->routeIs('staff.notifications.*') ? 'active' : '' }}">
                 <i class="fas fa-bell w-6 text-center"></i>
                 <span class="font-medium">Thông Báo</span>
             </a>
+            @endif
 
             <a href="{{ route('staff.profile') }}" class="sidebar-link flex items-center gap-3 px-3 py-3 rounded-lg text-slate-600 dark:text-slate-400 font-medium hover:bg-gray-100 dark:hover:bg-white/5 hover:text-indigo-600 dark:hover:text-white {{ request()->routeIs('staff.profile') ? 'active' : '' }}">
                 <i class="fas fa-user-circle w-6 text-center"></i>
@@ -185,6 +187,7 @@
                     <i class="fas fa-moon hidden dark:inline-block"></i>
                 </button>
 
+                @if(\App\Models\Setting::get('enable_notifications', '1') == '1')
                 <!-- Notifications Dropdown -->
                 <div class="relative" id="notification-dropdown-container">
                     <button onclick="toggleNotifications()" class="relative w-10 h-10 rounded-full bg-gray-100 dark:bg-[#1e293b] text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-slate-700 transition flex items-center justify-center">
@@ -206,6 +209,7 @@
                         </div>
                     </div>
                 </div>
+                @endif
                 <div class="h-8 w-px bg-gray-200 dark:bg-[#1e293b]"></div>
                 <span class="text-sm font-bold text-slate-500 dark:text-slate-400">Thứ {{ date('w') == 0 ? 'Nhật' : date('w') + 1 }}, ngày {{ date('d/m/Y') }}</span>
             </div>
@@ -364,10 +368,12 @@
             });
         }
 
+        @if(\App\Models\Setting::get('enable_notifications', '1') == '1')
         window.addEventListener('load', () => {
             fetchNotifications();
             notiPollInterval = setInterval(fetchNotifications, 10000); // 10s polling
         });
+        @endif
 
         // Sidebar Toggle Logic
         const sidebar = document.getElementById('sidebar');
