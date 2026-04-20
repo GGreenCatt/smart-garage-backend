@@ -61,9 +61,11 @@
                 <i class="fas fa-history w-5"></i> Lịch Sử Sửa Chữa
             </a>
             
+            {{-- 
             <a href="{{ route('customer.appointments.index') }}" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium {{ Route::is('customer.appointments.*') ? 'active text-cyan-400 bg-cyan-500/10 border-r-2 border-cyan-500' : '' }}">
                 <i class="fas fa-calendar-alt w-5"></i> Đặt Lịch Hẹn
             </a>
+            --}}
 
             <div class="pt-4 mt-4 border-t border-[#1e293b]">
                 <a href="{{ route('customer.profile') }}" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium {{ Route::is('customer.profile') ? 'active text-cyan-400 bg-cyan-500/10 border-r-2 border-cyan-500' : '' }}">
@@ -94,9 +96,11 @@
                 <h1 class="text-3xl font-bold text-white mb-1">Tổng Quan</h1>
                     <p class="text-slate-400 text-sm">Chào mừng trở lại, hôm nay xe của bạn thế nào?</p>
                 </div>
+                {{-- 
                 <a href="{{ route('customer.appointments.create') }}" class="bg-cyan-600 hover:bg-cyan-500 text-white px-5 py-2.5 rounded-lg font-semibold shadow-lg shadow-cyan-900/30 transition text-sm flex items-center">
                     <i class="fas fa-plus mr-2"></i> Đặt Lịch Mới
                 </a>
+                --}}
             </div>
 
             @php $pendingQuotes = $orders->where('quote_status', 'sent'); @endphp

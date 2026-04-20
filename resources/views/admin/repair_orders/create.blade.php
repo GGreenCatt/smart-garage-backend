@@ -34,7 +34,7 @@
     <div class="flex justify-between items-center mb-8">
         <div>
             <h1 class="text-3xl font-bold bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">Tiếp Nhận Xe</h1>
-            <p class="text-slate-400 mt-1">Tạo phiếu sửa chữa mới / Tiếp nhận khách vãng lai</p>
+            <p class="text-slate-400 mt-1">Tạo lệnh sửa chữa mới / Tiếp nhận khách vãng lai</p>
         </div>
         <a href="{{ route('admin.repair_orders.index') }}" class="flex items-center gap-2 text-slate-400 hover:text-white transition-colors">
             <span class="material-icons-round">arrow_back</span>
@@ -233,7 +233,7 @@
                     <a href="{{ route('admin.repair_orders.index') }}" class="px-6 py-3 rounded-xl font-bold text-slate-400 hover:text-white hover:bg-slate-800 transition-colors">Hủy Bỏ</a>
                     <button type="submit" class="px-8 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold rounded-xl shadow-lg shadow-indigo-500/20 hover:shadow-indigo-500/40 transform hover:-translate-y-0.5 transition-all text-base flex items-center gap-2">
                         <span class="material-icons-round">add_task</span>
-                        Tạo Phiếu Tiếp Nhận
+                        Tạo Lệnh Tiếp Nhận
                     </button>
                 </div>
             </div>

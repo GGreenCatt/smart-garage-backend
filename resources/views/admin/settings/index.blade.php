@@ -268,18 +268,32 @@
                         <div class="space-y-4">
                             <label class="text-sm font-medium text-slate-400">Màu Chủ Đạo Portal Khách Hàng</label>
                             <div class="flex items-center gap-4">
-                                <input name="portal_color_primary" class="w-12 h-12 rounded-lg cursor-pointer border-none p-0 bg-transparent" type="color" value="{{ \App\Models\Setting::get('portal_color_primary', '#6366f1') }}"/>
+                                <input name="portal_color_primary" 
+                                       class="w-12 h-12 rounded-lg cursor-pointer border-none p-0 bg-transparent" 
+                                       type="color" 
+                                       value="{{ \App\Models\Setting::get('portal_color_primary', '#06b6d4') }}"
+                                       oninput="this.nextElementSibling.querySelector('input').value = this.value.toUpperCase()"/>
                                 <div class="flex-1">
-                                    <input class="w-full bg-slate-900 border-slate-800 rounded-lg px-3 py-2 uppercase text-sm font-mono text-white" type="text" value="{{ \App\Models\Setting::get('portal_color_primary', '#6366f1') }}" readonly/>
+                                    <input class="w-full bg-slate-900 border-slate-800 rounded-lg px-3 py-2 uppercase text-sm font-mono text-white" 
+                                           type="text" 
+                                           value="{{ \App\Models\Setting::get('portal_color_primary', '#06b6d4') }}" 
+                                           readonly/>
                                 </div>
                             </div>
                         </div>
                         <div class="space-y-4">
                             <label class="text-sm font-medium text-slate-400">Màu Phụ (Accent)</label>
                             <div class="flex items-center gap-4">
-                                <input name="portal_color_accent" class="w-12 h-12 rounded-lg cursor-pointer border-none p-0 bg-transparent" type="color" value="{{ \App\Models\Setting::get('portal_color_accent', '#10b981') }}"/>
+                                <input name="portal_color_accent" 
+                                       class="w-12 h-12 rounded-lg cursor-pointer border-none p-0 bg-transparent" 
+                                       type="color" 
+                                       value="{{ \App\Models\Setting::get('portal_color_accent', '#10b981') }}"
+                                       oninput="this.nextElementSibling.querySelector('input').value = this.value.toUpperCase()"/>
                                 <div class="flex-1">
-                                    <input class="w-full bg-slate-900 border-slate-800 rounded-lg px-3 py-2 uppercase text-sm font-mono text-white" type="text" value="{{ \App\Models\Setting::get('portal_color_accent', '#10b981') }}" readonly/>
+                                    <input class="w-full bg-slate-900 border-slate-800 rounded-lg px-3 py-2 uppercase text-sm font-mono text-white" 
+                                           type="text" 
+                                           value="{{ \App\Models\Setting::get('portal_color_accent', '#10b981') }}" 
+                                           readonly/>
                                 </div>
                             </div>
                         </div>

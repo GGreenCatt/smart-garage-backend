@@ -110,7 +110,7 @@
                         <div class="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold text-white">K</div>
                         <span class="text-white font-medium">Khoa Kỹ Thuật</span>
                     </td>
-                    <td class="px-6 py-4">Đã cập nhật trạng thái đơn <span class="text-indigo-400 font-mono">#RO-123</span></td>
+                    <td class="px-6 py-4">Đã cập nhật trạng thái đơn <span class="text-indigo-400 font-mono">#LSC-123</span></td>
                     <td class="px-6 py-4">2 phút trước</td>
                     <td class="px-6 py-4"><span class="px-2 py-1 rounded text-[10px] font-bold bg-green-500/10 text-green-400">Success</span></td>
                 </tr>

@@ -136,7 +136,7 @@ class RepairOrderController extends Controller
         }
 
         $ro = RepairOrder::create([
-            'track_id' => 'RO-' . strtoupper(Str::random(8)),
+            'track_id' => 'LSC-' . strtoupper(Str::random(8)),
             'customer_id' => $customer->id,
             'vehicle_id' => $vehicle->id,
             'advisor_id' => auth()->id(),
@@ -168,7 +168,7 @@ class RepairOrderController extends Controller
         }
 
         return redirect()->route('admin.repair_orders.show', $ro)
-            ->with('success', 'Phiếu tiếp nhận đã được tạo thành công!');
+            ->with('success', 'Lệnh tiếp nhận đã được tạo thành công!');
     }
 
     public function show(RepairOrder $repairOrder)

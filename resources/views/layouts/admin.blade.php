@@ -131,12 +131,6 @@
             </a>
             @endcan
             
-            @can('manage_customers')
-            <a href="{{ route('admin.promotions.index') }}" class="sidebar-link flex items-center gap-3 px-3 py-3 rounded-lg text-slate-600 dark:text-slate-400 font-medium hover:bg-gray-100 dark:hover:bg-white/5 hover:text-indigo-600 dark:hover:text-white {{ request()->routeIs('admin.promotions.*') ? 'active' : '' }}">
-                <i class="fas fa-ticket-alt w-6 text-center"></i>
-                <span class="font-medium">Mã Khuyến Mãi</span>
-            </a>
-            @endcan
             
             @can('manage_vehicles')
             <a href="{{ route('admin.vehicles.index') }}" class="sidebar-link flex items-center gap-3 px-3 py-3 rounded-lg text-slate-600 dark:text-slate-400 font-medium hover:bg-gray-100 dark:hover:bg-white/5 hover:text-indigo-600 dark:hover:text-white {{ request()->routeIs('admin.vehicles.*') ? 'active' : '' }}">
@@ -150,13 +144,15 @@
             @endif
             
             @can('manage_vehicles')
+            {{-- 
              <a href="{{ route('admin.appointments.index') }}" class="sidebar-link flex items-center gap-3 px-3 py-3 rounded-lg text-slate-600 dark:text-slate-400 font-medium hover:bg-gray-100 dark:hover:bg-white/5 hover:text-indigo-600 dark:hover:text-white {{ request()->routeIs('admin.appointments.*') ? 'active' : '' }}">
                 <i class="fas fa-calendar-alt w-6 text-center"></i>
                 <span class="font-medium">Quản Lý Lịch Hẹn</span>
             </a>
+            --}}
             <a href="{{ route('admin.repair_orders.index') }}" class="sidebar-link flex items-center gap-3 px-3 py-3 rounded-lg text-slate-600 dark:text-slate-400 font-medium hover:bg-gray-100 dark:hover:bg-white/5 hover:text-indigo-600 dark:hover:text-white {{ request()->routeIs('admin.repair_orders.*') ? 'active' : '' }}">
                 <i class="fas fa-clipboard-list w-6 text-center"></i>
-                <span class="font-medium">Phiếu Sửa Chữa (RO)</span>
+                <span class="font-medium">Lệnh Sửa Chữa</span>
             </a>
             @endcan
             
@@ -171,10 +167,12 @@
             </a>
             @endcan
 
+            {{-- 
              <a href="#" class="sidebar-link flex items-center gap-3 px-3 py-3 rounded-lg text-slate-600 dark:text-slate-400 font-medium hover:bg-gray-100 dark:hover:bg-white/5 hover:text-indigo-600 dark:hover:text-white">
                 <i class="fas fa-qrcode w-6 text-center"></i>
                 <span class="font-medium">Mã Vạch & QR</span>
             </a>
+            --}}
             
             @can('manage_vehicles')
             <a href="{{ route('admin.sos.index') }}" class="sidebar-link flex items-center gap-3 px-3 py-3 rounded-lg text-slate-600 dark:text-slate-400 font-medium hover:bg-gray-100 dark:hover:bg-white/5 hover:text-indigo-600 dark:hover:text-white {{ request()->routeIs('admin.sos.*') ? 'active' : '' }}">

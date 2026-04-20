@@ -8,17 +8,54 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        cyan: {
+                            50: '#f0f9ff',
+                            100: '#e0f2fe',
+                            200: '#bae6fd',
+                            300: '#7dd3fc',
+                            400: '{{ \App\Models\Setting::get("portal_color_primary", "#06b6d4") }}',
+                            500: '{{ \App\Models\Setting::get("portal_color_primary", "#06b6d4") }}',
+                            600: '{{ \App\Models\Setting::get("portal_color_primary", "#06b6d4") }}',
+                            700: '{{ \App\Models\Setting::get("portal_color_primary", "#06b6d4") }}',
+                        },
+                        emerald: {
+                            500: '{{ \App\Models\Setting::get("portal_color_accent", "#10b981") }}',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    @php
+        $primaryColor = \App\Models\Setting::get('portal_color_primary', '#06b6d4');
+        $accentColor = \App\Models\Setting::get('portal_color_accent', '#10b981');
+    @endphp
     <style>
         :root {
             --primary-dark: #0f172a;
             --primary-light: #1e293b;
-            --accent-cyan: #06b6d4;
+            --accent-cyan: {{ $primaryColor }};
+            --brand-primary: {{ $primaryColor }};
+            --brand-accent: {{ $accentColor }};
             --text-gray: #94a3b8;
         }
         body { font-family: 'Inter', sans-serif; background-color: var(--primary-dark); color: #f8fafc; }
         .glass { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.05); }
         .glass-card { background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.05); transition: all 0.3s ease; }
-        .glass-card:hover { background: rgba(255, 255, 255, 0.08); transform: translateY(-5px); border-color: rgba(6, 182, 212, 0.3); box-shadow: 0 10px 30px -10px rgba(6, 182, 212, 0.2); }
+        .glass-card:hover { background: rgba(255, 255, 255, 0.08); transform: translateY(-5px); border-color: {{ $primaryColor }}4D; box-shadow: 0 10px 30px -10px {{ $primaryColor }}33; }
+        
+        /* Brand Utilities */
+        .bg-brand-primary { background-color: var(--brand-primary) !important; }
+        .text-brand-primary { color: var(--brand-primary) !important; }
+        .border-brand-primary { border-color: var(--brand-primary) !important; }
+        .bg-brand-accent { background-color: var(--brand-accent) !important; }
+        .text-brand-accent { color: var(--brand-accent) !important; }
     </style>
     @yield('styles')
     @stack('styles')

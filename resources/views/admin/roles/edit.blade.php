@@ -119,7 +119,7 @@
 
                 <!-- Repair Orders -->
                 <div class="bg-slate-800/30 p-4 rounded-xl border border-slate-700/50">
-                    <h4 class="text-white font-bold mb-3 border-b border-slate-700 pb-2"><i class="fas fa-tools text-indigo-400 mr-2"></i>Phiếu Sửa Chữa (RO)</h4>
+                    <h4 class="text-white font-bold mb-3 border-b border-slate-700 pb-2"><i class="fas fa-tools text-indigo-400 mr-2"></i>Lệnh Sửa Chữa</h4>
                     <div class="grid grid-cols-2 gap-3">
                         <label class="flex items-center gap-3 cursor-pointer group">
                             <input type="checkbox" name="permissions[]" value="create_repair_orders" {{ in_array('create_repair_orders', $role->permissions ?? []) ? 'checked' : '' }} class="rounded border-slate-600 text-indigo-500 focus:ring-indigo-500 bg-slate-700">
@@ -131,7 +131,7 @@
                         </label>
                         <label class="flex items-center gap-3 cursor-pointer group">
                             <input type="checkbox" name="permissions[]" value="manage_repair_orders" {{ in_array('manage_repair_orders', $role->permissions ?? []) ? 'checked' : '' }} class="rounded border-slate-600 text-indigo-500 focus:ring-indigo-500 bg-slate-700">
-                            <span class="text-sm text-slate-300 group-hover:text-white">Quản lý tổng (RO)</span>
+                            <span class="text-sm text-slate-300 group-hover:text-white">Quản lý tổng</span>
                         </label>
                         <label class="flex items-center gap-3 cursor-pointer group">
                             <input type="checkbox" name="permissions[]" value="approve_repair_orders" {{ in_array('approve_repair_orders', $role->permissions ?? []) ? 'checked' : '' }} class="rounded border-slate-600 text-indigo-500 focus:ring-indigo-500 bg-slate-700">

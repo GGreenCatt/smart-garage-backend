@@ -169,15 +169,10 @@
                         </div>
                     </div>
                     <div class="flex items-center gap-3 self-end lg:self-center">
-                        <form action="{{ route('admin.requests.update', $req->id) }}" method="POST">
-                            @csrf
-                            @method('PUT')
-                            <input type="hidden" name="status" value="approved">
-                            <button class="h-12 w-12 rounded-full bg-white/5 border border-white/10 flex items-center justify-center group hover:bg-success hover:border-success transition-all duration-300 shadow-sm" title="Approve">
-                                <span class="material-icons-round text-success text-2xl group-hover:text-white transition-colors">check</span>
-                            </button>
-                        </form>
-                        <button onclick="rejectRequest({{ $req->id }})" class="h-12 w-12 rounded-full bg-white/5 border border-white/10 flex items-center justify-center group hover:bg-danger hover:border-danger transition-all duration-300 shadow-sm" title="Reject">
+                        <button onclick="approveRequest({{ $req->id }}, '{{ addslashes($req->part_name) }}')" class="h-12 w-12 rounded-full bg-white/5 border border-white/10 flex items-center justify-center group hover:bg-success hover:border-success transition-all duration-300 shadow-sm" title="Approve">
+                            <span class="material-icons-round text-success text-2xl group-hover:text-white transition-colors">check</span>
+                        </button>
+                        <button onclick="rejectRequest({{ $req->id }}, '{{ addslashes($req->part_name) }}')" class="h-12 w-12 rounded-full bg-white/5 border border-white/10 flex items-center justify-center group hover:bg-danger hover:border-danger transition-all duration-300 shadow-sm" title="Reject">
                             <span class="material-icons-round text-danger text-2xl group-hover:text-white transition-colors">close</span>
                         </button>
                     </div>
@@ -220,6 +215,11 @@
                             <span class="bg-danger/10 text-danger text-xs px-2 py-0.5 rounded mb-1 inline-block">Rejected</span>
                             @endif
                             <p class="text-xs text-gray-400 font-mono">{{ $req->updated_at->format('d/m H:i') }}</p>
+                            @if($req->admin_note)
+                                <div class="text-[10px] text-gray-500 italic mt-1 max-w-[200px] truncate" title="{{ $req->admin_note }}">
+                                    Note: {{ $req->admin_note }}
+                                </div>
+                            @endif
                         </div>
                     </div>
                 </li>
@@ -229,30 +229,85 @@
     </section>
 </div>
 
-<!-- Reject Modal -->
-<dialog id="rejectModal" class="bg-surface-dark text-white border border-gray-700 rounded-2xl shadow-2xl p-6 w-[400px] backdrop:bg-black/80">
-    <div class="flex justify-between items-center mb-4">
-        <h3 class="font-bold text-lg text-danger flex items-center gap-2">
-            <span class="material-icons-round">cancel</span>
-            Từ Chối Yêu Cầu
-        </h3>
-    </div>
-    <form id="rejectForm" method="POST">
-        @csrf
-        @method('PUT')
-        <input type="hidden" name="status" value="rejected">
-        <textarea name="admin_note" rows="3" class="w-full bg-background-dark border border-gray-600 rounded-xl p-3 text-white mb-4 placeholder-gray-500 focus:ring-2 focus:ring-danger focus:border-transparent outline-none" placeholder="Nhập lý do từ chối..." required></textarea>
-        <div class="flex justify-end gap-2">
-            <button type="button" onclick="document.getElementById('rejectModal').close()" class="px-4 py-2 text-gray-400 hover:text-white font-medium transition-colors">Hủy</button>
-            <button class="bg-danger hover:bg-red-600 px-6 py-2 rounded-xl font-bold text-white shadow-lg shadow-red-500/20 transition-all">Xác Nhận</button>
+<!-- Process Request Modal (Approve/Reject) -->
+<dialog id="processModal" class="bg-surface-dark text-white border border-gray-700 rounded-3xl shadow-2xl p-0 w-full max-w-md backdrop:bg-black/80 overflow-hidden">
+    <div class="relative">
+        <div id="modalHeader" class="bg-success p-6 text-white">
+            <h3 class="font-black text-xl flex items-center gap-2">
+                <span id="modalIcon" class="material-icons-round">check_circle</span>
+                <span id="modalTitle">Phê Duyệt Yêu Cầu</span>
+            </h3>
+            <p id="modalPartNameDisplay" class="text-white/80 text-sm mt-1 font-medium"></p>
         </div>
-    </form>
+        
+        <form id="processForm" method="POST" class="p-6">
+            @csrf
+            @method('PUT')
+            <input type="hidden" name="status" id="modalStatusInput">
+            
+            <div class="mb-6">
+                <label class="block text-sm font-bold text-gray-400 mb-2 uppercase tracking-wider">Lời nhắn của bạn (Tùy chọn)</label>
+                <textarea name="admin_note" id="admin_note" rows="4" 
+                    class="w-full bg-background-dark border border-gray-600 rounded-2xl p-4 text-white placeholder-gray-500 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all resize-none" 
+                    placeholder="Nhập lời nhắn hoặc lý do gửi đến nhân viên..."></textarea>
+            </div>
+
+            <div class="flex gap-3 mt-4">
+                <button type="button" onclick="document.getElementById('processModal').close()" 
+                    class="flex-1 px-4 py-3 bg-white/5 hover:bg-white/10 text-gray-300 font-bold rounded-2xl transition-all border border-white/10">
+                    Hủy Bỏ
+                </button>
+                <button id="modalSubmitBtn" class="flex-2 px-8 py-3 bg-success hover:bg-emerald-500 text-white font-bold rounded-2xl shadow-xl shadow-emerald-500/20 active:scale-95 transition-all">
+                    Xác Nhận
+                </button>
+            </div>
+        </form>
+    </div>
 </dialog>
 
 <script>
-    function rejectRequest(id) {
-        document.getElementById('rejectForm').action = `/admin/material-requests/${id}`;
-        document.getElementById('rejectModal').showModal();
+    const processModal = document.getElementById('processModal');
+    const processForm = document.getElementById('processForm');
+    const modalHeader = document.getElementById('modalHeader');
+    const modalIcon = document.getElementById('modalIcon');
+    const modalTitle = document.getElementById('modalTitle');
+    const modalPartNameDisplay = document.getElementById('modalPartNameDisplay');
+    const modalStatusInput = document.getElementById('modalStatusInput');
+    const modalSubmitBtn = document.getElementById('modalSubmitBtn');
+    const adminNoteArea = document.getElementById('admin_note');
+
+    function approveRequest(id, partName) {
+        openModal(id, partName, 'approved');
+    }
+
+    function rejectRequest(id, partName) {
+        openModal(id, partName, 'rejected');
+    }
+
+    function openModal(id, partName, status) {
+        processForm.action = `/admin/material-requests/${id}`;
+        modalStatusInput.value = status;
+        modalPartNameDisplay.innerText = partName;
+        
+        if (status === 'approved') {
+            modalHeader.className = 'bg-success p-6 text-white';
+            modalIcon.innerText = 'check_circle';
+            modalTitle.innerText = 'Phê Duyệt Yêu Cầu';
+            modalSubmitBtn.className = 'flex-2 px-8 py-3 bg-success hover:bg-emerald-500 text-white font-bold rounded-2xl shadow-xl shadow-emerald-500/20 active:scale-95 transition-all';
+            modalSubmitBtn.innerText = 'Phê Duyệt';
+            adminNoteArea.placeholder = 'Nhập lời nhắn cho nhân viên (vd: Đã duyệt, hãy liên hệ kho)...';
+            adminNoteArea.required = false;
+        } else {
+            modalHeader.className = 'bg-danger p-6 text-white';
+            modalIcon.innerText = 'cancel';
+            modalTitle.innerText = 'Từ Chối Yêu Cầu';
+            modalSubmitBtn.className = 'flex-2 px-8 py-3 bg-danger hover:bg-red-600 text-white font-bold rounded-2xl shadow-xl shadow-red-500/20 active:scale-95 transition-all';
+            modalSubmitBtn.innerText = 'Từ Chối';
+            adminNoteArea.placeholder = 'Nhập lý do từ chối cụ thể để nhân viên nắm rõ...';
+            adminNoteArea.required = true;
+        }
+        
+        processModal.showModal();
     }
 </script>
 @endsection

@@ -1,6 +1,6 @@
 @extends('layouts.admin')
 
-@section('title', 'Chi Tiết RO')
+@section('title', 'Chi Tiết Lệnh Sửa Chữa')
 
 @section('content')
 <div class="space-y-6">
@@ -209,34 +209,14 @@
                             <td></td>
                         </tr>
                         
+                        @if($repairOrder->discount_amount > 0)
                         <!-- Discount -->
                         <tr>
-                            <td colspan="3" class="px-6 py-3 text-right font-medium text-slate-400">
-                                <div class="flex items-center justify-end gap-2">
-                                    <span>Giảm Giá</span>
-                                    @if($repairOrder->promotion)
-                                        <span class="text-xs bg-green-500/20 text-green-400 px-2 py-0.5 rounded border border-green-500/20 font-bold uppercase tracking-wider">{{ $repairOrder->promotion->code }}</span>
-                                        <form action="{{ route('admin.repair_orders.coupon.remove', $repairOrder) }}" method="POST" class="inline">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button type="submit" class="text-slate-500 hover:text-red-400"><i class="fas fa-times-circle"></i></button>
-                                        </form>
-                                    @endif
-                                </div>
-                                @if(!$repairOrder->promotion && $repairOrder->status !== 'completed' && $repairOrder->status !== 'cancelled')
-                                    <form action="{{ route('admin.repair_orders.coupon', $repairOrder) }}" method="POST" class="mt-2 flex justify-end gap-2">
-                                        @csrf
-                                        <input type="text" name="code" placeholder="Mã giảm giá..." class="bg-slate-800 border border-slate-700 rounded text-xs px-2 py-1 text-white focus:border-indigo-500 focus:outline-none uppercase w-32">
-                                        <button class="bg-indigo-600 hover:bg-indigo-500 text-white text-xs px-3 py-1 rounded font-bold">Áp Dụng</button>
-                                    </form>
-                                    @if($errors->has('coupon'))
-                                        <div class="text-red-400 text-xs mt-1">{{ $errors->first('coupon') }}</div>
-                                    @endif
-                                @endif
-                            </td>
+                            <td colspan="3" class="px-6 py-3 text-right font-medium text-slate-400">Giảm Giá</td>
                             <td class="px-6 py-3 text-right font-mono text-green-400">- ${{ number_format($repairOrder->discount_amount, 2) }}</td>
                             <td></td>
                         </tr>
+                        @endif
 
                         <!-- Tax -->
                          <tr>

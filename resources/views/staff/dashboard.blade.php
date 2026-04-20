@@ -1539,7 +1539,7 @@
                     if (data.success) {
                         Swal.fire({
                             title: 'Thành công!',
-                            text: 'Đã tiếp nhận xe mới và tạo phiếu sửa chữa.',
+                            text: 'Đã tiếp nhận xe mới và tạo lệnh sửa chữa.',
                             icon: 'success',
                             timer: 1500,
                             showConfirmButton: false

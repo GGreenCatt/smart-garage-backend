@@ -125,6 +125,7 @@
     <!-- Summary & QR -->
     <div class="flex justify-between items-end mt-12 bg-slate-50 p-6 rounded-2xl border border-slate-100 print-exact">
         <div class="flex items-center gap-6">
+            {{-- 
             @if(isset($qrUrl))
             <div class="text-center">
                 <div class="bg-white p-2 rounded-xl border border-slate-200 shadow-sm inline-block">

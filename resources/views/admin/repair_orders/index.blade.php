@@ -115,7 +115,7 @@
         <div class="flex flex-wrap items-center gap-3 w-full md:w-auto">
             <form action="{{ route('admin.repair_orders.index') }}" method="GET" class="relative group">
                 <span class="material-icons-round absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-primary transition-colors">search</span>
-                <input name="search" value="{{ request('search') }}" class="w-full sm:w-64 bg-white dark:bg-surface-dark border border-gray-300 dark:border-gray-600 rounded-xl pl-10 pr-4 py-2.5 focus:ring-2 focus:ring-primary focus:border-transparent text-sm text-gray-900 dark:text-white placeholder-gray-500 outline-none transition-all" placeholder="Tìm RO #, biển số..." type="text">
+                <input name="search" value="{{ request('search') }}" class="w-full sm:w-64 bg-white dark:bg-surface-dark border border-gray-300 dark:border-gray-600 rounded-xl pl-10 pr-4 py-2.5 focus:ring-2 focus:ring-primary focus:border-transparent text-sm text-gray-900 dark:text-white placeholder-gray-500 outline-none transition-all" placeholder="Tìm Lệnh #, biển số..." type="text">
             </form>
             
             <a href="{{ route('admin.repair_orders.create') }}" class="flex items-center gap-2 px-6 py-2.5 bg-primary hover:bg-indigo-600 text-white rounded-xl text-sm font-bold shadow-lg shadow-indigo-500/20 hover:scale-[1.02] active:scale-[0.98] transition-all">
@@ -131,7 +131,7 @@
             <table class="w-full text-left text-sm text-gray-600 dark:text-gray-400">
                 <thead class="bg-gray-50 dark:bg-gray-800/50 text-gray-700 dark:text-gray-200 uppercase font-bold text-xs">
                     <tr>
-                        <th class="px-6 py-4">Lệnh (RO)</th>
+                        <th class="px-6 py-4">Lệnh Sửa Chữa</th>
                         <th class="px-6 py-4">Khách Hàng</th>
                         <th class="px-6 py-4">Phương Tiện</th>
                         <th class="px-6 py-4 text-center">Tiến Độ</th>

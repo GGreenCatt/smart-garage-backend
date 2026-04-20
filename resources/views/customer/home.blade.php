@@ -46,9 +46,11 @@
             </p>
 
             <div class="flex flex-col sm:flex-row gap-4">
+                {{-- 
                 <button onclick="openLoginModal()" class="px-8 py-4 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white rounded-xl font-bold text-lg shadow-xl shadow-cyan-900/30 transition transform hover:-translate-y-1">
                     Đặt Lịch Ngay
                 </button>
+                --}}
                 <a href="#features" class="px-8 py-4 bg-white/5 hover:bg-white/10 text-white rounded-xl font-bold text-lg border border-white/10 transition backdrop-blur-md flex items-center justify-center">
                     Tìm Hiểu Thêm
                 </a>
@@ -135,7 +137,7 @@
             <h2 class="text-4xl font-black text-white">Đơn Giản Hóa <br> Quy Trình Sửa Chữa</h2>
             <div class="space-y-6">
                 @foreach([
-                    ['1', 'Đặt Lịch & Tiếp Nhận', 'Đặt lịch online hoặc đến trực tiếp. Staff tiếp nhận xe và khởi tạo hồ sơ điện tử.'],
+                    ['1', 'Tiếp Nhận Xe', 'Đến trực tiếp garage. Staff tiếp nhận xe và khởi tạo hồ sơ điện tử.'],
                     ['2', 'Kiểm Tra 3D Visual Check', 'Kỹ thuật viên kiểm tra toàn diện, ghi nhận lỗi trực quan trên mô hình 3D.'],
                     ['3', 'Báo Giá & Phê Duyệt', 'Nhận báo giá chi tiết qua App/Link. Khách hàng xác nhận hạng mục sửa chữa.'],
                     ['4', 'Sửa Chữa & Bàn Giao', 'Theo dõi tiến độ realtime. Nhận xe và thanh toán minh bạch.']

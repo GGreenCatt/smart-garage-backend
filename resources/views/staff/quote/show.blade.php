@@ -89,9 +89,11 @@
                         <a href="{{ route('staff.order.invoice', $order->id) }}" target="_blank" class="text-sm bg-white hover:bg-slate-50 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-300 font-bold px-4 py-2 rounded-xl shadow-sm border border-slate-200 dark:border-slate-500/30 transition-all flex items-center gap-2">
                             <i class="fas fa-print bg-slate-100 dark:bg-slate-700/50 p-1.5 rounded-lg text-slate-500"></i> In Hóa Đơn / QR
                         </a>
+                        {{-- 
                         <button onclick="showQrModal({{ $order->id }})" class="text-sm bg-white hover:bg-slate-50 text-indigo-600 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-indigo-400 font-bold px-4 py-2 rounded-xl shadow-sm border border-indigo-200 dark:border-indigo-500/30 transition-all flex items-center gap-2">
                             <i class="fas fa-qrcode"></i> Sinh Mã QR
                         </button>
+                        --}}
                         <button onclick="processPayment({{ $order->id }})" class="text-sm bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-4 py-2 rounded-xl shadow-sm shadow-indigo-500/30 transition-all flex items-center gap-2">
                             <i class="fas fa-credit-card"></i> Thanh Toán
                         </button>
@@ -319,46 +321,11 @@
     </div>
 </div>
 
-<!-- QR Payment Modal -->
+{{-- 
 <div id="qrModal" class="fixed inset-0 z-50 hidden opacity-0 transition-opacity duration-300 items-center justify-center bg-slate-900/40 dark:bg-slate-900/60 backdrop-blur-sm p-4">
-    <div class="bg-white dark:bg-slate-800 rounded-2xl md:rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden transform scale-95 transition-transform duration-300 border border-slate-200 dark:border-slate-700 flex flex-col">
-        <div class="p-6 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center bg-slate-50/50 dark:bg-slate-800/50">
-            <h3 class="font-bold text-lg text-slate-800 dark:text-white flex items-center gap-2">
-                <i class="fas fa-qrcode text-indigo-500"></i> Mã QR Thanh Toán
-            </h3>
-            <button onclick="closeQrModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-white bg-white hover:bg-slate-100 dark:bg-slate-700 dark:hover:bg-slate-600 rounded-lg w-8 h-8 flex flex-col items-center justify-center transition-colors border border-slate-200 dark:border-slate-600">
-                <i class="fas fa-times"></i>
-            </button>
-        </div>
-        
-        <div class="p-6 md:p-8 flex flex-col items-center justify-center bg-white dark:bg-[#1e293b]">
-            <div id="qrLoading" class="flex flex-col items-center text-slate-400 py-8">
-                <i class="fas fa-circle-notch fa-spin text-4xl mb-3 text-indigo-500"></i>
-                <p class="font-medium text-sm">Đang tạo mã QR...</p>
-            </div>
-            <div id="qrContent" class="hidden flex-col items-center w-full">
-                <div class="bg-white p-2 md:p-4 rounded-xl shadow-sm border border-slate-200 mb-4 inline-block">
-                    <img id="qrImage" src="" alt="Mã thanh toán QR" class="w-48 h-48 md:w-64 md:h-64 object-contain">
-                </div>
-                <div class="text-center space-y-2 w-full">
-                    <p class="text-sm font-medium text-slate-500 dark:text-slate-400">Ngân hàng hưởng thụ: <span class="text-slate-800 dark:text-slate-200 font-bold">Vietinbank</span></p>
-                    <p class="text-sm font-medium text-slate-500 dark:text-slate-400">Chủ tài khoản: <span class="text-slate-800 dark:text-slate-200 font-bold uppercase">NGÔ VĂN ĐAN</span></p>
-                    <p class="text-xs font-medium text-slate-400 bg-slate-50 dark:bg-slate-800/50 px-3 py-2 rounded-lg break-all">STK: <span class="font-bold text-slate-700 dark:text-slate-300">102875143924</span></p>
-                    
-                    <div class="mt-4 pt-4 border-t border-slate-100 dark:border-slate-700">
-                        <p class="text-xl font-black text-indigo-600 dark:text-indigo-400" id="qrAmountDisplay"></p>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="px-6 py-4 bg-slate-50 dark:bg-slate-800/80 border-t border-slate-100 dark:border-slate-700 flex flex-col md:flex-row gap-3 justify-end items-center">
-            <span class="text-xs text-slate-400 font-medium w-full text-center md:text-left">Được cung cấp bởi VietQR</span>
-            <button onclick="processPayment({{ $order->id }})" class="w-full md:w-auto px-5 py-2.5 rounded-xl text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 shadow-sm transition-all focus:ring-2 focus:ring-indigo-500/20 flex items-center justify-center gap-2 whitespace-nowrap">
-                <i class="fas fa-check-circle"></i> Đã Nhận Tiền
-            </button>
-        </div>
-    </div>
+    ... (QR Modal content hidden) ...
 </div>
+--}}
 
 @push('scripts')
 <script>

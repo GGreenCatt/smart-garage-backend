@@ -61,7 +61,7 @@
             </div>
             <div class="text-right">
                 <h2 class="text-3xl font-bold text-slate-300 uppercase tracking-widest mb-2">Hóa Đơn</h2>
-                <p class="text-slate-800 font-semibold text-lg">Mã HĐ: <span class="text-indigo-600">{{ $order->track_id ?? 'RO-'.str_pad($order->id, 5, '0', STR_PAD_LEFT) }}</span></p>
+                <p class="text-slate-800 font-semibold text-lg">Mã HĐ: <span class="text-indigo-600">{{ $order->track_id ?? 'LSC-'.str_pad($order->id, 5, '0', STR_PAD_LEFT) }}</span></p>
                 <p class="text-slate-500 mt-1">Ngày in: {{ now()->format('d/m/Y H:i') }}</p>
                 <p class="text-slate-500">Người lập: {{ $order->advisor->name ?? 'Admin' }}</p>
             </div>

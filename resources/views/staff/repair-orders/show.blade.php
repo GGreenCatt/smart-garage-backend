@@ -487,16 +487,19 @@
         <div>
             <label class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Phương thức thanh toán</label>
             <div class="grid grid-cols-2 gap-3">
-                <button type="button" onclick="selectPaymentMethod('cash')" id="btnPmtCash" class="py-3 px-4 rounded-xl border-2 border-teal-500 bg-teal-50 dark:bg-teal-900/20 text-teal-700 dark:text-teal-400 font-bold transition flex items-center justify-center gap-2">
+                <button type="button" onclick="selectPaymentMethod('cash')" id="btnPmtCash" class="w-full py-3 px-4 rounded-xl border-2 border-teal-500 bg-teal-50 dark:bg-teal-900/20 text-teal-700 dark:text-teal-400 font-bold transition flex items-center justify-center gap-2">
                     <i class="fas fa-money-bill-wave"></i> Tiền Mặt
                 </button>
+                {{-- 
                 <button type="button" onclick="selectPaymentMethod('transfer')" id="btnPmtTransfer" class="py-3 px-4 rounded-xl border-2 border-slate-200 dark:border-slate-700 text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 font-bold transition flex items-center justify-center gap-2">
                     <i class="fas fa-qrcode"></i> Chuyển Khoản / QR
                 </button>
+                --}}
             </div>
             <input type="hidden" id="paymentMethodInput" value="cash">
         </div>
 
+        {{-- 
         <div id="qrPreviewArea" class="hidden text-center bg-slate-50 dark:bg-slate-800/50 p-6 rounded-xl border border-slate-200 dark:border-slate-700 relative min-h-[250px] flex items-center justify-center">
             <div id="qrLoading" class="text-slate-400 flex flex-col items-center">
                 <i class="fas fa-circle-notch fa-spin text-3xl mb-2"></i>
@@ -504,6 +507,7 @@
             </div>
             <img id="qrImage" src="" class="hidden w-48 h-48 mx-auto rounded-xl shadow-sm border p-1 bg-white">
         </div>
+        --}}
 
         <button onclick="confirmPayment()" id="btnConfirmPayment" class="w-full bg-teal-600 hover:bg-teal-700 text-white font-bold py-4 rounded-xl shadow-lg shadow-teal-600/30 transition text-lg flex items-center justify-center gap-2">
             <i class="fas fa-check-circle"></i> Xác Nhận Đã Thu Khách {{ number_format($order->total_amount) }}đ
