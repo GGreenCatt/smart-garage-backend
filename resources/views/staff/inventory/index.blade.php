@@ -73,6 +73,19 @@
             </div>
         </div>
 
+        @php
+            $catMapping = [
+                'Fluids' => 'Dầu & Chất lỏng',
+                'Filters' => 'Lọc phụ tùng',
+                'Accessories' => 'Phụ kiện',
+                'Tires' => 'Lốp xe',
+                'Engine' => 'Động cơ',
+                'Brakes' => 'Hệ thống phanh',
+                'Suspension' => 'Hệ thống treo',
+                'Electrical' => 'Hệ thống điện',
+                'Cabin' => 'Nội thất',
+            ];
+        @endphp
         <!-- Category Pills -->
         <div class="flex items-center gap-3 overflow-x-auto pb-4 no-scrollbar">
             <a href="{{ request()->fullUrlWithQuery(['category' => null]) }}" 
@@ -85,7 +98,7 @@
                 data-category="{{ $cat }}"
                 class="cat-pill px-6 py-2.5 rounded-full transition-all border whitespace-nowrap font-bold text-xs uppercase tracking-widest
                 {{ request('category') == $cat ? 'active-pill' : 'inactive-pill' }}">
-                {{ $cat }}
+                {{ $catMapping[$cat] ?? $cat }}
             </a>
             @endforeach
         </div>
@@ -134,9 +147,9 @@
 
 <!-- Refine Material Request Modal -->
 <div id="requestModal" class="fixed inset-0 z-[110] hidden items-center justify-center p-6">
-    <div class="absolute inset-0 bg-slate-950/90 backdrop-blur-xl opacity-0 transition-opacity duration-500" onclick="closeRequestModal()"></div>
+    <div id="requestModalBackdrop" class="absolute inset-0 bg-slate-950/90 backdrop-blur-xl opacity-0 transition-opacity duration-500" onclick="closeRequestModal()"></div>
     
-    <div class="relative w-full max-w-lg bg-white dark:bg-[#1e293b] rounded-[48px] shadow-2xl p-10 transform scale-95 opacity-0 transition-all duration-500 border border-white/10 overflow-hidden">
+    <div id="requestModalContent" class="relative w-full max-w-lg bg-white dark:bg-[#1e293b] rounded-[48px] shadow-2xl p-10 transform scale-95 opacity-0 transition-all duration-500 border border-white/10 overflow-hidden">
         <!-- Decorative bg blobs -->
         <div class="absolute -top-32 -right-32 w-64 h-64 bg-indigo-600/10 rounded-full blur-[80px]"></div>
         <div class="absolute -bottom-32 -left-32 w-64 h-64 bg-teal-600/10 rounded-full blur-[80px]"></div>
@@ -171,7 +184,7 @@
                     <label class="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.2em] mb-3 ml-1">Mã Phụ Tùng (SKU)</label>
                     <input type="text" name="sku" id="reqPartSku" readonly
                            class="w-full px-8 py-5 rounded-[24px] bg-slate-200/50 dark:bg-slate-800/80 border border-transparent text-slate-500 dark:text-slate-500 font-mono text-sm font-bold transition-all cursor-not-allowed uppercase shadow-inner" 
-                           placeholder="SKU-AUTO">
+                           placeholder="SKU-TỰ ĐỘNG">
                 </div>
             </div>
             
@@ -242,12 +255,61 @@
     }
 
     function updatePpillStates(currentUrlString) {
-        const url = new URL(currentUrlString);
+        const url = new URL(currentUrlString, window.location.origin);
         const category = url.searchParams.get('category');
-        const lowStock = url.searchParams.get('filter') === 'low_stock';
+        const filter = url.searchParams.get('filter');
+        const lowStock = filter === 'low_stock';
+        const search = url.searchParams.get('search');
         
+        // Update Search Form Hidden Inputs
+        const searchForm = document.getElementById('inventorySearchForm');
+        if (searchForm) {
+            // Category hidden input
+            let catInput = searchForm.querySelector('input[name="category"]');
+            if (category) {
+                if (!catInput) {
+                    catInput = document.createElement('input');
+                    catInput.type = 'hidden';
+                    catInput.name = 'category';
+                    searchForm.appendChild(catInput);
+                }
+                catInput.value = category;
+            } else if (catInput) {
+                catInput.remove();
+            }
+
+            // Filter hidden input
+            let filterInput = searchForm.querySelector('input[name="filter"]');
+            if (filter) {
+                if (!filterInput) {
+                    filterInput = document.createElement('input');
+                    filterInput.type = 'hidden';
+                    filterInput.name = 'filter';
+                    searchForm.appendChild(filterInput);
+                }
+                filterInput.value = filter;
+            } else if (filterInput) {
+                filterInput.remove();
+            }
+
+            // Sync main search input if needed (though usually it's the source)
+            const searchInput = searchForm.querySelector('input[name="search"]');
+            if (searchInput && search && searchInput.value !== search) {
+                searchInput.value = search;
+            }
+        }
+
         // Update category pills
         document.querySelectorAll('.cat-pill, .all-pill').forEach(pill => {
+            const pillUrl = new URL(pill.href, window.location.origin);
+            if (lowStock) pillUrl.searchParams.set('filter', 'low_stock');
+            else pillUrl.searchParams.delete('filter');
+            
+            if (search) pillUrl.searchParams.set('search', search);
+            else pillUrl.searchParams.delete('search');
+            
+            pill.href = pillUrl.toString();
+
             const pillCat = pill.dataset.category;
             if ((!category && !pillCat) || (category === pillCat)) {
                 pill.classList.add('active-pill');
@@ -261,15 +323,19 @@
         // Update low stock button
         const lowStockBtn = document.getElementById('lowStockBtn');
         if (lowStockBtn) {
+            const btnUrl = new URL(currentUrlString, window.location.origin);
             if (lowStock) {
-                lowStockBtn.classList.add('bg-orange-500', 'text-white', 'border-orange-400');
-                lowStockBtn.classList.remove('bg-white', 'dark:bg-[#0B1120]', 'text-slate-600');
+                btnUrl.searchParams.delete('filter');
+                lowStockBtn.classList.add('bg-orange-500', 'text-white', 'border-orange-400', 'shadow-lg', 'shadow-orange-500/30');
+                lowStockBtn.classList.remove('bg-white', 'dark:bg-[#0B1120]', 'text-slate-600', 'dark:text-slate-400', 'hover:bg-slate-50', 'dark:hover:bg-white/5', 'border-slate-200', 'dark:border-white/5');
                 lowStockBtn.querySelector('span.material-icons-round').textContent = 'filter_list_off';
             } else {
-                lowStockBtn.classList.remove('bg-orange-500', 'text-white', 'border-orange-400');
-                lowStockBtn.classList.add('bg-white', 'dark:bg-[#0B1120]', 'text-slate-600');
+                btnUrl.searchParams.set('filter', 'low_stock');
+                lowStockBtn.classList.remove('bg-orange-500', 'text-white', 'border-orange-400', 'shadow-lg', 'shadow-orange-500/30');
+                lowStockBtn.classList.add('bg-white', 'dark:bg-[#0B1120]', 'text-slate-600', 'dark:text-slate-400', 'hover:bg-slate-50', 'dark:hover:bg-white/5', 'border-slate-200', 'dark:border-white/5');
                 lowStockBtn.querySelector('span.material-icons-round').textContent = 'warning_amber';
             }
+            lowStockBtn.href = btnUrl.toString();
         }
     }
 
@@ -315,17 +381,29 @@
         updateInventory(window.location.href, false);
     });
 
-    // Details & Modal Functions
     function openDetailsPanel(part) {
         const content = document.getElementById('detailsPanelContent');
-        const img = part.image_url || 'https://placehold.co/800x600?text=Parts+Gallery';
+        const img = part.image_url || 'https://placehold.co/800x600?text=Hình+ảnh+vật+tư';
         const isLow = part.stock_quantity <= part.min_stock;
+        
+        const catMapping = {
+            'Fluids': 'Dầu & Chất lỏng',
+            'Filters': 'Lọc phụ tùng',
+            'Accessories': 'Phụ kiện',
+            'Tires': 'Lốp xe',
+            'Engine': 'Động cơ',
+            'Brakes': 'Hệ thống phanh',
+            'Suspension': 'Hệ thống treo',
+            'Electrical': 'Hệ thống điện',
+            'Cabin': 'Nội thất'
+        };
+        const mappedCat = catMapping[part.category] || part.category || 'PHỤ TÙNG CHÍNH HÃNG';
         
         content.innerHTML = `
             <div class="rounded-[40px] overflow-hidden aspect-[4/3] bg-slate-100 dark:bg-slate-900 shadow-2xl relative group">
                 <img src="${img}" class="w-full h-full object-cover group-hover:scale-110 transition duration-[2s]">
                 <div class="absolute inset-x-0 bottom-0 p-10 bg-gradient-to-t from-black/90 via-black/40 to-transparent">
-                    <span class="text-xs font-black text-indigo-400 uppercase tracking-[0.3em] mb-3 block">${part.category || 'PHỤ TÙNG CHÍNH HÃNG'}</span>
+                    <span class="text-xs font-black text-indigo-400 uppercase tracking-[0.3em] mb-3 block">${mappedCat}</span>
                     <h2 class="text-3xl font-black text-white leading-tight uppercase tracking-tight">${part.name}</h2>
                 </div>
             </div>
@@ -409,8 +487,8 @@
         modal.classList.remove('hidden');
         modal.classList.add('flex');
         setTimeout(() => {
-            modal.querySelector('div').classList.remove('opacity-0', 'scale-95');
-            modal.querySelector('.bg-slate-950').classList.remove('opacity-0');
+            document.getElementById('requestModalContent').classList.remove('opacity-0', 'scale-95');
+            document.getElementById('requestModalBackdrop').classList.remove('opacity-0');
         }, 50);
     }
 
@@ -421,8 +499,8 @@
     }
 
     function closeRequestModal() {
-        modal.querySelector('div').classList.add('opacity-0', 'scale-95');
-        modal.querySelector('.bg-slate-950').classList.add('opacity-0');
+        document.getElementById('requestModalContent').classList.add('opacity-0', 'scale-95');
+        document.getElementById('requestModalBackdrop').classList.add('opacity-0');
         setTimeout(() => {
             modal.classList.add('hidden');
             modal.classList.remove('flex');

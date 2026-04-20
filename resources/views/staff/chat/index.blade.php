@@ -8,30 +8,22 @@
 <div class="flex w-full h-full bg-slate-50 relative">
     <!-- Sidebar: Session List -->
     <div class="w-80 bg-white border-r border-slate-200 flex flex-col shadow-[2px_0_10px_rgba(0,0,0,0.02)] z-20">
-        <div class="p-5 border-b border-slate-100 flex flex-col bg-gradient-to-r from-blue-600 to-indigo-600 text-white relative overflow-hidden">
+        <div class="p-5 border-b border-slate-100 flex flex-col bg-gradient-to-r from-slate-800 to-slate-900 text-white relative overflow-hidden">
             <div class="absolute -right-4 -top-4 w-20 h-20 bg-white opacity-10 rounded-full blur-2xl"></div>
             <div class="flex items-center justify-between z-10 mb-4">
-                <h2 class="font-bold text-lg"><i class="fas fa-headset mr-2"></i> Trực Tuyến</h2>
-                <span class="bg-white/20 px-2.5 py-1 rounded text-xs font-bold border border-white/10" id="session-count">{{ $sessions->count() }}</span>
+                <h2 class="font-bold text-lg"><i class="fas fa-comments mr-2"></i> Tin Nhắn</h2>
             </div>
             
             <div class="flex bg-white/10 p-1 rounded-lg z-10 shadow-inner">
-                <button onclick="switchMode('customer')" id="tab-customer" class="flex-1 py-1.5 text-sm font-bold rounded-md bg-white text-blue-600 transition shadow">Khách Hàng</button>
-                <button onclick="switchMode('internal')" id="tab-internal" class="flex-1 py-1.5 text-sm font-bold rounded-md text-white hover:bg-white/20 transition">Nội Bộ</button>
+                <button onclick="switchMode('customer')" id="tab-customer" class="flex-1 py-1.5 text-xs font-bold rounded-md bg-white text-slate-800 transition shadow">CÔNG VIỆC</button>
+                <button onclick="switchMode('internal')" id="tab-internal" class="flex-1 py-1.5 text-xs font-bold rounded-md text-white hover:bg-white/20 transition">PHÒNG CHUNG</button>
             </div>
         </div>
 
-        <!-- Customer View -->
+        <!-- Customer/Job View -->
         <div id="customer-view" class="flex-1 flex flex-col overflow-hidden">
-            <div class="px-4 py-3 bg-slate-50 border-b border-slate-200">
-                <div class="relative">
-                    <input type="text" id="customerSearchInput" onkeyup="searchCustomers(this.value)" placeholder="Tìm khách hàng (Số ĐT...)" 
-                        class="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-lg text-xs font-semibold focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition placeholder:text-slate-400">
-                    <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[10px]"></i>
-                </div>
-                <div id="searchResults" class="hidden mt-2 bg-white border border-slate-200 rounded-lg shadow-lg absolute left-4 right-4 z-30 max-h-60 overflow-y-auto custom-scrollbar">
-                    <!-- Search results injected here -->
-                </div>
+            <div class="px-4 py-2 bg-slate-50 border-b border-slate-200">
+                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Đang sửa chữa</p>
             </div>
             <div class="flex-1 overflow-y-auto custom-scrollbar bg-slate-50/50" id="session-list">
                 <!-- Sessions injected via JS -->
@@ -40,8 +32,11 @@
 
         <!-- Internal View -->
         <div id="internal-view" class="hidden flex-1 flex flex-col overflow-hidden">
+            <div class="px-4 py-2 bg-slate-50 border-b border-slate-200">
+                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Nội bộ Garage</p>
+            </div>
             <div class="flex-1 overflow-y-auto custom-scrollbar bg-slate-50/50" id="contacts-list">
-                <!-- Contacts injected via JS -->
+                <!-- Single Group Item injected via JS -->
             </div>
         </div>
 
@@ -51,32 +46,30 @@
     <div class="flex-1 flex flex-col bg-slate-50 relative" id="chatArea">
         <div class="p-5 bg-white border-b border-slate-200 flex justify-between items-center shadow-sm z-10 h-[73px]">
             <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-lg hidden shadow-inner" id="chat-avatar">
-                   <i class="fas fa-user"></i>
+                <div class="w-10 h-10 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center font-bold text-lg hidden shadow-inner" id="chat-avatar">
+                   <i class="fas fa-user-gear"></i>
                 </div>
                 <div>
                     <h3 class="font-bold text-slate-800 text-lg transition" id="currentInfo">Chọn một đoạn chat để bắt đầu</h3>
                     <div class="flex items-center gap-1.5 hidden mt-0.5" id="currentStatus">
                         <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-                        <p class="text-[11px] text-green-600 font-bold uppercase tracking-wider">Đang hoạt động</p>
+                        <p class="text-[11px] text-green-600 font-bold uppercase tracking-wider">Đang trực tuyến</p>
                     </div>
                 </div>
             </div>
-            <div>
-               <!-- Header controls if needed -->
+            <div id="job-info-badge" class="hidden">
+                <span class="bg-blue-50 text-blue-700 px-3 py-1.5 rounded-lg text-xs font-bold border border-blue-100" id="order-id-label"></span>
             </div>
         </div>
 
         <div class="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar bg-slate-50 relative" id="messagesContainer">
-            <!-- decorative background pattern -->
             <div class="absolute inset-0 opacity-[0.03] pointer-events-none" style="background-image: radial-gradient(#3b82f6 1px, transparent 1px); background-size: 20px 20px;"></div>
             
             <div class="flex flex-col items-center justify-center h-full text-slate-400 relative z-10">
-                <div class="w-24 h-24 bg-blue-50 rounded-full flex items-center justify-center mb-4 shadow-inner">
-                    <i class="fas fa-comments text-4xl text-blue-200"></i>
+                <div class="w-24 h-24 bg-slate-100 rounded-full flex items-center justify-center mb-4 shadow-inner">
+                    <i class="fas fa-message text-4xl text-slate-300"></i>
                 </div>
-                <p class="font-medium text-slate-500">Chưa có cuộc trò chuyện nào được chọn</p>
-                <p class="text-xs mt-2 opacity-70">Chọn khách hàng từ danh sách bên trái để phản hồi</p>
+                <p class="font-medium text-slate-500 text-sm">Chưa có nội dung hội thoại</p>
             </div>
         </div>
 
@@ -97,10 +90,10 @@
                     <i class="fas fa-paperclip"></i>
                 </button>
                 
-                <div class="flex-1 bg-slate-100 rounded-xl px-4 py-2 flex items-center border border-slate-200 focus-within:border-blue-400 focus-within:ring-4 focus-within:ring-blue-500/10 transition pb-0">
-                    <textarea id="replyInput" rows="1" placeholder="Nhập tin nhắn... (Nhấn Enter để gửi)" class="bg-transparent border-none outline-none w-full text-slate-700 placeholder-slate-400 resize-none py-1.5 custom-scrollbar" disabled onkeydown="if(event.key==='Enter' && !event.shiftKey) { event.preventDefault(); handleReplySubmit(event); }"></textarea>
+                <div class="flex-1 bg-slate-100 rounded-xl px-4 py-2 flex items-center border border-slate-200 focus-within:border-slate-400 focus-within:ring-4 focus-within:ring-slate-500/5 transition">
+                    <textarea id="replyInput" rows="1" placeholder="Nhập tin nhắn..." class="bg-transparent border-none outline-none w-full text-slate-700 placeholder-slate-400 resize-none py-1.5 custom-scrollbar" disabled onkeydown="if(event.key==='Enter' && !event.shiftKey) { event.preventDefault(); handleReplySubmit(event); }"></textarea>
                 </div>
-                <button type="submit" id="sendBtn" class="bg-gradient-to-r from-blue-600 to-indigo-600 text-white w-12 h-12 rounded-xl flex items-center justify-center font-bold hover:shadow-lg hover:shadow-blue-500/30 disabled:opacity-50 transition transform hover:scale-105 flex-shrink-0" disabled>
+                <button type="submit" id="sendBtn" class="bg-slate-800 text-white w-12 h-12 rounded-xl flex items-center justify-center font-bold hover:bg-black disabled:opacity-50 transition transform hover:scale-105 flex-shrink-0" disabled>
                     <i class="fas fa-paper-plane"></i>
                 </button>
             </form>
@@ -111,15 +104,10 @@
 
 @push('scripts')
 <script>
-    let sessions = @json($sessions);
+    let sessions = [];
     let activeSessionId = null;
-    
-    // Internal chat state
-    let chatMode = 'customer'; // 'customer' or 'internal'
-    let contacts = [];
-    let activeContactId = null;
-    let activeContactName = '';
-    
+    let chatMode = 'customer'; 
+    let internalMessages = [];
     let pollInterval = null;
 
     function handleReplySubmit(e) {
@@ -128,368 +116,195 @@
         else sendInternalReply(e);
     }
 
-    function getEmptyState() {
-        return `
-            <div class="absolute inset-0 opacity-[0.03] pointer-events-none" style="background-image: radial-gradient(#3b82f6 1px, transparent 1px); background-size: 20px 20px;"></div>
-            <div class="flex flex-col items-center justify-center h-full text-slate-400 relative z-10">
-                <div class="w-24 h-24 bg-blue-50 rounded-full flex items-center justify-center mb-4 shadow-inner">
-                    <i class="fas fa-comments text-4xl text-blue-200"></i>
-                </div>
-                <p class="font-medium text-slate-500">Chưa có cuộc trò chuyện nào được chọn</p>
-                <p class="text-xs mt-2 opacity-70">Chọn hội thoại từ danh sách bên trái để phản hồi</p>
-            </div>
-        `;
-    }
-
     function switchMode(mode) {
         chatMode = mode;
         const tabC = document.getElementById('tab-customer');
         const tabI = document.getElementById('tab-internal');
         const viewC = document.getElementById('customer-view');
         const viewI = document.getElementById('internal-view');
+        const badge = document.getElementById('job-info-badge');
 
+        // Reset view
         document.getElementById('currentInfo').innerText = 'Chọn một đoạn chat để bắt đầu';
         document.getElementById('chat-avatar').classList.add('hidden');
         document.getElementById('currentStatus').classList.add('hidden');
-        document.getElementById('messagesContainer').innerHTML = getEmptyState();
+        badge.classList.add('hidden');
+        document.getElementById('messagesContainer').innerHTML = `<div class="flex flex-col items-center justify-center h-full text-slate-400 relative z-10"><div class="w-24 h-24 bg-slate-100 rounded-full flex items-center justify-center mb-4 shadow-inner"><i class="fas fa-message text-4xl text-slate-300"></i></div><p class="font-medium text-slate-500 text-sm">Chưa có nội dung hội thoại</p></div>`;
         document.getElementById('replyInput').disabled = true;
         document.getElementById('sendBtn').disabled = true;
         document.getElementById('attachBtn').disabled = true;
         
         if (mode === 'customer') {
-            tabC.className = "flex-1 py-1.5 text-sm font-bold rounded-md bg-white text-blue-600 transition shadow";
-            tabI.className = "flex-1 py-1.5 text-sm font-bold rounded-md text-white hover:bg-white/20 transition";
+            tabC.className = "flex-1 py-1.5 text-xs font-bold rounded-md bg-white text-slate-800 transition shadow";
+            tabI.className = "flex-1 py-1.5 text-xs font-bold rounded-md text-white hover:bg-white/20 transition";
             viewC.classList.remove('hidden');
-            viewC.classList.add('flex');
             viewI.classList.add('hidden');
-            viewI.classList.remove('flex');
-            document.getElementById('session-count').innerText = sessions.length;
-            
+            renderSessionList();
             if(activeSessionId) loadSession(activeSessionId);
         } else {
-            tabI.className = "flex-1 py-1.5 text-sm font-bold rounded-md bg-white text-blue-600 transition shadow";
-            tabC.className = "flex-1 py-1.5 text-sm font-bold rounded-md text-white hover:bg-white/20 transition";
+            tabI.className = "flex-1 py-1.5 text-xs font-bold rounded-md bg-white text-slate-800 transition shadow";
+            tabC.className = "flex-1 py-1.5 text-xs font-bold rounded-md text-white hover:bg-white/20 transition";
             viewI.classList.remove('hidden');
-            viewI.classList.add('flex');
             viewC.classList.add('hidden');
-            viewC.classList.remove('flex');
-            document.getElementById('session-count').innerText = contacts.length;
-            
-            if(contacts.length === 0) fetchContacts();
-            else if(activeContactId) loadContact(activeContactId, activeContactName);
+            renderInternalGroupItem();
+            loadInternalGroup();
         }
-    }
-
-    function playPing() {
-        try {
-            const ctx = new (window.AudioContext || window.webkitAudioContext)();
-            const osc = ctx.createOscillator();
-            const gain = ctx.createGain();
-            osc.connect(gain);
-            gain.connect(ctx.destination);
-            osc.type = 'triangle';
-            osc.frequency.setValueAtTime(600, ctx.currentTime);
-            osc.frequency.exponentialRampToValueAtTime(1000, ctx.currentTime + 0.1);
-            gain.gain.setValueAtTime(0, ctx.currentTime);
-            gain.gain.linearRampToValueAtTime(0.3, ctx.currentTime + 0.05);
-            gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
-            osc.start();
-            osc.stop(ctx.currentTime + 0.3);
-        } catch(e) {}
     }
 
     function renderSessionList() {
         const list = document.getElementById('session-list');
-        document.getElementById('session-count').innerText = sessions.length;
-        
         if (sessions.length === 0) {
-            list.innerHTML = `<div class="p-8 text-center text-slate-400 flex flex-col items-center"><i class="fas fa-inbox text-3xl mb-3 text-slate-300"></i><span class="text-sm">Không có yêu cầu nào.</span></div>`;
+            list.innerHTML = `<div class="p-8 text-center text-slate-400 flex flex-col items-center"><i class="fas fa-inbox text-3xl mb-3 text-slate-300"></i><span class="text-xs uppercase font-bold tracking-widest">Không có công việc</span></div>`;
             return;
         }
         
         list.innerHTML = '';
         sessions.forEach(session => {
-            const name = session.customer ? session.customer.name : 'Khách #' + session.guest_session_id.slice(-4);
-            const lastMsg = session.messages.length > 0 ? session.messages[session.messages.length - 1] : {message: 'Đã bắt đầu kết nối', is_staff: true};
+            const customerName = session.customer ? session.customer.name : 'Khách vãng lai';
+            const plate = session.repair_order && session.repair_order.vehicle ? session.repair_order.vehicle.plate_number : 'N/A';
+            const lastMsg = session.messages.length > 0 ? session.messages[session.messages.length - 1].message : 'Bắt đầu chat...';
             
-            // Highlight logic
-            let hasNew = false;
-            // If the last message is from guest, and we're not currently viewing it, highlight it
-            if (!lastMsg.is_staff && session.id !== activeSessionId) {
-                hasNew = true;
-            }
-
-            const bgClass = activeSessionId === session.id ? 'bg-blue-50 border-l-4 border-l-blue-600' : 'bg-white border-b border-slate-100 hover:bg-slate-50 border-l-4 border-l-transparent';
+            const isActive = activeSessionId === session.id;
+            const bgClass = isActive ? 'bg-blue-50 border-l-4 border-l-slate-800 shadow-sm' : 'bg-white border-b border-slate-100 hover:bg-slate-50 border-l-4 border-l-transparent';
             
             list.innerHTML += `
                 <div onclick="loadSession(${session.id})" class="p-4 cursor-pointer transition ${bgClass} group">
-                    <div class="flex justify-between items-start mb-1.5">
-                        <span class="font-bold text-[13px] ${hasNew ? 'text-blue-700' : 'text-slate-700'} group-hover:text-blue-600 transition truncate pr-2">
-                            ${name}
-                        </span>
-                        <div class="flex items-center gap-1.5 flex-shrink-0">
-                            ${hasNew ? '<span class="w-2 h-2 bg-red-500 rounded-full shadow-[0_0_5px_#ef4444] animate-pulse"></span>' : ''}
-                            <span class="text-[9px] uppercase font-bold px-1.5 py-0.5 rounded ${session.status === 'open' ? 'bg-green-100 text-green-700' : 'bg-slate-200 text-slate-500'}">
-                                ${session.status}
-                            </span>
-                        </div>
+                    <div class="flex justify-between items-start mb-1">
+                        <span class="font-bold text-[13px] text-slate-800 truncate pr-2">${customerName}</span>
+                        <span class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-200 text-slate-600 uppercase">#${session.repair_order_id}</span>
                     </div>
-                    <p class="text-xs ${hasNew ? 'font-semibold text-slate-800' : 'text-slate-500'} truncate">
-                        ${!lastMsg.is_staff ? '<span class="text-blue-500 mr-1"><i class="fas fa-user-circle"></i> KH:</span>' : '<span class="text-slate-400 mr-1"><i class="fas fa-headset"></i> Bạn:</span>'} ${lastMsg.message}
-                    </p>
+                    <div class="flex items-center gap-1.5 mb-2">
+                        <span class="text-[10px] font-bold text-blue-600 bg-blue-50 px-1.5 rounded">${plate}</span>
+                    </div>
+                    <p class="text-[11px] text-slate-500 truncate italic">"${lastMsg}"</p>
                 </div>
             `;
         });
     }
 
-    function renderActiveChat() {
-        if (!activeSessionId) return;
-        const session = sessions.find(s => s.id === activeSessionId);
+    function loadSession(id) {
+        activeSessionId = id;
+        const session = sessions.find(s => s.id === id);
         if(!session) return;
 
-        const container = document.getElementById('messagesContainer');
-        const wasScrolledToBottom = container.scrollHeight - container.scrollTop <= container.clientHeight + 50;
-
-        // Render header
-        const name = session.customer ? session.customer.name : 'Khách #' + session.guest_session_id.slice(-4);
-        document.getElementById('currentInfo').innerText = name;
+        document.getElementById('replyInput').disabled = false;
+        document.getElementById('sendBtn').disabled = false;
+        document.getElementById('attachBtn').disabled = false;
+        
+        // Header info
+        document.getElementById('currentInfo').innerText = session.customer ? session.customer.name : 'Khách hàng';
         document.getElementById('chat-avatar').classList.remove('hidden');
         document.getElementById('currentStatus').classList.remove('hidden');
+        
+        const badge = document.getElementById('job-info-badge');
+        badge.classList.remove('hidden');
+        document.getElementById('order-id-label').innerText = 'ĐƠN #' + session.repair_order_id;
 
-        // Render messages
+        renderMessages(session.messages);
+        renderSessionList();
+    }
+
+    function renderMessages(messages, isGroup = false) {
+        const container = document.getElementById('messagesContainer');
+        const wasScrolledToBottom = container.scrollHeight - container.scrollTop <= container.clientHeight + 100;
+
         container.innerHTML = `<div class="absolute inset-0 opacity-[0.03] pointer-events-none" style="background-image: radial-gradient(#3b82f6 1px, transparent 1px); background-size: 20px 20px;"></div>`;
         
-        session.messages.forEach(msg => {
-            const isMe = msg.is_staff;
+        messages.forEach(msg => {
+            const isMe = isGroup ? (msg.sender_id === {{ auth()->id() ?? 0 }}) : msg.is_staff;
             const div = document.createElement('div');
-            div.className = isMe ? 'flex justify-end relative z-10 animate-fade-in mb-3' : 'flex justify-start relative z-10 animate-fade-in mb-3';
+            div.className = isMe ? 'flex justify-end mb-4' : 'flex justify-start mb-4';
             
-            let msgContent = msg.message;
+            let nameTag = '';
+            if (isGroup && !isMe && msg.sender) {
+                nameTag = `<p class="text-[10px] font-bold text-slate-400 mb-1 ml-1">${msg.sender.name}</p>`;
+            }
+
+            let content = msg.message;
             if (msg.attachment_path) {
-                msgContent += `<div class="mt-2"><img src="${msg.attachment_path}" class="max-w-full rounded-lg cursor-pointer hover:opacity-90 transition border border-slate-200 shadow-sm" onclick="window.open('${msg.attachment_path}', '_blank')"></div>`;
+                content += `<div class="mt-2"><img src="${msg.attachment_path}" class="rounded-lg max-w-sm cursor-zoom-in" onclick="window.open('${msg.attachment_path}')"></div>`;
             }
 
             div.innerHTML = `
-                <div class="${isMe ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-tr-none' : 'bg-white text-slate-800 border border-slate-200 rounded-tl-none'} px-4 py-2.5 rounded-2xl max-w-[75%] text-[13px] shadow-sm">
-                    ${msgContent}
+                <div class="max-w-[70%]">
+                    ${nameTag}
+                    <div class="${isMe ? 'bg-slate-800 text-white rounded-tr-none' : 'bg-white text-slate-800 border border-slate-200 rounded-tl-none'} px-4 py-2.5 rounded-2xl shadow-sm text-sm">
+                        ${content}
+                    </div>
+                    <p class="text-[9px] text-slate-400 mt-1 ${isMe ? 'text-right' : 'text-left'} uppercase font-bold">${new Date(msg.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</p>
                 </div>
             `;
             container.appendChild(div);
         });
 
-        if (wasScrolledToBottom || session.messages.length > 0) {
-            container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
-        }
+        if (wasScrolledToBottom) container.scrollTop = container.scrollHeight;
     }
 
-    function loadSession(id) {
-        activeSessionId = id;
-        document.getElementById('currentSessionId').value = id;
+    function renderInternalGroupItem() {
+        const list = document.getElementById('contacts-list');
+        list.innerHTML = `
+            <div onclick="loadInternalGroup()" class="p-5 cursor-pointer bg-blue-50 border-l-4 border-l-slate-800 shadow-sm transition">
+                <div class="flex items-center gap-3">
+                    <div class="w-12 h-12 rounded-xl bg-slate-800 text-white flex items-center justify-center shadow-lg transform rotate-3">
+                        <i class="fas fa-users-viewfinder text-xl"></i>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-slate-800 text-sm">NHÓM CHUNG GARAGE</h4>
+                        <p class="text-[10px] text-blue-600 font-bold uppercase tracking-wider">Tất cả nhân viên</p>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    function loadInternalGroup() {
+        document.getElementById('currentInfo').innerText = 'Nhóm Chung Garage';
+        document.getElementById('chat-avatar').classList.remove('hidden');
+        document.getElementById('currentStatus').classList.remove('hidden');
+        document.getElementById('job-info-badge').classList.add('hidden');
+        
         document.getElementById('replyInput').disabled = false;
         document.getElementById('sendBtn').disabled = false;
-        document.getElementById('attachBtn').disabled = false;
-        
-        const replyInput = document.getElementById('replyInput');
-        replyInput.focus();
+        document.getElementById('attachBtn').disabled = true; // No image for group yet
 
-        renderSessionList(); // Re-render to clear red dot
-        renderActiveChat();  // Render chat
+        fetchInternalMessages();
     }
 
-    function previewStaffImage(input) {
-        if (input.files && input.files[0]) {
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                document.getElementById('staff-preview-img').src = e.target.result;
-                document.getElementById('staff-image-preview').classList.remove('hidden');
-            }
-            reader.readAsDataURL(input.files[0]);
-        }
-    }
-
-    function clearStaffImage() {
-        document.getElementById('staff-image-input').value = "";
-        document.getElementById('staff-image-preview').classList.add('hidden');
-        document.getElementById('staff-preview-img').src = "";
+    function fetchInternalMessages() {
+        fetch('{{ route('staff.internal_chat.messages') }}')
+            .then(res => res.json())
+            .then(data => {
+                internalMessages = data.messages;
+                if(chatMode === 'internal') renderMessages(internalMessages, true);
+            });
     }
 
     function sendStaffReply(e) {
-        if(e) e.preventDefault();
         const input = document.getElementById('replyInput');
-        const fileInput = document.getElementById('staff-image-input');
-        const btn = document.getElementById('sendBtn');
         const msg = input.value.trim();
-        const file = fileInput.files[0];
-
-        if((!msg && !file) || !activeSessionId) return;
-
-        btn.disabled = true;
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-
-        // Optimistic rendering
-        const container = document.getElementById('messagesContainer');
-        const div = document.createElement('div');
-        div.className = 'flex justify-end relative z-10 animate-fade-in mb-3';
-        
-        let optimisticContent = msg || '[Hình ảnh]';
-        div.innerHTML = `<div class="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-4 py-2.5 rounded-2xl max-w-[75%] text-[13px] rounded-tr-none shadow-sm opacity-70 border border-blue-400">
-            ${optimisticContent} <i class="fas fa-spinner fa-spin text-[10px] ml-2"></i>
-        </div>`;
-        container.appendChild(div);
-        container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
-        
-        input.value = '';
-        clearStaffImage();
+        const file = document.getElementById('staff-image-input').files[0];
+        if(!msg && !file) return;
 
         const formData = new FormData();
         formData.append('chat_session_id', activeSessionId);
         formData.append('message', msg);
-        if (file) formData.append('image', file);
+        if(file) formData.append('image', file);
+
+        input.value = '';
+        clearStaffImage();
 
         fetch('{{ route("staff.chat.reply") }}', {
             method: 'POST',
             headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
             body: formData
-        })
-        .then(res => res.json())
-        .then(data => fetchSessions())
-        .finally(() => {
-            btn.disabled = false;
-            btn.innerHTML = '<i class="fas fa-paper-plane"></i>';
-        });
-    }
-
-    // INTERNAL CHAT logic
-    function fetchContacts() {
-        return fetch('{{ route("staff.internal_chat.contacts") }}')
-            .then(res => res.json())
-            .then(data => {
-                let shouldPing = false;
-                // Optional: detect unreads
-                data.contacts.forEach(c => {
-                    const oldC = contacts.find(old => old.id === c.id);
-                    if(!oldC && c.unreads) shouldPing = true;
-                    if(oldC && !oldC.unreads && c.unreads) shouldPing = true;
-                });
-                
-                if (shouldPing && chatMode === 'internal') playPing();
-                
-                contacts = data.contacts;
-                if(chatMode === 'internal') {
-                    document.getElementById('session-count').innerText = contacts.length;
-                    renderContactList();
-                    if(activeContactId) fetchInternalMessages(); // refresh active view
-                }
-            });
-    }
-
-    function renderContactList() {
-        const list = document.getElementById('contacts-list');
-        if (contacts.length === 0) {
-            list.innerHTML = `<div class="p-8 text-center text-slate-400 flex flex-col items-center"><i class="fas fa-users text-3xl mb-3 text-slate-300"></i><span class="text-sm">Không có liên hệ.</span></div>`;
-            return;
-        }
-        
-        list.innerHTML = '';
-        contacts.forEach(user => {
-            const hasNew = user.unreads;
-            const bgClass = activeContactId === user.id ? 'bg-blue-50 border-l-4 border-l-blue-600' : 'bg-white border-b border-slate-100 hover:bg-slate-50 border-l-4 border-l-transparent';
-            
-            list.innerHTML += `
-                <div onclick="loadContact(${user.id}, '${user.name.replace(/'/g, "\\'")}')" class="p-4 cursor-pointer transition ${bgClass} group">
-                    <div class="flex justify-between items-start mb-1.5">
-                        <span class="font-bold text-[13px] ${hasNew ? 'text-blue-700' : 'text-slate-700'} group-hover:text-blue-600 transition truncate pr-2">
-                            ${user.name}
-                        </span>
-                        <div class="flex items-center gap-1.5 flex-shrink-0">
-                            ${hasNew ? '<span class="w-2 h-2 bg-red-500 rounded-full shadow-[0_0_5px_#ef4444] animate-pulse"></span>' : ''}
-                            <span class="text-[9px] uppercase font-bold px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-700">
-                                ${user.role}
-                            </span>
-                        </div>
-                    </div>
-                    <p class="text-xs ${hasNew ? 'font-semibold text-slate-800' : 'text-slate-500'} truncate">
-                        ${user.last_message ? user.last_message.message : 'Chưa có tin nhắn'}
-                    </p>
-                </div>
-            `;
-        });
-    }
-
-    function loadContact(id, name) {
-        activeContactId = id;
-        activeContactName = name;
-        
-        document.getElementById('currentInfo').innerText = name;
-        document.getElementById('chat-avatar').classList.remove('hidden');
-        document.getElementById('currentStatus').classList.remove('hidden');
-        
-        document.getElementById('replyInput').disabled = false;
-        document.getElementById('sendBtn').disabled = false;
-        
-        // Disable attach for now in internal chat
-        document.getElementById('attachBtn').disabled = true; 
-        
-        document.getElementById('replyInput').focus();
-        
-        renderContactList();
-        fetchInternalMessages();
-    }
-
-    function fetchInternalMessages() {
-        if (!activeContactId) return;
-        fetch(`{{ route('staff.internal_chat.messages') }}?user_id=${activeContactId}`)
-            .then(res => res.json())
-            .then(data => {
-                renderInternalChat(data.messages);
-            });
-    }
-
-    function renderInternalChat(messages) {
-        const container = document.getElementById('messagesContainer');
-        const wasScrolledToBottom = container.scrollHeight - container.scrollTop <= container.clientHeight + 50;
-
-        container.innerHTML = `<div class="absolute inset-0 opacity-[0.03] pointer-events-none" style="background-image: radial-gradient(#3b82f6 1px, transparent 1px); background-size: 20px 20px;"></div>`;
-        
-        messages.forEach(msg => {
-            const isMe = msg.sender_id === {{ auth()->id() ?? '0' }};
-            const div = document.createElement('div');
-            div.className = isMe ? 'flex justify-end relative z-10 animate-fade-in mb-3' : 'flex justify-start relative z-10 animate-fade-in mb-3';
-            
-            div.innerHTML = `
-                <div class="${isMe ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-tr-none' : 'bg-white text-slate-800 border border-slate-200 rounded-tl-none'} px-4 py-2.5 rounded-2xl max-w-[75%] text-[13px] shadow-sm">
-                    ${msg.message}
-                </div>
-            `;
-            container.appendChild(div);
-        });
-
-        if (wasScrolledToBottom || messages.length > 0) {
-            container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
-        }
+        }).then(() => fetchPollData());
     }
 
     function sendInternalReply(e) {
-        if(e) e.preventDefault();
         const input = document.getElementById('replyInput');
-        const btn = document.getElementById('sendBtn');
         const msg = input.value.trim();
+        if(!msg) return;
 
-        if(!msg || !activeContactId) return;
-
-        btn.disabled = true;
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-
-        // Optimistic rendering
-        const container = document.getElementById('messagesContainer');
-        const div = document.createElement('div');
-        div.className = 'flex justify-end relative z-10 animate-fade-in mb-3';
-        div.innerHTML = `<div class="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-4 py-2.5 rounded-2xl max-w-[75%] text-[13px] rounded-tr-none shadow-sm opacity-70 border border-blue-400">
-            ${msg} <i class="fas fa-spinner fa-spin text-[10px] ml-2"></i>
-        </div>`;
-        container.appendChild(div);
-        container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
-        
         input.value = '';
 
         fetch('{{ route("staff.internal_chat.send") }}', {
@@ -498,130 +313,45 @@
                 'X-CSRF-TOKEN': '{{ csrf_token() }}',
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({
-                receiver_id: activeContactId,
-                message: msg
-            })
-        })
-        .then(res => res.json())
-        .then(data => fetchContacts())
-        .finally(() => {
-            btn.disabled = false;
-            btn.innerHTML = '<i class="fas fa-paper-plane"></i>';
-        });
+            body: JSON.stringify({ message: msg })
+        }).then(() => fetchPollData());
     }
 
-    // End INTERNAL CHAT logic
-
-
-    // Polling Logic
-    function pollData() {
-        // Only fetch Customer sessions to count unreads etc.
+    function fetchPollData() {
         fetch('{{ route("staff.chat.sessions") }}')
             .then(res => res.json())
             .then(data => {
-                let shouldPing = false;
-                data.sessions.forEach(newSession => {
-                    const oldSession = sessions.find(s => s.id === newSession.id);
-                    if (oldSession) {
-                        const newCount = newSession.messages.length;
-                        const oldCount = oldSession.messages.length;
-                        if (newCount > oldCount && !newSession.messages[newCount - 1].is_staff) {
-                            shouldPing = true;
-                        }
-                    } else if (newSession.messages.length > 0 && !newSession.messages[newSession.messages.length - 1].is_staff) {
-                        shouldPing = true;
-                    }
-                });
-
-                if (shouldPing && chatMode === 'customer') playPing();
                 sessions = data.sessions;
-                
                 if (chatMode === 'customer') {
                     renderSessionList();
-                    if (activeSessionId) renderActiveChat();
+                    if(activeSessionId) {
+                        const s = sessions.find(x => x.id === activeSessionId);
+                        if(s) renderMessages(s.messages);
+                    }
                 }
             });
-
-        // Also fetch Internal Contacts
-        fetchContacts();
-    }
-
-    function fetchSessions() {
-        pollData(); // Force an immediate poll update
-    }
-
-    function startPolling() {
-        if (!pollInterval) {
-            pollInterval = setInterval(pollData, 3000);
-        }
-    }
-
-    // New functions for customer search and session initiation
-    let searchTimeout = null;
-    function searchCustomers(query) {
-        if (searchTimeout) clearTimeout(searchTimeout);
-        const resultsDiv = document.getElementById('searchResults');
         
-        if (query.length < 2) {
-            resultsDiv.classList.add('hidden');
-            return;
-        }
-
-        searchTimeout = setTimeout(() => {
-            fetch(`{{ route('staff.chat.search') }}?query=${encodeURIComponent(query)}`)
-                .then(res => res.json())
-                .then(data => {
-                    if (data.customers.length === 0) {
-                        resultsDiv.innerHTML = '<div class="p-3 text-xs text-slate-500 italic">Không tìm thấy khách hàng.</div>';
-                    } else {
-                        resultsDiv.innerHTML = '';
-                        data.customers.forEach(user => {
-                            resultsDiv.innerHTML += `
-                                <div onclick="startNewChat(${user.id})" class="p-3 hover:bg-slate-50 cursor-pointer border-b border-slate-100 last:border-0">
-                                    <div class="font-bold text-[13px] text-slate-700">${user.name}</div>
-                                    <div class="text-[11px] text-slate-500">${user.phone || 'N/A'}</div>
-                                </div>
-                            `;
-                        } );
-                    }
-                    resultsDiv.classList.remove('hidden');
-                });
-        }, 300);
+        fetchInternalMessages();
     }
 
-    function startNewChat(customerId) {
-        document.getElementById('searchResults').classList.add('hidden');
-        document.getElementById('customerSearchInput').value = '';
-        
-        fetch('{{ route('staff.chat.start') }}', {
-            method: 'POST',
-            headers: { 
-                'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ customer_id: customerId })
-        })
-        .then(res => res.json())
-        .then(data => {
-            if (data.success) {
-                // Fetch all sessions to include the new one
-                fetchSessions();
-                // Select the new session
-                setTimeout(() => loadSession(data.session_id), 500);
+    // Helper preview stuff
+    function previewStaffImage(input) {
+        if (input.files && input.files[0]) {
+            const reader = new FileReader();
+            reader.onload = e => {
+                document.getElementById('staff-preview-img').src = e.target.result;
+                document.getElementById('staff-image-preview').classList.remove('hidden');
             }
-        });
+            reader.readAsDataURL(input.files[0]);
+        }
+    }
+    function clearStaffImage() {
+        document.getElementById('staff-image-input').value = "";
+        document.getElementById('staff-image-preview').classList.add('hidden');
     }
 
-    // Initialize
-    renderSessionList();
-    startPolling();
-
-    // Close search results when clicking outside
-    document.addEventListener('click', e => {
-        if (!e.target.closest('#searchResults') && !e.target.closest('#customerSearchInput')) {
-            document.getElementById('searchResults').classList.add('hidden');
-        }
-    });
+    // Start
+    fetchPollData();
+    setInterval(fetchPollData, 4000);
 </script>
 @endpush

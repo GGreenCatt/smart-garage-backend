@@ -8,7 +8,8 @@ class InternalMessage extends Model
 {
     protected $fillable = [
         'sender_id',
-        'receiver_id',
+        'receiver_id', // Null for group chats
+        'is_group',
         'message',
         'read_at',
     ];

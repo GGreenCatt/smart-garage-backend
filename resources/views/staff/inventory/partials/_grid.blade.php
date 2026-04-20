@@ -6,7 +6,7 @@
         
         <!-- Image Area -->
         <div class="relative h-48 bg-slate-50 dark:bg-slate-900/50 overflow-hidden cursor-pointer">
-            <img src="{{ $part->image_url ?? 'https://placehold.co/400x300?text=Part' }}" class="w-full h-full object-cover group-hover:scale-110 transition duration-700">
+            <img src="{{ $part->image_url ?? 'https://placehold.co/400x300?text=Vật+tư' }}" class="w-full h-full object-cover group-hover:scale-110 transition duration-700">
             
             <!-- Stock Status Pulse Indicator -->
             <div class="absolute top-4 right-4">
@@ -33,8 +33,21 @@
         <!-- Content -->
         <div class="p-5 flex-1 flex flex-col cursor-pointer bg-white dark:bg-[#1e293b]">
             <div class="mb-4">
+                @php
+                    $catMapping = [
+                        'Fluids' => 'Dầu & Chất lỏng',
+                        'Filters' => 'Lọc phụ tùng',
+                        'Accessories' => 'Phụ kiện',
+                        'Tires' => 'Lốp xe',
+                        'Engine' => 'Động cơ',
+                        'Brakes' => 'Hệ thống phanh',
+                        'Suspension' => 'Hệ thống treo',
+                        'Electrical' => 'Hệ thống điện',
+                        'Cabin' => 'Nội thất',
+                    ];
+                @endphp
                 <div class="flex items-center justify-between mb-2">
-                    <span class="text-[9px] font-black text-indigo-500 uppercase tracking-[0.2em]">{{ $part->category ?? 'Phụ tùng' }}</span>
+                    <span class="text-[9px] font-black text-indigo-500 uppercase tracking-[0.2em]">{{ $catMapping[$part->category] ?? $part->category ?? 'Phụ tùng' }}</span>
                     <span class="text-[10px] font-mono font-bold text-slate-400 px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-white/5">#{{ $part->sku }}</span>
                 </div>
                 <h3 class="font-heading font-bold text-slate-800 dark:text-white leading-snug group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors line-clamp-2 md:text-base">{{ $part->name }}</h3>

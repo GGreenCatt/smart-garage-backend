@@ -51,10 +51,10 @@ class StaffController extends Controller
             $order->mechanics_display = !empty($mechanicNames) ? implode(', ', $mechanicNames) : 'Chưa phân công';
 
             // Status Label
-            if ($order->status == 'pending') $order->status_label = 'Pending';
-            elseif (in_array($order->status, ['in_progress', 'pending_approval', 'approved'])) $order->status_label = 'Processing';
-            elseif ($order->status == 'completed') $order->status_label = 'Ready';
-            else $order->status_label = ucfirst($order->status);
+            if ($order->status == 'pending') $order->status_label = 'Chờ xử lý';
+            elseif (in_array($order->status, ['in_progress', 'pending_approval', 'approved'])) $order->status_label = 'Đang xử lý';
+            elseif ($order->status == 'completed') $order->status_label = 'Sẵn sàng';
+            else $order->status_label = $order->status === 'cancelled' ? 'Đã hủy' : ucfirst($order->status);
 
             return $order;
         });
@@ -323,9 +323,7 @@ class StaffController extends Controller
 
     public function showOrder($id)
     {
-        $order = \App\Models\RepairOrder::with(['vehicle.user', 'tasks.children.mechanic', 'tasks.mechanic', 'items'])->findOrFail($id);
-        $mechanics = \App\Models\User::where('role', 'staff')->get(['id', 'name']);
-        return view('staff.repair-orders.show', compact('order', 'mechanics'));
+        return redirect()->route('staff.dashboard', ['order_id' => $id]);
     }
 
     public function updateOrderStatus(Request $request, $id)
@@ -346,6 +344,22 @@ class StaffController extends Controller
             \App\Models\RepairTask::where('repair_order_id', $order->id)
                 ->whereNull('mechanic_id')
                 ->update(['mechanic_id' => auth()->id()]);
+
+            // Create or open chat session for this job
+            \App\Models\ChatSession::updateOrCreate(
+                ['repair_order_id' => $order->id],
+                [
+                    'customer_id' => $order->customer_id,
+                    'status' => 'open',
+                    'updated_at' => now()
+                ]
+            );
+        }
+
+        // Un-assign tasks if reverted back to pending
+        if ($validated['status'] === 'pending') {
+            \App\Models\RepairTask::where('repair_order_id', $order->id)
+                ->update(['mechanic_id' => null]);
         }
 
         // Notify Customer about status change
@@ -364,6 +378,12 @@ class StaffController extends Controller
                     route('customer.dashboard'),
                     "{$icon} {$iconColor}"
                 );
+
+                // Close chat session if completed
+                if ($validated['status'] === 'completed') {
+                    \App\Models\ChatSession::where('repair_order_id', $order->id)
+                        ->update(['status' => 'closed', 'updated_at' => now()]);
+                }
             }
         }
 
@@ -480,7 +500,11 @@ class StaffController extends Controller
             $q->latest();
         }])->findOrFail($id);
         
-        return view('staff.customers.show', compact('customer'));
+        $totalSpent = $customer->repairOrders()
+            ->where('payment_status', 'paid')
+            ->sum('total_amount');
+            
+        return view('staff.customers.show', compact('customer', 'totalSpent'));
     }
 
     public function create()

@@ -183,6 +183,10 @@ Route::middleware(['auth', 'verified', 'staff'])->prefix('staff')->name('staff.'
     Route::post('/sos/{id}/accept', [App\Http\Controllers\Staff\SosController::class, 'accept'])->name('sos.accept');
     Route::post('/sos/{id}/status', [App\Http\Controllers\Staff\SosController::class, 'updateStatus'])->name('sos.status');
     Route::post('/sos/{id}/unassign', [App\Http\Controllers\Staff\SosController::class, 'unassign'])->name('sos.unassign');
+    
+    // SOS Location APIs
+    Route::post('/sos/location/update', [App\Http\Controllers\Staff\SosController::class, 'updateLocation'])->name('sos.location.update');
+    Route::get('/sos/location/staff-members', [App\Http\Controllers\Staff\SosController::class, 'getStaffLocations'])->name('sos.location.staff-members');
 });
 
 // Admin Routes

@@ -41,13 +41,13 @@
                 @forelse($waiting as $order)
                 <div onclick="markAsViewed({{ $order->id }}, this); loadOrder({{ $order->id }}, this, 'waitlist')" class="order-item p-4 pr-12 cursor-pointer transition-colors group border-l-2 relative {{ isset($selectedOrder) && $selectedOrder->id == $order->id ? 'bg-indigo-50 dark:bg-white/10 border-indigo-500' : 'hover:bg-gray-100 dark:hover:bg-white/5 border-transparent hover:border-teal-500' }}">
                     <div class="flex justify-between items-start mb-1 gap-2">
-                        <span class="font-bold text-gray-900 dark:text-white text-lg leading-none group-hover:text-teal-600 dark:group-hover:text-teal-400 transition-colors">{{ $order->vehicle->model ?? 'Unknown' }}</span>
+                        <span class="font-bold text-gray-900 dark:text-white text-lg leading-none group-hover:text-teal-600 dark:group-hover:text-teal-400 transition-colors">{{ $order->vehicle->model ?? 'Không rõ' }}</span>
                         <div class="flex items-center gap-2">
                              <span id="badge-moi-{{ $order->id }}" class="badge-moi px-2 py-0.5 rounded text-[10px] font-bold bg-teal-100 dark:bg-teal-500/20 text-teal-700 dark:text-teal-400 border border-teal-200 dark:border-teal-500/20 uppercase transition-opacity duration-300">Mới</span>
                         </div>
                     </div>
                     <div class="flex justify-between items-center text-sm text-gray-500 dark:text-gray-400 mt-2">
-                        <span class="font-mono bg-gray-100 dark:bg-white/10 px-1.5 rounded text-xs">{{ $order->vehicle->license_plate ?? 'N/A' }}</span>
+                        <span class="font-mono bg-gray-100 dark:bg-white/10 px-1.5 rounded text-xs">{{ $order->vehicle->license_plate ?? 'Chưa rõ' }}</span>
                         <span>Chờ kiểm tra</span>
                     </div>
                     <!-- Delete Button inside Card (Hover Reveal) - Moved to top right corner -->
@@ -77,8 +77,8 @@
                     </div>
                     <div class="relative z-10">
                         <div class="flex justify-between items-start mb-1">
-                            <span class="font-bold text-gray-900 dark:text-white text-lg leading-none">{{ $order->vehicle->model ?? 'Unknown' }}</span>
-                            <span class="font-mono text-xs text-indigo-700 dark:text-indigo-300 bg-indigo-100 dark:bg-indigo-500/20 px-1.5 py-0.5 rounded font-bold">{{ $order->vehicle->license_plate ?? 'N/A' }}</span>
+                            <span class="font-bold text-gray-900 dark:text-white text-lg leading-none">{{ $order->vehicle->model ?? 'Không rõ' }}</span>
+                            <span class="font-mono text-xs text-indigo-700 dark:text-indigo-300 bg-indigo-100 dark:bg-indigo-500/20 px-1.5 py-0.5 rounded font-bold">{{ $order->vehicle->license_plate ?? 'Chưa rõ' }}</span>
                         </div>
                         @if(isset($selectedOrder) && $selectedOrder->id == $order->id)
                         <div class="flex items-center gap-2 mt-2">
@@ -659,6 +659,88 @@
     }
 
     // Add Vehicle Modal Logic (Existing)
+    function abandonOrder() {
+        const orderId = getCurrentOrderId();
+        if(!orderId) return;
+
+        Swal.fire({
+            title: 'Khách đổi ý / Bỏ xe?',
+            text: "Để xác nhận, vui lòng nhập 'Xác nhận hủy xe' vào ô bên dưới:",
+            input: 'text',
+            inputPlaceholder: 'Xác nhận hủy xe',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#94a3b8',
+            confirmButtonText: 'Hủy đơn',
+            cancelButtonText: 'Đóng',
+            preConfirm: (inputValue) => {
+                if (inputValue !== 'Xác nhận hủy xe') {
+                    Swal.showValidationMessage('Bạn phải nhập đúng cụm từ "Xác nhận hủy xe"');
+                    return false;
+                }
+                return true;
+            }
+        }).then((result) => {
+            if (result.isConfirmed) {
+                fetch(`/staff/order/${orderId}/update-status`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
+                    body: JSON.stringify({ status: 'cancelled' })
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        Swal.fire('Đã hủy!', 'Đơn sửa chữa đã được chuyển vào danh sách hủy.', 'success')
+                        .then(() => {
+                            window.location.href = `{{ route('staff.dashboard') }}`;
+                        });
+                    }
+                })
+                .catch(err => console.error(err));
+            }
+        });
+    }
+
+    function cancelRepair() {
+        const orderId = getCurrentOrderId();
+        if(!orderId) return;
+
+        Swal.fire({
+            title: 'Hủy nhận sửa?',
+            text: "Xe sẽ quay lại 'Danh sách chờ' và loại bỏ phân công hiện tại.",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#94a3b8',
+            confirmButtonText: 'Xác nhận hủy',
+            cancelButtonText: 'Đóng'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                fetch(`/staff/order/${orderId}/update-status`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
+                    body: JSON.stringify({ status: 'pending' })
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        Swal.fire({
+                            title: 'Thành công!', 
+                            text: 'Đã đưa xe về Danh sách chờ.', 
+                            icon: 'success',
+                            timer: 1500,
+                            showConfirmButton: false
+                        }).then(() => {
+                            window.location.href = `{{ route('staff.dashboard') }}?order_id=${orderId}`;
+                        });
+                    }
+                })
+                .catch(err => console.error(err));
+            }
+        });
+    }
+
     function startRepair() {
         const orderId = getCurrentOrderId();
         if(!orderId) return;
@@ -1488,6 +1570,13 @@
             }
         }
     });
-</script>
-@endpush
 
+    document.addEventListener('DOMContentLoaded', () => {
+        // Tự động ẩn Sidebar khi vào Bảng công việc để tối ưu diện tích
+        if (typeof setSidebarState === 'function') {
+            setSidebarState(false);
+        }
+    });
+</script>
+@include('staff.partials.order_modals')
+@endpush

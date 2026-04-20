@@ -133,4 +133,45 @@ class SosController extends Controller
             'redirect' => route('staff.sos.index')
         ]);
     }
+
+    /**
+     * Update the authenticated user's location.
+     */
+    public function updateLocation(Request $request)
+    {
+        $validated = $request->validate([
+            'latitude' => 'nullable|numeric',
+            'longitude' => 'nullable|numeric',
+            'is_sharing_location' => 'required|boolean'
+        ]);
+
+        $user = Auth::user();
+        $user->latitude = $validated['latitude'];
+        $user->longitude = $validated['longitude'];
+        $user->is_sharing_location = $validated['is_sharing_location'];
+        $user->last_location_update = now();
+        $user->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Cập nhật vị trí thành công.'
+        ]);
+    }
+
+    /**
+     * Get locations of other staff members who are sharing their location.
+     */
+    public function getStaffLocations()
+    {
+        // Fetch staff who shared location in the last 5 minutes
+        $staffMembers = \App\Models\User::where('is_sharing_location', true)
+            ->where('id', '!=', Auth::id())
+            ->where('last_location_update', '>=', now()->subMinutes(5))
+            ->get(['id', 'name', 'latitude', 'longitude', 'last_location_update']);
+
+        return response()->json([
+            'success' => true,
+            'data' => $staffMembers
+        ]);
+    }
 }

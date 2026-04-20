@@ -68,10 +68,10 @@
         <div class="bg-[#0f172a] dark:bg-[#020617] rounded-2xl p-6 text-white shadow-xl relative overflow-hidden group hover:scale-[1.02] transition border border-slate-800">
             <div class="relative z-10">
                 <p class="text-sm text-slate-400 font-medium mb-1 uppercase tracking-widest">Tổng chi tiêu</p>
-                <h3 class="text-3xl font-black tracking-tight mb-2 font-mono">0đ</h3>
+                <h3 class="text-3xl font-black tracking-tight mb-2 font-mono">{{ number_format($totalSpent, 0, ',', '.') }}đ</h3>
                 <p class="text-xs text-slate-500 flex items-center gap-1">
-                    <span class="material-icons-round text-[14px]">construction</span>
-                    Chức năng đang phát triển
+                    <span class="material-icons-round text-[14px]">payments</span>
+                    Dựa trên hóa đơn đã thanh toán
                 </p>
             </div>
             <span class="material-icons-round absolute -bottom-4 -right-4 text-[120px] text-slate-800 opacity-50 group-hover:text-indigo-900 transition duration-500 rotate-12">account_balance_wallet</span>

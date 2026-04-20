@@ -4,24 +4,38 @@
     <div class="flex flex-col md:flex-row justify-between items-start gap-4">
         <div>
             <div class="flex items-center gap-3 mb-2">
-                <h1 class="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white tracking-tight">{{ $selectedOrder->vehicle->model ?? 'Unknown Vehicle' }}</h1>
+                <h1 class="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white tracking-tight">{{ $selectedOrder->vehicle->model ?? 'Xe không rõ' }}</h1>
                 @if($selectedOrder->status == 'pending')
-                    <button onclick="startRepair()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold rounded-lg shadow-lg shadow-indigo-500/30 flex items-center gap-2 transition-all animate-pulse">
-                        <span class="material-icons-round">build_circle</span>
-                        TIẾP NHẬN XE
-                    </button>
+                    <div class="flex items-center gap-2 block md:flex">
+                        <button onclick="startRepair()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold rounded-lg shadow-lg shadow-indigo-500/30 flex items-center gap-2 transition-all animate-pulse">
+                            <span class="material-icons-round">build_circle</span>
+                            TIẾP NHẬN XE
+                        </button>
+                        <button onclick="abandonOrder()" class="px-4 py-2 bg-red-100 hover:bg-red-200 dark:bg-red-900/30 dark:hover:bg-red-900/50 text-red-600 dark:text-red-400 text-sm font-bold rounded-lg shadow-sm border border-red-200 dark:border-red-800 flex items-center gap-2 transition-all">
+                            <span class="material-icons-round">delete_forever</span>
+                            BỎ XE
+                        </button>
+                    </div>
                 @else
-                    <span class="px-3 py-1 rounded-lg text-sm font-bold 
-                        {{ $selectedOrder->status == 'completed' ? 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-400' : 
-                           (in_array($selectedOrder->status, ['in_progress', 'pending_approval', 'approved']) ? 'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400' : 'bg-gray-100 text-gray-700') }}">
-                        {{ $selectedOrder->status == 'completed' ? 'Hoàn thành' : (in_array($selectedOrder->status, ['in_progress', 'pending_approval', 'approved']) ? 'Đang xử lý' : 'Chờ xử lý') }}
-                    </span>
+                    <div class="flex items-center gap-2">
+                        <span class="px-3 py-1 rounded-lg text-sm font-bold 
+                            {{ $selectedOrder->status == 'completed' ? 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-400' : 
+                               (in_array($selectedOrder->status, ['in_progress', 'pending_approval', 'approved']) ? 'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400' : 'bg-gray-100 text-gray-700') }}">
+                            {{ $selectedOrder->status == 'completed' ? 'Hoàn thành' : (in_array($selectedOrder->status, ['in_progress', 'pending_approval', 'approved']) ? 'Đang xử lý' : 'Chờ xử lý') }}
+                        </span>
+                        @if(in_array($selectedOrder->status, ['in_progress', 'pending_approval', 'approved']))
+                            <button onclick="cancelRepair()" class="px-3 py-1.5 bg-amber-100 hover:bg-amber-200 dark:bg-amber-900/30 dark:hover:bg-amber-900/50 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800 text-sm font-bold rounded-lg shadow-sm flex items-center gap-1 transition-all">
+                                <span class="material-icons-round !text-[16px]">undo</span>
+                                Hủy nhận sửa
+                            </button>
+                        @endif
+                    </div>
                 @endif
             </div>
             <div class="flex flex-wrap gap-4 md:gap-6 text-sm text-gray-500 dark:text-white/50 font-mono">
-                <span class="flex items-center gap-2"><span class="material-icons-round !text-[16px]">badge</span> Biển số: <span class="text-gray-900 dark:text-white font-bold">{{ $selectedOrder->vehicle->license_plate ?? 'N/A' }}</span></span>
-                <span class="flex items-center gap-2"><span class="material-icons-round !text-[16px]">fingerprint</span> VIN: {{ Str::limit($selectedOrder->vehicle->vin ?? 'N/A', 10) }}</span>
-                <span class="flex items-center gap-2" title="Chủ xe: {{ $selectedOrder->vehicle->owner_name ?? ($selectedOrder->vehicle->user->name ?? 'N/A') }}">
+                <span class="flex items-center gap-2"><span class="material-icons-round !text-[16px]">badge</span> Biển số: <span class="text-gray-900 dark:text-white font-bold">{{ $selectedOrder->vehicle->license_plate ?? '---' }}</span></span>
+                <span class="flex items-center gap-2"><span class="material-icons-round !text-[16px]">fingerprint</span> VIN: {{ Str::limit($selectedOrder->vehicle->vin ?? '---', 10) }}</span>
+                <span class="flex items-center gap-2" title="Chủ xe: {{ $selectedOrder->vehicle->owner_name ?? ($selectedOrder->vehicle->user->name ?? '---') }}">
                     <span class="material-icons-round !text-[16px]">person</span> Khách: {{ $selectedOrder->vehicle->owner_name ?? ($selectedOrder->vehicle->user->name ?? 'Khách Lẻ') }}
                 </span>
             </div>
@@ -170,6 +184,18 @@
                             {{ $completedCount }}/{{ $totalCount }} HOÀN THÀNH
                         </span>
                     @endif
+                @elseif($selectedOrder->status == 'completed')
+                    @if($selectedOrder->payment_status !== 'paid')
+                        <button onclick="openPaymentModal({{ $selectedOrder->total_amount ?? 0 }})" class="text-sm whitespace-nowrap shrink-0 w-max bg-teal-500 hover:bg-teal-600 text-white font-bold py-1.5 px-3 rounded-lg shadow-md hover:shadow-lg flex items-center justify-center gap-1.5 transition-all animate-pulse">
+                            <span class="material-icons-round !text-[16px]">account_balance_wallet</span>
+                            THANH TOÁN
+                        </button>
+                    @else
+                        <a href="{{ route('staff.order.invoice', $selectedOrder->id) }}" target="_blank" class="text-sm whitespace-nowrap shrink-0 w-max bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-1.5 px-3 rounded-lg shadow-md flex items-center justify-center gap-1.5 transition-all">
+                            <span class="material-icons-round !text-[16px]">print</span>
+                            In hóa đơn
+                        </a>
+                    @endif
                 @endif
             </div>
         </div>
@@ -184,7 +210,7 @@
                             </div>
                             <div class="flex-1">
                                 <div class="flex justify-between items-start">
-                                    <h4 class="font-bold text-gray-800 dark:text-gray-200 {{ $task->status == 'completed' || $task->customer_approval_status === 'rejected' ? 'line-through text-gray-400' : '' }}">{{ $task->title }}</h4>
+                                    <h4 class="font-bold text-gray-800 dark:text-gray-200 {{ $task->status == 'completed' || $task->customer_approval_status === 'rejected' ? 'line-through text-gray-400' : '' }}">{{ str_replace(' (VHC)', '', $task->title) }}</h4>
                                     
                                     <div class="flex items-center gap-2" onclick="event.stopPropagation()">
                                         @if($task->customer_approval_status === 'rejected')
@@ -202,15 +228,8 @@
                                         @if($task->title == 'Kiểm tra tổng quát (3D)' || $task->title == 'Kiểm tra tổng quát (VHC)')
                                             <a href="{{ route('staff.vehicle.inspection', ['id' => $selectedOrder->vehicle->id ?? 0, 'fullscreen' => 1, 'order_id' => $selectedOrder->id ?? null]) }}" class="text-xs bg-indigo-100 hover:bg-indigo-200 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400 dark:hover:bg-indigo-900/50 px-2 py-1 rounded font-bold flex items-center gap-1 transition-colors">
                                                 <span class="material-icons-round !text-[14px]">view_in_ar</span>
-                                                Xem 3D
+                                                Kiểm tra 3D
                                             </a>
-                                        @endif
-                                        
-                                        <!-- Assignee Avatar / Indicator -->
-                                        @if($task->mechanic_id)
-                                            <span class="text-xs font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/20 px-2 py-1 rounded" title="Người thực hiện: {{ $task->mechanic->name }}">
-                                                {{ $task->mechanic_id == auth()->id() ? 'Tôi' : $task->mechanic->name }}
-                                            </span>
                                         @endif
                                     </div>
                                 </div>
@@ -225,25 +244,6 @@
                             <div class="flex items-center gap-3 p-3 rounded-lg {{ $child->status == 'completed' ? 'bg-gray-50 dark:bg-[#1f2937]/30 opacity-75' : 'bg-white dark:bg-[#1f2937]/20 border border-gray-100 dark:border-[#374151]' }}">
                                 <input onclick="event.stopPropagation(); @if($selectedOrder->status == 'pending') Swal.fire('Thông báo', 'Vui lòng \'Tiếp Nhận\' xe để bắt đầu công việc.', 'info'); @elseif($selectedOrder->status == 'completed') Swal.fire('Thông báo', 'Đơn sửa chữa đã hoàn thành, không thể thay đổi.', 'warning'); @else toggleTask('{{ $child->id }}', '{{ $child->status }}') @endif" {{ $child->status == 'completed' ? 'checked' : '' }} {{ in_array($selectedOrder->status, ['pending', 'completed']) ? 'disabled' : '' }} class="size-4 shrink-0 rounded border-gray-300 dark:border-white/20 text-teal-600 focus:ring-0 bg-transparent {{ in_array($selectedOrder->status, ['pending', 'completed']) ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer' }}" type="checkbox">
                                 <span class="flex-1 text-sm font-medium text-gray-700 dark:text-gray-300 {{ $child->status == 'completed' ? 'line-through decoration-gray-400' : '' }} break-words pr-2">{{ $child->title }}</span>
-                                <!-- Child Task Assignment -->
-                                <div class="flex items-center gap-1 shrink-0" onclick="event.stopPropagation()">
-                                    @if(!$child->mechanic_id)
-                                        @if($selectedOrder->status == 'pending')
-                                            <button onclick="event.stopPropagation(); Swal.fire('Thông báo', 'Vui lòng \'Tiếp Nhận\' xe để nhận việc.', 'info');" class="whitespace-nowrap text-[10px] bg-gray-100 dark:bg-gray-700/50 px-2 py-1 rounded text-gray-400 font-medium cursor-not-allowed opacity-60">Nhận làm</button>
-                                        @elseif($selectedOrder->status == 'completed')
-                                             <span class="whitespace-nowrap text-[10px] text-gray-400 dark:text-gray-500 italic max-w-[60px] truncate">---</span>
-                                        @else
-                                            <button onclick="assignTask('{{ $child->id }}')" class="whitespace-nowrap text-[10px] bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 px-2 py-1 rounded text-gray-500 dark:text-gray-400 font-medium transition-colors">Nhận làm</button>
-                                        @endif
-                                    @elseif($child->mechanic_id == auth()->id())
-                                        <span class="whitespace-nowrap text-[10px] text-indigo-600 dark:text-indigo-400 font-bold bg-indigo-50 dark:bg-indigo-900/20 px-1.5 py-0.5 rounded">Tôi</span>
-                                        @if($selectedOrder->status != 'completed')
-                                            <button onclick="unassignTask('{{ $child->id }}')" class="text-[10px] text-red-500 hover:text-red-700 px-1"><span class="material-icons-round text-[12px]">close</span></button>
-                                        @endif
-                                    @else
-                                        <span class="whitespace-nowrap text-[10px] text-gray-400 dark:text-gray-500 italic max-w-[60px] truncate">{{ $child->mechanic->name ?? '...' }}</span>
-                                    @endif
-                                </div>
                             </div>
                             @endforeach
                         </div>
@@ -319,13 +319,17 @@
 
                 <!-- 3D Visualizer Card -->
                 <div class="relative rounded-xl overflow-hidden group border border-gray-200 dark:border-[#1e293b] hover:border-indigo-500/50 transition-colors shadow-lg">
-                    <div class="absolute inset-0 bg-gradient-to-t from-gray-900/90 to-transparent z-10"></div>
-                    <!-- Placeholder Img -->
-                    <div class="h-64 w-full bg-cover bg-center transition-transform duration-700 group-hover:scale-105" style="background-image: url('https://images.unsplash.com/photo-1486262715619-01b8c24545b7?auto=format&fit=crop&q=80&w=1974');"></div>
+                    <div class="absolute inset-0 bg-gradient-to-t from-gray-900/90 via-gray-900/40 to-transparent z-10"></div>
+                    <div class="absolute inset-0 bg-indigo-500/20 mix-blend-overlay z-10 pointer-events-none"></div>
+                    <!-- 3D Digital Background -->
+                    <div class="h-64 w-full bg-cover bg-center transition-transform duration-1000 group-hover:scale-105" style="background-image: url('https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?auto=format&fit=crop&w=1920&q=80');">
+                        <!-- CSS Data Grid Overlay -->
+                        <div class="absolute inset-0 z-0 opacity-30" style="background-image: linear-gradient(rgba(255,255,255,0.2) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.2) 1px, transparent 1px); background-size: 30px 30px;"></div>
+                    </div>
                     <div class="absolute bottom-0 left-0 w-full p-6 z-20 flex flex-col gap-3">
                         <div>
-                            <h4 class="text-white font-bold text-lg">Mô hình 3D (Digital Twin)</h4>
-                            <p class="text-gray-300 text-xs text-shadow-sm">Trực quan hóa linh kiện và overlay hướng dẫn kỹ thuật.</p>
+                            <h4 class="text-white font-bold text-lg text-shadow-lg">Mô hình 3D</h4>
+                            <p class="text-indigo-100 font-medium text-xs mt-1">Trực quan hóa linh kiện và overlay hướng dẫn kỹ thuật.</p>
                         </div>
                         <a href="{{ route('staff.vehicle.inspection', ['id' => $selectedOrder->vehicle->id ?? 0, 'fullscreen' => 1, 'order_id' => $selectedOrder->id ?? null]) }}" class="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded flex items-center justify-center gap-2 shadow-lg shadow-indigo-900/20 transition-all transform group-hover:translate-y-[-2px]">
                             <span class="material-icons-round">view_in_ar</span>
@@ -362,7 +366,7 @@
                 <div class="flex-1">
                     <div class="flex justify-between items-center border-b border-gray-200 dark:border-[#1e293b] pb-2 mb-4">
                         <h4 class="text-sm font-bold text-gray-500 dark:text-white/50 uppercase tracking-widest">Vật tư đã cấp</h4>
-                        <button onclick="storeQuickItem()" class="text-teal-600 dark:text-teal-400 hover:text-teal-800 dark:hover:text-teal-300 transition-colors">
+                        <button onclick="document.getElementById('addItemModal').classList.remove('hidden')" class="text-teal-600 dark:text-teal-400 hover:text-teal-800 dark:hover:text-teal-300 transition-colors">
                             <span class="material-icons-round text-lg">add_circle</span>
                         </button>
                     </div>

@@ -29,6 +29,10 @@ class User extends Authenticatable
         'avatar',  // Enhanced schema
         'permissions', // Legacy support
         'tags',
+        'latitude',
+        'longitude',
+        'is_sharing_location',
+        'last_location_update',
     ];
 
     /**
@@ -53,12 +57,21 @@ class User extends Authenticatable
             'password' => 'hashed',
             'permissions' => 'array',
             'tags' => 'array',
+            'is_sharing_location' => 'boolean',
+            'last_location_update' => 'datetime',
+            'latitude' => 'float',
+            'longitude' => 'float',
         ];
     }
 
     public function vehicles()
     {
         return $this->hasMany(Vehicle::class);
+    }
+
+    public function repairOrders()
+    {
+        return $this->hasMany(RepairOrder::class, 'customer_id');
     }
 
     public function assignedRole()

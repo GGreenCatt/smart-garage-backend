@@ -95,7 +95,7 @@
             </div>
             <div>
                 <h1 class="font-heading font-bold text-white text-lg leading-tight">Smart Garage</h1>
-                <div class="text-[10px] uppercase tracking-[0.2em] text-indigo-400 font-bold">Staff Portal</div>
+                <div class="text-[10px] uppercase tracking-[0.2em] text-indigo-400 font-bold">Cổng Quản Trị Viên</div>
             </div>
         </div>
 
@@ -155,8 +155,8 @@
             <div class="flex items-center gap-3 p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-[#1e293b] transition cursor-pointer">
                 <img src="https://ui-avatars.com/api/?name={{ auth()->user()->name ?? 'Admin' }}&background=6366f1&color=fff" class="w-10 h-10 rounded-full border border-gray-200 dark:border-slate-600">
                 <div class="flex-1 min-w-0">
-                    <p class="text-sm font-bold text-slate-900 dark:text-white truncate">{{ auth()->user()->name ?? 'Administrator' }}</p>
-                    <p class="text-xs text-indigo-500 dark:text-indigo-400 capitalize">{{ auth()->user()->role ?? 'Staff' }}</p>
+                    <p class="text-sm font-bold text-slate-900 dark:text-white truncate">{{ auth()->user()->name ?? 'Quản trị viên' }}</p>
+                    <p class="text-xs text-indigo-500 dark:text-indigo-400 capitalize">{{ auth()->user()->role === 'staff' ? 'Chuyên viên' : 'Quản trị viên' }}</p>
                 </div>
                 <form action="{{ route('logout') }}" method="POST">
                     @csrf
@@ -207,7 +207,7 @@
                     </div>
                 </div>
                 <div class="h-8 w-px bg-gray-200 dark:bg-[#1e293b]"></div>
-                <span class="text-sm font-bold text-slate-500 dark:text-slate-400">{{ date('l, d M Y') }}</span>
+                <span class="text-sm font-bold text-slate-500 dark:text-slate-400">Thứ {{ date('w') == 0 ? 'Nhật' : date('w') + 1 }}, ngày {{ date('d/m/Y') }}</span>
             </div>
         </header>
         @endunless

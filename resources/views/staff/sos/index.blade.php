@@ -38,10 +38,37 @@
     <!-- Master Map -->
     <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 p-2 relative z-0">
         <div id="masterMap"></div>
+        
+        <!-- Map Controls Overlay -->
+        <div class="absolute top-4 right-4 z-[400] flex flex-col gap-2">
+            <div id="locationBanner" class="hidden bg-amber-50 dark:bg-amber-900/40 border border-amber-200 dark:border-amber-800 p-3 rounded-xl shadow-lg backdrop-blur-md max-w-[200px]">
+                <p class="text-[10px] font-bold text-amber-600 dark:text-amber-400 uppercase mb-1">Cần cấp quyền</p>
+                <p class="text-[11px] text-slate-600 dark:text-slate-300 mb-2">Trình duyệt chưa có quyền truy cập vị trí.</p>
+                <button onclick="requestLocationPermission()" class="w-full bg-amber-500 hover:bg-amber-600 text-white py-1.5 rounded-lg text-xs font-bold transition">Cấp quyền ngay</button>
+            </div>
+
+            <div class="bg-white/90 dark:bg-slate-800/90 backdrop-blur rounded-2xl p-4 shadow-xl border border-slate-100 dark:border-slate-700 w-48 transition-all">
+                <div class="flex items-center justify-between mb-3">
+                    <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">Chia sẻ vị trí</span>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="locationToggle" class="sr-only peer">
+                        <div class="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-gray-600 peer-checked:bg-indigo-600"></div>
+                    </label>
+                </div>
+                <div id="sharingStatus" class="flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase">
+                    <div class="w-1.5 h-1.5 rounded-full bg-slate-300"></div>
+                    <span>Đang tắt</span>
+                </div>
+            </div>
+        </div>
+
         <div class="absolute top-4 left-4 z-[400] bg-white/90 dark:bg-slate-800/90 backdrop-blur rounded-xl p-3 shadow text-xs font-bold border border-slate-100 dark:border-slate-700">
-            <h4 class="text-slate-500 mb-2 uppercase">Chú Giải</h4>
-            <div class="flex items-center gap-2 mb-1"><div class="w-3 h-3 rounded-full bg-red-500"></div><span class="text-slate-700 dark:text-slate-300">Chờ Tiếp Nhận</span></div>
-            <div class="flex items-center gap-2"><div class="w-3 h-3 rounded-full bg-teal-500"></div><span class="text-slate-700 dark:text-slate-300">Đang Xử Lý</span></div>
+            <h4 class="text-slate-500 mb-2 uppercase italic opacity-70">Chú Giải Bản Đồ</h4>
+            <div class="space-y-2">
+                <div class="flex items-center gap-2"><div class="w-3 h-3 rounded-full bg-red-500 shadow-sm shadow-red-500/50"></div><span class="text-slate-700 dark:text-slate-300">Khách Chờ Tiếp Nhận</span></div>
+                <div class="flex items-center gap-2"><div class="w-3 h-3 rounded-full bg-teal-500 shadow-sm shadow-teal-500/50"></div><span class="text-slate-700 dark:text-slate-300">Khách Đang Xử Lý</span></div>
+                <div class="flex items-center gap-2"><div class="w-3 h-3 rounded-full bg-indigo-600 shadow-sm shadow-indigo-600/50"></div><span class="text-slate-700 dark:text-slate-300 font-bold">Đồng Nghiệp</span></div>
+            </div>
         </div>
     </div>
 
@@ -56,7 +83,7 @@
             </div>
             <div class="p-4 flex-1 overflow-y-auto space-y-4">
                 @forelse($pendingRequests as $sos)
-                    <div class="bg-white dark:bg-slate-800 rounded-xl border border-red-200 dark:border-red-900 shadow-sm hover:shadow-md transition p-4 relative group">
+                    <div onclick="focusOnSos({{ $sos->id }}, {{ $sos->latitude ?? 0 }}, {{ $sos->longitude ?? 0 }})" class="bg-white dark:bg-slate-800 rounded-xl border border-red-200 dark:border-red-900 shadow-sm hover:shadow-md transition p-4 relative group cursor-pointer hover:border-red-400">
                         <div class="absolute top-0 left-0 w-1.5 h-full bg-red-500 rounded-l-xl"></div>
                         <div class="pl-2">
                             <div class="flex justify-between items-start mb-2">
@@ -101,7 +128,7 @@
             </div>
             <div class="p-4 flex-1 overflow-y-auto space-y-4">
                 @forelse($myRequests as $sos)
-                    <div class="bg-white dark:bg-slate-800 rounded-xl border {{ $sos->status == 'in_progress' ? 'border-teal-400 shadow-teal-500/20' : 'border-slate-200 dark:border-slate-700' }} shadow-sm p-4 relative">
+                    <div onclick="focusOnSos({{ $sos->id }}, {{ $sos->latitude ?? 0 }}, {{ $sos->longitude ?? 0 }})" class="bg-white dark:bg-slate-800 rounded-xl border {{ $sos->status == 'in_progress' ? 'border-teal-400 shadow-teal-500/20' : 'border-slate-200 dark:border-slate-700' }} shadow-sm p-4 relative cursor-pointer hover:border-teal-500 transition-colors">
                         @if($sos->status == 'in_progress')
                             <div class="absolute top-0 right-0 bg-teal-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-bl-lg">ĐANG XỬ LÝ</div>
                         @endif
@@ -161,7 +188,8 @@
             iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41]
         });
 
-        const markers = [];
+        const markers = {}; // Changed from array to object for easier direct access
+        const allMarkers = []; // For fitBounds
 
         // Data from Controller
         const pending = @json($pendingRequests);
@@ -171,9 +199,10 @@
         pending.forEach(sos => {
             if(sos.latitude && sos.longitude) {
                 const marker = L.marker([sos.latitude, sos.longitude], {icon: redIcon}).addTo(map);
-                const name = sos.guest_name ? sos.guest_name + ' (Vãng lai)' : (sos.customer ? sos.customer.name : 'Khách hàng');
+                const name = sos.display_name;
                 marker.bindPopup(`<b>Chờ xử lý #${sos.id}</b><br>${name}<br><a href="{{ url('staff/sos') }}/${sos.id}" class="text-blue-500 underline mt-1 block">Chi Tiết</a>`);
-                markers.push(marker);
+                markers[sos.id] = marker;
+                allMarkers.push(marker);
             }
         });
 
@@ -181,15 +210,180 @@
         myTasks.forEach(sos => {
             if(sos.latitude && sos.longitude && sos.status !== 'completed') {
                 const marker = L.marker([sos.latitude, sos.longitude], {icon: tealIcon}).addTo(map);
-                const name = sos.guest_name ? sos.guest_name + ' (Vãng lai)' : (sos.customer ? sos.customer.name : 'Khách hàng');
+                const name = sos.display_name;
                 marker.bindPopup(`<b>Đang xử lý #${sos.id}</b><br>${name}<br><a href="{{ url('staff/sos') }}/${sos.id}" class="text-blue-500 underline mt-1 block">Chi Tiết</a>`);
-                markers.push(marker);
+                markers[sos.id] = marker;
+                allMarkers.push(marker);
             }
         });
 
+        window.focusOnSos = function(id, lat, lng) {
+            if (markers[id]) {
+                map.flyTo([lat, lng], 17);
+                markers[id].openPopup();
+            } else {
+                // If marker doesn't exist (e.g. invalid lat/lng), just fly to map center
+                map.flyTo([lat, lng], 17);
+                console.warn("Marker not found for SOS ID:", id);
+            }
+        }
+
+        // Staff management logic
+        const staffIcon = L.icon({
+            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
+            shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+            iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41]
+        });
+
+        let staffMarkers = {};
+        const locationToggle = document.getElementById('locationToggle');
+        const sharingStatus = document.getElementById('sharingStatus');
+        const locationBanner = document.getElementById('locationBanner');
+        let updateTimer = null;
+        let fetchTimer = null;
+
+        // Check current sharing state from server or localStorage
+        locationToggle.checked = @json(auth()->user()->is_sharing_location);
+        updateStatusUI(locationToggle.checked);
+
+        locationToggle.addEventListener('change', function() {
+            if (this.checked) {
+                checkAndStartSharing();
+            } else {
+                stopSharing();
+            }
+        });
+
+        function updateStatusUI(sharing) {
+            if (sharing) {
+                sharingStatus.innerHTML = '<div class="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></div><span>Đang chia sẻ</span>';
+                sharingStatus.classList.remove('text-slate-400');
+                sharingStatus.classList.add('text-green-500');
+            } else {
+                sharingStatus.innerHTML = '<div class="w-1.5 h-1.5 rounded-full bg-slate-300"></div><span>Đang tắt</span>';
+                sharingStatus.classList.remove('text-green-500');
+                sharingStatus.classList.add('text-slate-400');
+            }
+        }
+
+        async function checkAndStartSharing() {
+            if (!navigator.geolocation) {
+                Swal.fire('Lỗi', 'Trình duyệt không hỗ trợ định vị.', 'error');
+                locationToggle.checked = false;
+                return;
+            }
+
+            navigator.geolocation.getCurrentPosition(
+                () => {
+                    locationBanner.classList.add('hidden');
+                    startSharing();
+                },
+                (error) => {
+                    console.warn('Geolocation error:', error);
+                    locationBanner.classList.remove('hidden');
+                    locationToggle.checked = false;
+                    updateStatusUI(false);
+                }
+            );
+        }
+
+        window.requestLocationPermission = function() {
+            navigator.geolocation.getCurrentPosition(() => {
+                locationBanner.classList.add('hidden');
+                locationToggle.checked = true;
+                startSharing();
+            });
+        }
+
+        function startSharing() {
+            updateStatusUI(true);
+            // Initial update
+            pushLocation();
+            // Timers
+            updateTimer = setInterval(pushLocation, 30000);
+            fetchTimer = setInterval(fetchStaff, 30000);
+            fetchStaff(); // Initial fetch
+        }
+
+        function stopSharing() {
+            updateStatusUI(false);
+            clearInterval(updateTimer);
+            clearInterval(fetchTimer);
+            // Inform server
+            fetch("{{ route('staff.sos.location.update') }}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                },
+                body: JSON.stringify({ is_sharing_location: false })
+            });
+            // Clear staff markers
+            Object.values(staffMarkers).forEach(m => map.removeLayer(m));
+            staffMarkers = {};
+        }
+
+        function pushLocation() {
+            navigator.geolocation.getCurrentPosition(position => {
+                fetch("{{ route('staff.sos.location.update') }}", {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                    },
+                    body: JSON.stringify({
+                        latitude: position.coords.latitude,
+                        longitude: position.coords.longitude,
+                        is_sharing_location: true
+                    })
+                });
+            });
+        }
+
+        async function fetchStaff() {
+            try {
+                const response = await fetch("{{ route('staff.sos.location.staff-members') }}");
+                const result = await response.json();
+                if (result.success) {
+                    processStaffData(result.data);
+                }
+            } catch (e) {
+                console.error("Fetch staff error:", e);
+            }
+        }
+
+        function processStaffData(data) {
+            const currentIds = data.map(s => s.id.toString());
+            
+            // Remove inactive
+            Object.keys(staffMarkers).forEach(id => {
+                if (!currentIds.includes(id)) {
+                    map.removeLayer(staffMarkers[id]);
+                    delete staffMarkers[id];
+                }
+            });
+
+            // Update/Add
+            data.forEach(staff => {
+                const id = staff.id.toString();
+                if (staffMarkers[id]) {
+                    staffMarkers[id].setLatLng([staff.latitude, staff.longitude]);
+                } else {
+                    staffMarkers[id] = L.marker([staff.latitude, staff.longitude], {icon: staffIcon})
+                        .addTo(map)
+                        .bindPopup(`<b>Đồng nghiệp: ${staff.name}</b><br><span class="text-[10px] text-slate-500 italic">Vừa cập nhật xong</span>`);
+                }
+            });
+        }
+
+        // Start if already sharing
+        if (locationToggle.checked) {
+            startSharing();
+        }
+
         // Fit bounds if markers exist
-        if(markers.length > 0) {
-            const group = new L.featureGroup(markers);
+        if(allMarkers.length > 0) {
+            const group = new L.featureGroup(allMarkers);
             map.fitBounds(group.getBounds().pad(0.1));
         }
     });

@@ -20,4 +20,9 @@ class ChatSession extends Model
     {
         return $this->belongsTo(User::class, 'customer_id');
     }
+
+    public function repairOrder()
+    {
+        return $this->belongsTo(RepairOrder::class, 'repair_order_id');
+    }
 }

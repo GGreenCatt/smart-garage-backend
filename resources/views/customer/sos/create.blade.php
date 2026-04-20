@@ -59,7 +59,7 @@
         <div class="space-y-6">
             
             <!-- Map Card -->
-            <div class="bg-white dark:bg-slate-800 rounded-3xl p-6 shadow-sm border border-slate-100 dark:border-slate-700">
+            <div class="bg-white dark:bg-slate-800 rounded-3xl p-6 shadow-sm border border-slate-100 dark:border-slate-700 relative">
                 <div class="flex items-center justify-between mb-4">
                     <h2 class="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2">
                         <i class="fas fa-map-marker-alt text-red-500"></i> Xác Định Vị Trí Sự Cố
@@ -67,6 +67,18 @@
                     <button type="button" id="btnLocate" class="bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 px-4 py-2 rounded-xl text-sm font-bold transition flex items-center gap-2">
                         <i class="fas fa-crosshairs"></i> Vị Trí Hiện Tại
                     </button>
+                </div>
+
+                <!-- Location Status Alert -->
+                <div id="locationAlert" class="hidden mb-4 p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-2xl">
+                    <div class="flex gap-3">
+                        <i class="fas fa-exclamation-triangle text-amber-500 mt-1"></i>
+                        <div>
+                            <p class="text-sm font-bold text-amber-800 dark:text-amber-200">Không thể lấy vị trí chính xác</p>
+                            <p class="text-xs text-amber-700 dark:text-amber-400 mb-2">Vui lòng kiểm tra quyền truy cập vị trí trên trình duyệt hoặc kéo bản đồ để chọn thủ công.</p>
+                            <button type="button" onclick="showLocationGuide()" class="text-xs font-bold text-indigo-600 dark:text-indigo-400 underline uppercase tracking-tight">Xem hướng dẫn cấp quyền</button>
+                        </div>
+                    </div>
                 </div>
                 
                 <div class="relative rounded-2xl overflow-hidden border-2 border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-900 z-0">
@@ -81,7 +93,7 @@
                 <input type="hidden" name="longitude" id="lng" required>
                 
                 <p class="text-sm text-slate-500 dark:text-slate-400 mt-4 text-center">
-                    Gợi ý: Bạn có thể kéo bản đồ để điều chỉnh vị trí ghim chữ thập tĩnh giữa màn hình (nếu định vị sai lệch).
+                    <i class="fas fa-info-circle mr-1"></i> Mẹo: Bạn có thể kéo bản đồ để điều chỉnh vị trí ghim đỏ đúng chỗ xe đang dừng.
                 </p>
             </div>
 
@@ -197,6 +209,7 @@
             if (navigator.geolocation) {
                 loading.classList.remove('hidden');
                 loading.classList.add('flex');
+                document.getElementById('locationAlert').classList.add('hidden');
                 
                 navigator.geolocation.getCurrentPosition(position => {
                     const { latitude, longitude } = position.coords;
@@ -209,13 +222,9 @@
                 }, error => {
                     loading.classList.add('hidden');
                     loading.classList.remove('flex');
-                    Swal.fire({
-                        title: 'Không thể lấy vị trí',
-                        text: 'Vui lòng kiểm tra quyền truy cập vị trí của trình duyệt hoặc tự kéo bản đồ để chọn điểm.',
-                        icon: 'warning',
-                        confirmButtonText: 'Đã hiểu',
-                        confirmButtonColor: '#4f46e5'
-                    });
+                    document.getElementById('locationAlert').classList.remove('hidden');
+                    
+                    console.warn("Geolocation error:", error);
                 }, { enableHighAccuracy: true, timeout: 10000 });
             } else {
                 Swal.fire({
@@ -226,6 +235,29 @@
                 });
             }
         });
+
+        window.showLocationGuide = function() {
+            Swal.fire({
+                title: 'Hướng dẫn cấp quyền vị trí',
+                html: `
+                    <div class="text-left text-sm space-y-4">
+                        <div class="p-3 bg-slate-50 dark:bg-slate-800 rounded-xl">
+                            <p class="font-bold mb-1">Trên Chrome / CocCoc:</p>
+                            <p>1. Bấm vào biểu tượng <b>khóa (lock)</b> hoặc <b>thanh trượt</b> ở đầu thanh địa chỉ.</p>
+                            <p>2. Tìm mục <b>Vị trí (Location)</b> và bật sang <b>Cho phép (Allow)</b>.</p>
+                        </div>
+                        <div class="p-3 bg-slate-50 dark:bg-slate-800 rounded-xl">
+                            <p class="font-bold mb-1">Trên Safari (iPhone):</p>
+                            <p>1. Vào <b>Cài đặt</b> > <b>Quyền riêng tư</b> > <b>Dịch vụ định vị</b> (Bật).</p>
+                            <p>2. Tìm <b>Safari</b> và chọn "Khi dùng Ứng dụng".</p>
+                        </div>
+                    </div>
+                `,
+                icon: 'info',
+                confirmButtonText: 'Đã hiểu',
+                confirmButtonColor: '#4f46e5'
+            });
+        }
         
         // Auto locate on first load
         setTimeout(() => btnLocate.click(), 500);
