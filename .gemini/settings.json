@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "laravel-boost": {
+      "command": "php",
+      "args": [
+        "\Duan\smart-garage-management\smart-garage-backend",
+        "boost:mcp"
+      ]
+    }
+  }
+}
