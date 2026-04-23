@@ -20,4 +20,14 @@ class AdminController extends Controller
 
         return view('admin.dashboard', compact('stats'));
     }
+
+    public function toggleViewMode()
+    {
+        if (session('admin_view_mode') == 'manager') {
+            session(['admin_view_mode' => 'system']);
+        } else {
+            session(['admin_view_mode' => 'manager']);
+        }
+        return back();
+    }
 }

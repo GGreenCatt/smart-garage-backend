@@ -23,13 +23,20 @@
                     <i class="fas {{ $appt->status == 'completed' ? 'fa-check' : 'fa-calendar-day' }}"></i>
                 </div>
                 <div>
-                    <div class="font-bold text-slate-800 text-lg">{{ $appt->service->name ?? 'Dịch vụ' }}</div>
-                    <div class="text-xs text-slate-500 font-bold uppercase">{{ $appt->vehicle->license_plate }} • {{ $appt->vehicle->model }}</div>
+                    <div class="font-bold text-slate-800 text-lg">{{ $appt->service->name ?? 'Kiểm tra / Tư vấn' }}</div>
+                    @if($appt->vehicle)
+                        <div class="text-xs text-slate-500 font-bold uppercase">{{ $appt->vehicle->license_plate }} • {{ $appt->vehicle->model }}</div>
+                    @else
+                        <div class="text-xs text-slate-500 font-bold uppercase">{{ $appt->license_plate ?? 'Chưa rõ' }} • {{ $appt->vehicle_name ?? 'Chưa rõ' }}</div>
+                    @endif
                     <div class="text-sm text-indigo-600 font-bold mt-1">{{ $appt->scheduled_at->format('H:i - d/m/Y') }}</div>
+                    @if($appt->reason)
+                        <div class="text-xs text-slate-600 mt-1 italic max-w-sm">"{{ Str::limit($appt->reason, 50) }}"</div>
+                    @endif
                 </div>
             </div>
             
-            <div class="flex flex-col items-end gap-1">
+            <div class="flex flex-col items-end gap-2">
                 @php
                     $statusLabel = match($appt->status) {
                         'pending' => 'Chờ xác nhận',
@@ -51,6 +58,17 @@
                 </span>
                 @if($appt->admin_notes)
                 <div class="text-xs text-slate-400 italic mt-1 max-w-[200px] text-right">"{{ $appt->admin_notes }}"</div>
+                @endif
+                
+                @if($appt->status === 'pending')
+                <div class="flex items-center gap-3 mt-2">
+                    <a href="{{ route('customer.appointments.edit', $appt->id) }}" class="text-xs text-indigo-500 hover:text-indigo-700 font-bold underline"><i class="fas fa-edit"></i> Chỉnh Sửa</a>
+                    <form action="{{ route('customer.appointments.destroy', $appt->id) }}" method="POST" onsubmit="return confirm('Bạn có chắc chắn muốn hủy lịch hẹn này?');">
+                        @csrf
+                        @method('DELETE')
+                        <button type="submit" class="text-xs text-red-500 hover:text-red-700 font-bold underline"><i class="fas fa-times"></i> Hủy Lịch</button>
+                    </form>
+                </div>
                 @endif
             </div>
         </div>

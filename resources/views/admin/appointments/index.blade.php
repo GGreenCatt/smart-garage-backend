@@ -217,13 +217,18 @@
                         </div>
                         <div>
                             <h3 class="font-bold text-slate-100 group-hover:text-primary transition-colors text-sm">{{ $appt->customer->name ?? 'Khách lẻ' }}</h3>
-                            <p class="text-xs text-slate-400 font-mono">{{ $appt->vehicle->license_plate ?? 'N/A' }}</p>
+                            <p class="text-xs text-slate-400 font-mono">{{ $appt->vehicle ? $appt->vehicle->license_plate : ($appt->license_plate ?? 'Chưa rõ') }}</p>
                         </div>
                     </div>
                     <div class="flex gap-2 flex-wrap">
                         @if($appt->service)
                         <span class="px-2 py-1 rounded-md {{ $statusColor }} text-[10px] font-bold uppercase tracking-wide border">
                             {{ $appt->service->name }}
+                        </span>
+                        @endif
+                        @if($appt->reason)
+                        <span class="px-2 py-1 rounded-md bg-slate-700/50 text-slate-300 text-[10px] font-bold border border-slate-600 truncate max-w-[150px]">
+                            {{ $appt->reason }}
                         </span>
                         @endif
                     </div>
@@ -318,8 +323,13 @@
         </div>
 
         <div>
-            <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Ghi Chú</label>
-            <textarea name="notes" rows="3" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm text-white placeholder-slate-500"></textarea>
+            <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Lý do / Vấn đề xe</label>
+            <textarea name="reason" rows="2" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm text-white placeholder-slate-500"></textarea>
+        </div>
+
+        <div>
+            <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Ghi Chú Nội Bộ</label>
+            <textarea name="notes" rows="2" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm text-white placeholder-slate-500"></textarea>
         </div>
 
         <button class="w-full bg-primary hover:bg-primary-hover text-white py-3 rounded-xl font-bold mt-4 shadow-lg shadow-indigo-500/30 transition-all">Xác Nhận Đặt Lịch</button>
@@ -348,40 +358,71 @@
                     </div>
                 </div>
             </div>
-            <div class="grid grid-cols-2 gap-4 text-sm">
-                <div class="bg-slate-900/50 p-3 rounded-lg border border-slate-700/50">
-                    <span class="text-slate-400 text-xs uppercase font-bold block mb-1">Phương tiện</span>
-                    <span class="text-slate-200 font-semibold" id="detail_vehicle">Vios</span>
+            <form id="updateForm" method="POST" class="space-y-4">
+                @csrf
+                @method('PUT')
+                
+                <div class="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                        <span class="text-slate-400 text-xs uppercase font-bold block mb-1">Phương tiện (Chỉ xem)</span>
+                        <input type="text" id="detail_vehicle" class="w-full bg-slate-900/50 border border-slate-700/50 rounded-lg px-3 py-2 text-slate-300 outline-none cursor-not-allowed" readonly>
+                    </div>
+                    <div>
+                        <span class="text-slate-400 text-xs uppercase font-bold block mb-1">Thời gian hẹn</span>
+                        <input type="datetime-local" name="scheduled_at" id="detail_scheduled_at" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:border-primary outline-none" required>
+                    </div>
                 </div>
-                <div class="bg-slate-900/50 p-3 rounded-lg border border-slate-700/50">
-                    <span class="text-slate-400 text-xs uppercase font-bold block mb-1">Dịch vụ</span>
-                    <span class="text-slate-200 font-semibold" id="detail_service">Thay nhớt</span>
-                </div>
-            </div>
-            <div class="mt-4">
-                <span class="text-slate-400 text-xs uppercase font-bold block mb-1">Ghi chú</span>
-                <div class="text-sm p-3 bg-slate-900/50 rounded-lg border border-slate-700/50 text-slate-300 italic" id="detail_notes">Ghi chú...</div>
-            </div>
-        </div>
-        
-        <form id="updateForm" method="POST" class="flex gap-3">
-            @csrf
-            @method('PUT')
-            <select name="status" class="bg-slate-800 border border-slate-600 rounded-xl px-4 py-2.5 text-slate-200 flex-1 focus:ring-2 focus:ring-primary focus:border-transparent outline-none" id="detail_status">
-                <option value="pending">Chờ xác nhận</option>
-                <option value="confirmed">Đã xác nhận</option>
-                <option value="cancelled">Hủy</option>
-                <option value="completed">Hoàn thành</option>
-            </select>
-            <button class="bg-slate-700 hover:bg-slate-600 text-white px-6 py-2.5 rounded-xl font-bold shadow-md transition-all">Cập nhật</button>
-        </form>
 
-        <form id="convertForm" method="POST" class="border-t border-slate-700 pt-6">
-            @csrf
-            <button class="w-full bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-bold py-3.5 rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 transition-all transform hover:-translate-y-0.5">
-                <span class="material-icons-round">build_circle</span> Tiếp Nhận & Tạo Lệnh Sửa Chữa
-            </button>
-        </form>
+                <div>
+                    <span class="text-slate-400 text-xs uppercase font-bold block mb-1">Dịch vụ</span>
+                    <select name="service_id" id="detail_service_select" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:border-primary outline-none">
+                        <option value="">-- Chưa xác định / Tư vấn thêm --</option>
+                        @foreach(App\Models\Service::all() as $service)
+                            <option value="{{ $service->id }}">{{ $service->name }} ({{ number_format($service->price) }}đ)</option>
+                        @endforeach
+                    </select>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                    <div>
+                        <span class="text-slate-400 text-xs uppercase font-bold block mb-1">Lý do / Yêu cầu (KH)</span>
+                        <textarea name="reason" id="detail_reason" rows="2" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:border-primary outline-none placeholder-slate-600" placeholder="Chưa có thông tin..."></textarea>
+                    </div>
+                    <div>
+                        <span class="text-slate-400 text-xs uppercase font-bold block mb-1">Ghi chú (Nội bộ Admin)</span>
+                        <textarea name="notes" id="detail_notes_input" rows="2" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:border-primary outline-none placeholder-slate-600" placeholder="Ghi chú thêm..."></textarea>
+                    </div>
+                </div>
+
+                <div class="flex items-end gap-3 pt-2">
+                    <div class="flex-1">
+                        <span class="text-slate-400 text-xs uppercase font-bold block mb-1">Trạng thái</span>
+                        <select name="status" id="detail_status" class="w-full bg-slate-800 border border-slate-600 rounded-lg px-4 py-2.5 text-slate-200 focus:ring-2 focus:ring-primary focus:border-transparent outline-none font-semibold">
+                            <option value="pending">Chờ xác nhận</option>
+                            <option value="confirmed">Đã xác nhận</option>
+                            <option value="cancelled">Hủy</option>
+                            <option value="completed">Hoàn thành</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="bg-indigo-600 hover:bg-indigo-500 text-white px-6 py-2.5 rounded-lg font-bold shadow-md transition-all">Lưu Lại</button>
+                </div>
+            </form>
+
+            <div class="flex gap-3 mt-4 pt-4 border-t border-slate-700">
+                <form id="deleteForm" method="POST" class="w-1/3" onsubmit="return confirm('Bạn có chắc chắn muốn xóa/hủy lịch hẹn này?');">
+                    @csrf
+                    @method('DELETE')
+                    <button class="w-full bg-red-900/40 hover:bg-red-800/60 text-red-400 font-bold py-3 rounded-lg border border-red-800/50 transition-all flex justify-center items-center gap-2">
+                        <span class="material-icons-round text-sm">delete</span> Xóa Lịch
+                    </button>
+                </form>
+                <form id="convertForm" method="POST" class="flex-1">
+                    @csrf
+                    <button class="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold py-3 rounded-lg flex items-center justify-center gap-2 shadow-lg shadow-emerald-900/30 transition-all">
+                        <span class="material-icons-round text-sm">build_circle</span> Tạo Phiếu Sửa Chữa
+                    </button>
+                </form>
+            </div>
     </div>
 </dialog>
 
@@ -427,14 +468,27 @@
                 document.getElementById('detail_customer').innerText = appt.customer ? appt.customer.name : 'Khách lẻ';
                 document.getElementById('detail_avatar').innerText = appt.customer ? appt.customer.name.charAt(0) : 'K';
                 document.getElementById('detail_phone').innerText = appt.customer ? appt.customer.phone : 'N/A';
-                document.getElementById('detail_vehicle').innerText = appt.vehicle ? appt.vehicle.model : 'Chưa có xe';
-                document.getElementById('detail_service').innerText = appt.service ? appt.service.name : 'Chung';
-                document.getElementById('detail_notes').innerText = appt.notes || 'Không có ghi chú';
+                
+                // Inputs
+                document.getElementById('detail_vehicle').value = appt.vehicle ? (appt.vehicle.license_plate + ' • ' + appt.vehicle.model) : (appt.license_plate ? appt.license_plate + ' • ' + (appt.vehicle_name || '') : 'Chưa rõ xe');
+                
+                // Format date for datetime-local: YYYY-MM-DDTHH:mm
+                if (appt.scheduled_at) {
+                    const dateObj = new Date(appt.scheduled_at);
+                    const tzOffset = dateObj.getTimezoneOffset() * 60000;
+                    const localISOTime = (new Date(dateObj.getTime() - tzOffset)).toISOString().slice(0, 16);
+                    document.getElementById('detail_scheduled_at').value = localISOTime;
+                }
+
+                document.getElementById('detail_service_select').value = appt.service_id || '';
+                document.getElementById('detail_reason').value = appt.reason || '';
+                document.getElementById('detail_notes_input').value = appt.notes || '';
                 document.getElementById('detail_status').value = appt.status;
                 
                 // Update Action URLs
                 document.getElementById('updateForm').action = `/admin/appointments/${appt.id}`;
                 document.getElementById('convertForm').action = `/admin/appointments/${appt.id}/convert`;
+                document.getElementById('deleteForm').action = `/admin/appointments/${appt.id}`;
 
                 modal.showModal();
             }

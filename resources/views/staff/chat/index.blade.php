@@ -46,19 +46,32 @@
     <div class="flex-1 flex flex-col bg-slate-50 relative" id="chatArea">
         <div class="p-5 bg-white border-b border-slate-200 flex justify-between items-center shadow-sm z-10 h-[73px]">
             <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center font-bold text-lg hidden shadow-inner" id="chat-avatar">
-                   <i class="fas fa-user-gear"></i>
+                <div class="w-10 h-10 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center font-bold text-lg hidden shadow-inner border border-slate-200" id="chat-avatar">
+                   <i class="fas fa-user"></i>
                 </div>
                 <div>
-                    <h3 class="font-bold text-slate-800 text-lg transition" id="currentInfo">Chọn một đoạn chat để bắt đầu</h3>
-                    <div class="flex items-center gap-1.5 hidden mt-0.5" id="currentStatus">
-                        <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-                        <p class="text-[11px] text-green-600 font-bold uppercase tracking-wider">Đang trực tuyến</p>
+                    <h3 class="font-bold text-slate-800 text-lg transition flex items-center gap-2" id="currentInfo">Chọn một đoạn chat để bắt đầu</h3>
+                    <div class="flex items-center gap-2 hidden mt-0.5" id="currentStatus">
+                        <div class="flex items-center gap-1">
+                            <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+                            <p class="text-[10px] text-green-600 font-bold uppercase tracking-wider">Trực tuyến</p>
+                        </div>
+                        <span class="text-slate-300 text-xs">|</span>
+                        <div class="flex items-center gap-1 text-slate-500 text-xs font-medium">
+                            <i class="fas fa-phone-alt text-[10px]"></i> <span id="customerPhone"></span>
+                        </div>
+                        <span class="text-slate-300 text-xs">|</span>
+                        <div class="flex items-center gap-1 text-slate-500 text-xs font-medium">
+                            <i class="fas fa-car text-[10px]"></i> <span id="customerVehicle" class="bg-slate-100 px-1 rounded font-mono"></span>
+                        </div>
                     </div>
                 </div>
             </div>
             <div id="job-info-badge" class="hidden">
-                <span class="bg-blue-50 text-blue-700 px-3 py-1.5 rounded-lg text-xs font-bold border border-blue-100" id="order-id-label"></span>
+                <a href="#" id="order-link" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 px-3 py-1.5 rounded-lg text-xs font-bold border border-indigo-200 flex items-center gap-2 transition" title="Đi tới Tiến độ sửa chữa">
+                    <span id="order-id-label"></span>
+                    <i class="fas fa-arrow-right text-[10px]"></i>
+                </a>
             </div>
         </div>
 
@@ -191,14 +204,24 @@
         document.getElementById('sendBtn').disabled = false;
         document.getElementById('attachBtn').disabled = false;
         
-        // Header info
-        document.getElementById('currentInfo').innerText = session.customer ? session.customer.name : 'Khách hàng';
+        // Extract Info
+        const customerName = session.customer ? session.customer.name : 'Khách hàng';
+        const customerPhone = session.customer && session.customer.phone ? session.customer.phone : 'N/A';
+        const plate = session.repair_order && session.repair_order.vehicle ? session.repair_order.vehicle.plate_number : '';
+        const model = session.repair_order && session.repair_order.vehicle ? session.repair_order.vehicle.model : '';
+
+        // Header info update
+        document.getElementById('currentInfo').innerText = customerName;
+        document.getElementById('customerPhone').innerText = customerPhone;
+        document.getElementById('customerVehicle').innerText = plate ? `${plate} (${model})` : 'N/A';
+        
         document.getElementById('chat-avatar').classList.remove('hidden');
         document.getElementById('currentStatus').classList.remove('hidden');
         
         const badge = document.getElementById('job-info-badge');
         badge.classList.remove('hidden');
-        document.getElementById('order-id-label').innerText = 'ĐƠN #' + session.repair_order_id;
+        document.getElementById('order-id-label').innerText = 'Lệnh Sửa Chữa #' + session.repair_order_id;
+        document.getElementById('order-link').href = `{{ route('staff.dashboard') }}?order_id=${session.repair_order_id}`;
 
         renderMessages(session.messages);
         renderSessionList();

@@ -89,6 +89,11 @@ class User extends Authenticatable
         return $this->role === 'admin' || ($this->assignedRole && $this->assignedRole->slug === 'admin');
     }
 
+    public function isManager()
+    {
+        return $this->role === 'manager' || ($this->assignedRole && $this->assignedRole->slug === 'manager');
+    }
+
     public function activityLogs()
     {
         return $this->hasMany(ActivityLog::class);

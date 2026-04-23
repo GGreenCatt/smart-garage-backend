@@ -106,97 +106,66 @@
                 <span class="font-medium">Tổng Quan</span>
             </a>
 
-            @can('manage_settings')
+            @if(auth()->user()->isAdmin() && session('admin_view_mode') != 'manager')
+            <div class="px-3 mt-8 mb-2 text-xs font-bold text-slate-500 uppercase tracking-wider">Hệ Thống & Cài Đặt</div>
             <a href="{{ route('admin.settings.index') }}" class="sidebar-link flex items-center gap-3 px-3 py-3 rounded-lg text-slate-600 dark:text-slate-400 font-medium hover:bg-gray-100 dark:hover:bg-white/5 hover:text-indigo-600 dark:hover:text-white {{ request()->routeIs('admin.settings.*') ? 'active' : '' }}">
                 <i class="fas fa-cogs w-6 text-center"></i>
                 <span class="font-medium">Cấu Hình Hệ Thống</span>
             </a>
-            @endcan
             
-            @if(Gate::check('view_staff') || Gate::check('manage_customers') || Gate::check('manage_vehicles'))
-            <div class="px-3 mt-8 mb-2 text-xs font-bold text-slate-500 uppercase tracking-wider">Quản Lý</div>
+            <a href="{{ route('admin.roles.index') }}" class="sidebar-link flex items-center gap-3 px-3 py-3 rounded-lg text-slate-600 dark:text-slate-400 font-medium hover:bg-gray-100 dark:hover:bg-white/5 hover:text-indigo-600 dark:hover:text-white {{ request()->routeIs('admin.roles.*') ? 'active' : '' }}">
+                <i class="fas fa-cog w-6 text-center"></i>
+                <span class="font-medium">Phân Quyền - Chức Vụ</span>
+            </a>
             @endif
             
-            @can('view_staff')
-            <a href="{{ route('admin.staff.index') }}" class="sidebar-link flex items-center gap-3 px-3 py-3 rounded-lg text-slate-600 dark:text-slate-400 font-medium hover:bg-gray-100 dark:hover:bg-white/5 hover:text-indigo-600 dark:hover:text-white {{ request()->routeIs('admin.staff.*') ? 'active' : '' }}">
-                <i class="fas fa-users-cog w-6 text-center"></i>
-                <span class="font-medium">Nhân Sự & Admin</span>
-            </a>
-            @endcan
+            @if(auth()->user()->isManager() || (auth()->user()->isAdmin() && session('admin_view_mode') == 'manager'))
+            <div class="px-3 mt-8 mb-2 text-xs font-bold text-slate-500 uppercase tracking-wider">Quản Lý Gara</div>
             
-            @can('manage_customers')
+            <a href="{{ route('admin.staff.index') }}" class="sidebar-link flex items-center gap-3 px-3 py-3 rounded-lg text-slate-600 dark:text-slate-400 font-medium hover:bg-gray-100 dark:hover:bg-white/5 hover:text-indigo-600 dark:hover:text-white {{ request()->routeIs('admin.staff.index') ? 'active' : '' }}">
+                <i class="fas fa-users-cog w-6 text-center"></i>
+                <span class="font-medium">Nhân Sự</span>
+            </a>
+            
             <a href="{{ route('admin.customers.index') }}" class="sidebar-link flex items-center gap-3 px-3 py-3 rounded-lg text-slate-600 dark:text-slate-400 font-medium hover:bg-gray-100 dark:hover:bg-white/5 hover:text-indigo-600 dark:hover:text-white {{ request()->routeIs('admin.customers.*') ? 'active' : '' }}">
                 <i class="fas fa-user-tag w-6 text-center"></i>
                 <span class="font-medium">Khách Hàng</span>
             </a>
-            @endcan
             
-            
-            @can('manage_vehicles')
             <a href="{{ route('admin.vehicles.index') }}" class="sidebar-link flex items-center gap-3 px-3 py-3 rounded-lg text-slate-600 dark:text-slate-400 font-medium hover:bg-gray-100 dark:hover:bg-white/5 hover:text-indigo-600 dark:hover:text-white {{ request()->routeIs('admin.vehicles.*') ? 'active' : '' }}">
                 <i class="fas fa-car w-6 text-center"></i>
                 <span class="font-medium">Phương Tiện</span>
             </a>
-            @endcan
 
-            @if(Gate::check('manage_vehicles') || Gate::check('view_inventory'))
             <div class="px-3 mt-8 mb-2 text-xs font-bold text-slate-500 uppercase tracking-wider">Vận Hành</div>
-            @endif
             
-            @can('manage_vehicles')
-            {{-- 
-             <a href="{{ route('admin.appointments.index') }}" class="sidebar-link flex items-center gap-3 px-3 py-3 rounded-lg text-slate-600 dark:text-slate-400 font-medium hover:bg-gray-100 dark:hover:bg-white/5 hover:text-indigo-600 dark:hover:text-white {{ request()->routeIs('admin.appointments.*') ? 'active' : '' }}">
-                <i class="fas fa-calendar-alt w-6 text-center"></i>
-                <span class="font-medium">Quản Lý Lịch Hẹn</span>
-            </a>
-            --}}
             <a href="{{ route('admin.repair_orders.index') }}" class="sidebar-link flex items-center gap-3 px-3 py-3 rounded-lg text-slate-600 dark:text-slate-400 font-medium hover:bg-gray-100 dark:hover:bg-white/5 hover:text-indigo-600 dark:hover:text-white {{ request()->routeIs('admin.repair_orders.*') ? 'active' : '' }}">
                 <i class="fas fa-clipboard-list w-6 text-center"></i>
                 <span class="font-medium">Lệnh Sửa Chữa</span>
             </a>
-            @endcan
             
-            @can('view_inventory')
              <a href="{{ route('admin.inventory.index') }}" class="sidebar-link flex items-center gap-3 px-3 py-3 rounded-lg text-slate-600 dark:text-slate-400 font-medium hover:bg-gray-100 dark:hover:bg-white/5 hover:text-indigo-600 dark:hover:text-white {{ request()->routeIs('admin.inventory.*') ? 'active' : '' }}">
                 <i class="fas fa-boxes w-6 text-center"></i>
                 <span class="font-medium">Kho & Vật Tư</span>
             </a>
+
             <a href="{{ route('admin.requests.index') }}" class="sidebar-link flex items-center gap-3 px-3 py-3 rounded-lg text-slate-600 dark:text-slate-400 font-medium hover:bg-gray-100 dark:hover:bg-white/5 hover:text-indigo-600 dark:hover:text-white {{ request()->routeIs('admin.requests.*') ? 'active' : '' }}">
                 <i class="fas fa-clipboard-check w-6 text-center"></i>
                 <span class="font-medium">Phê Duyệt Vật Tư</span>
             </a>
-            @endcan
-
-            {{-- 
-             <a href="#" class="sidebar-link flex items-center gap-3 px-3 py-3 rounded-lg text-slate-600 dark:text-slate-400 font-medium hover:bg-gray-100 dark:hover:bg-white/5 hover:text-indigo-600 dark:hover:text-white">
-                <i class="fas fa-qrcode w-6 text-center"></i>
-                <span class="font-medium">Mã Vạch & QR</span>
-            </a>
-            --}}
             
-            @can('manage_vehicles')
             <a href="{{ route('admin.sos.index') }}" class="sidebar-link flex items-center gap-3 px-3 py-3 rounded-lg text-slate-600 dark:text-slate-400 font-medium hover:bg-gray-100 dark:hover:bg-white/5 hover:text-indigo-600 dark:hover:text-white {{ request()->routeIs('admin.sos.*') ? 'active' : '' }}">
                 <i class="fas fa-map-marked-alt w-6 text-center"></i>
-                <span class="font-medium">Bản Đồ Cứu Hộ (SOS)</span>
+                <span class="font-medium">Bản Đồ Cứu Hộ Lưu Động</span>
             </a>
-            @endcan
 
-            @if(Gate::check('view_reports') || Gate::check('manage_settings'))
-            <div class="px-3 mt-8 mb-2 text-xs font-bold text-slate-500 uppercase tracking-wider">Hệ Thống</div>
-            @endif
+            <div class="px-3 mt-8 mb-2 text-xs font-bold text-slate-500 uppercase tracking-wider">Báo Cáo</div>
             
-             @can('view_reports')
              <a href="{{ route('admin.staff.logs') }}" class="sidebar-link flex items-center gap-3 px-3 py-3 rounded-lg text-slate-500 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-white/5 hover:text-indigo-600 dark:hover:text-white {{ request()->routeIs('admin.staff.logs') ? 'active' : '' }}">
                 <i class="fas fa-history w-6 text-center"></i>
-                <span class="font-medium">Nhật Ký Hệ Thống</span>
+                <span class="font-medium">Nhật Ký Thao Tác</span>
             </a>
-            @endcan
-             @can('manage_settings')
-             <a href="{{ route('admin.roles.index') }}" class="sidebar-link flex items-center gap-3 px-3 py-3 rounded-lg text-slate-600 dark:text-slate-400 font-medium hover:bg-gray-100 dark:hover:bg-white/5 hover:text-indigo-600 dark:hover:text-white {{ request()->routeIs('admin.roles.*') ? 'active' : '' }}">
-                <i class="fas fa-cog w-6 text-center"></i>
-                <span class="font-medium">Phân quyền - Chức vụ</span>
-            </a>
-            @endcan
+            @endif
         </nav>
 
         <!-- Profile -->
@@ -232,6 +201,15 @@
                     <i class="fas fa-sun dark:hidden"></i>
                     <i class="fas fa-moon hidden dark:inline-block"></i>
                 </button>
+
+                @if(auth()->user()->isAdmin())
+                <form action="{{ route('admin.toggle-view-mode') }}" method="POST" class="flex items-center ml-2">
+                    @csrf
+                    <button type="submit" class="flex items-center gap-2 text-xs px-3 py-1.5 rounded-full {{ session('admin_view_mode') == 'manager' ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/30' : 'bg-gray-100 dark:bg-[#1e293b] text-slate-500 hover:bg-gray-200 dark:hover:bg-slate-800' }} font-bold transition">
+                        <i class="fas {{ session('admin_view_mode') == 'manager' ? 'fa-toggle-on text-sm' : 'fa-toggle-off text-sm' }}"></i> <span class="hidden sm:inline">Chế độ Quản Lý</span>
+                    </button>
+                </form>
+                @endif
 
                 @if(\App\Models\Setting::get('enable_notifications', '1') == '1')
                 <button class="w-10 h-10 rounded-full bg-gray-100 dark:bg-[#1e293b] text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-slate-700 transition flex items-center justify-center relative">

@@ -108,6 +108,18 @@
                 <span class="font-medium">Bảng Công Việc</span>
             </a>
 
+            <div class="px-4 py-2">
+                <p class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 px-2">Khách Hàng</p>
+                <a href="{{ route('staff.appointments.index') }}" class="flex items-center gap-3 px-2 py-2.5 rounded-lg {{ request()->routeIs('staff.appointments.*') ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-slate-600 hover:bg-slate-50' }} transition">
+                    <i class="fas fa-calendar-check w-5 text-center"></i>
+                    <span>Lịch Hẹn</span>
+                </a>
+                <a href="{{ route('staff.customers.index') }}" class="flex items-center gap-3 px-2 py-2.5 rounded-lg {{ request()->routeIs('staff.customers.*') ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-slate-600 hover:bg-slate-50' }} transition">
+                    <i class="fas fa-users w-5 text-center"></i>
+                    <span>Khách Hàng</span>
+                </a>
+            </div>
+
             <div class="px-3 mt-8 mb-2 text-xs font-bold text-slate-500 uppercase tracking-wider">Vận Hành</div>
 
             <a href="{{ route('staff.inventory.index') }}" class="sidebar-link flex items-center gap-3 px-3 py-3 rounded-lg text-slate-600 dark:text-slate-400 font-medium hover:bg-gray-100 dark:hover:bg-white/5 hover:text-indigo-600 dark:hover:text-white {{ request()->routeIs('staff.inventory.*') ? 'active' : '' }}">

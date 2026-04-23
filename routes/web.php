@@ -63,6 +63,9 @@ Route::middleware(['auth', 'verified', 'customer'])->prefix('customer')->name('c
     Route::get('/appointments/book', [App\Http\Controllers\Customer\AppointmentController::class, 'create'])->name('appointments.create');
     Route::post('/appointments', [App\Http\Controllers\Customer\AppointmentController::class, 'store'])->name('appointments.store');
     Route::get('/appointments', [App\Http\Controllers\Customer\AppointmentController::class, 'index'])->name('appointments.index');
+    Route::get('/appointments/{id}/edit', [App\Http\Controllers\Customer\AppointmentController::class, 'edit'])->name('appointments.edit');
+    Route::put('/appointments/{id}', [App\Http\Controllers\Customer\AppointmentController::class, 'update'])->name('appointments.update');
+    Route::delete('/appointments/{id}', [App\Http\Controllers\Customer\AppointmentController::class, 'destroy'])->name('appointments.destroy');
 
     // Notifications
     Route::get('notifications', [App\Http\Controllers\Customer\NotificationController::class, 'index'])->name('notifications.index');
@@ -177,6 +180,12 @@ Route::middleware(['auth', 'verified', 'staff'])->prefix('staff')->name('staff.'
     Route::get('/requests', [App\Http\Controllers\Staff\MaterialRequestController::class, 'index'])->name('requests.index');
     Route::post('/requests', [App\Http\Controllers\Staff\MaterialRequestController::class, 'store'])->name('requests.store');
 
+    // Appointments
+    Route::get('/appointments', [App\Http\Controllers\Staff\AppointmentController::class, 'index'])->name('appointments.index');
+    Route::put('/appointments/{appointment}', [App\Http\Controllers\Staff\AppointmentController::class, 'update'])->name('appointments.update');
+    Route::delete('/appointments/{appointment}', [App\Http\Controllers\Staff\AppointmentController::class, 'destroy'])->name('appointments.destroy');
+    Route::post('/appointments/{appointment}/convert', [App\Http\Controllers\Staff\AppointmentController::class, 'convertToRo'])->name('appointments.convert');
+
     // SOS Requests
     Route::get('/sos', [App\Http\Controllers\Staff\SosController::class, 'index'])->name('sos.index');
     Route::get('/sos/{id}', [App\Http\Controllers\Staff\SosController::class, 'show'])->name('sos.show');
@@ -235,6 +244,9 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     // Settings
     Route::get('settings', [App\Http\Controllers\Admin\SettingController::class, 'index'])->name('settings.index');
     Route::post('settings', [App\Http\Controllers\Admin\SettingController::class, 'update'])->name('settings.update');
+
+    // Admin View Toggle
+    Route::post('toggle-view-mode', [App\Http\Controllers\AdminController::class, 'toggleViewMode'])->name('toggle-view-mode');
 
     // Material Requests (Admin Approval)
     Route::resource('material-requests', App\Http\Controllers\Admin\MaterialRequestController::class)->names('requests')->only(['index', 'update']);

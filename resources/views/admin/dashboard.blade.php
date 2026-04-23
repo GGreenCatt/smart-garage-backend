@@ -4,6 +4,22 @@
 
 @section('content')
 <div class="space-y-8">
+    @if(auth()->user()->isAdmin() && session('admin_view_mode') != 'manager')
+    <!-- Admin View: System Overivew -->
+    <div class="glass-panel p-8 rounded-2xl border border-slate-800 text-center">
+        <div class="w-20 h-20 mx-auto bg-indigo-500/20 text-indigo-400 rounded-full flex items-center justify-center mb-4">
+            <i class="fas fa-shield-alt text-3xl"></i>
+        </div>
+        <h2 class="text-2xl font-bold text-white mb-2">Xin chào, Quản trị viên hệ thống!</h2>
+        <p class="text-slate-400 max-w-lg mx-auto mb-6">Bạn đang truy cập với quyền hạn cao nhất. Tại đây, bạn có thể thiết lập các cấu hình cốt lõi của hệ thống và quản lý phân quyền.</p>
+        <div class="flex justify-center gap-4">
+            <a href="{{ route('admin.settings.index') }}" class="px-6 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-medium transition">Cấu Hình Cốt Lõi</a>
+            <a href="{{ route('admin.roles.index') }}" class="px-6 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg font-medium transition">Quản Lý Phân Quyền</a>
+        </div>
+    </div>
+    @endif
+
+    @if(auth()->user()->isManager() || (auth()->user()->isAdmin() && session('admin_view_mode') == 'manager'))
     
     <!-- KPI Cards -->
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -126,7 +142,7 @@
             </tbody>
         </table>
     </div>
-
+    @endif
 </div>
 
 @push('scripts')

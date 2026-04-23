@@ -356,10 +356,13 @@ class StaffController extends Controller
             );
         }
 
-        // Un-assign tasks if reverted back to pending
+        // Un-assign tasks and reset status if reverted back to pending
         if ($validated['status'] === 'pending') {
             \App\Models\RepairTask::where('repair_order_id', $order->id)
-                ->update(['mechanic_id' => null]);
+                ->update([
+                    'mechanic_id' => null,
+                    'status' => 'pending'
+                ]);
         }
 
         // Notify Customer about status change
