@@ -249,8 +249,21 @@ class RepairOrderController extends Controller
     public function invoice(RepairOrder $repairOrder)
     {
         Gate::authorize('view_repair_orders');
-        $repairOrder->load(['customer', 'vehicle', 'items.itemable', 'advisor']);
-        return view('admin.repair_orders.invoice', compact('repairOrder'));
+        $repairOrder->load(['customer', 'vehicle', 'tasks', 'items.itemable', 'advisor']);
+        
+        $bankId = \App\Models\Setting::get('bank_id', 'vietinbank'); 
+        $accountNo = \App\Models\Setting::get('bank_account_no', '102875143924');
+        $accountName = urlencode(\App\Models\Setting::get('bank_account_name', 'NGO VAN DAN'));
+        
+        $amount = round($repairOrder->total_amount); 
+        $addInfo = urlencode('Thanh toan hoa don ' . $repairOrder->id);
+
+        $qrUrl = "https://img.vietqr.io/image/{$bankId}-{$accountNo}-compact2.png?amount={$amount}&addInfo={$addInfo}&accountName={$accountName}";
+
+        // Use DomPDF to render using the shared template
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('staff.invoices.template', ['order' => $repairOrder, 'qrUrl' => $qrUrl]);
+        
+        return $pdf->stream('hoadon_' . $repairOrder->track_id . '.pdf');
     }
 
     public function updatePayment(Request $request, RepairOrder $repairOrder)

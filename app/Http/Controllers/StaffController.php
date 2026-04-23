@@ -12,6 +12,7 @@ use App\Models\WorkShift;
 use App\Models\Payroll;
 use Illuminate\Support\Facades\Auth;
 use App\Models\RepairItem;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 class StaffController extends Controller
 {
@@ -667,7 +668,7 @@ class StaffController extends Controller
 
     public function printInvoice($id)
     {
-        $order = \App\Models\RepairOrder::with(['vehicle.user', 'advisor', 'tasks.children', 'tasks.items'])->findOrFail($id);
+        $order = \App\Models\RepairOrder::with(['customer', 'vehicle', 'tasks', 'items.product'])->findOrFail($id);
 
         $bankId = \App\Models\Setting::get('bank_id', 'vietinbank'); 
         $accountNo = \App\Models\Setting::get('bank_account_no', '102875143924');
@@ -678,7 +679,10 @@ class StaffController extends Controller
 
         $qrUrl = "https://img.vietqr.io/image/{$bankId}-{$accountNo}-compact2.png?amount={$amount}&addInfo={$addInfo}&accountName={$accountName}";
 
-        return view('staff.order.invoice', compact('order', 'qrUrl'));
+        // Use DomPDF to render
+        $pdf = Pdf::loadView('staff.invoices.template', compact('order', 'qrUrl'));
+        
+        return $pdf->stream('hoadon_' . $order->track_id . '.pdf');
     }
 
     public function updateProfile(Request $request)
@@ -1131,4 +1135,5 @@ class StaffController extends Controller
             ], 500);
         }
     }
+
 }

@@ -141,6 +141,7 @@ Route::middleware(['auth', 'verified', 'staff'])->prefix('staff')->name('staff.'
     // Quotation
     Route::get('/inventory-search', [StaffController::class, 'searchParts'])->name('inventory.search');
     Route::post('/order/{id}/items', [StaffController::class, 'storeItem'])->name('order.items.store');
+    Route::get('/order/{id}/invoice', [StaffController::class, 'printInvoice'])->name('order.invoice');
     
     // Quote Flow
     Route::get('/order/{id}/quote/create', [App\Http\Controllers\Staff\QuoteController::class, 'create'])->name('quote.create');
