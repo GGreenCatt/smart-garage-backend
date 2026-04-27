@@ -2,15 +2,15 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
-use App\Models\ChatSession;
 use App\Models\ChatMessage;
+use App\Models\ChatSession;
+use App\Models\RepairTask;
+use Illuminate\Http\Request;
 
 class StaffChatController extends Controller
 {
     public function index()
     {
-        // View is handled by frontend polling, but we pass initial sessions
         return view('staff.chat.index');
     }
 
@@ -19,30 +19,33 @@ class StaffChatController extends Controller
         $userId = auth()->id();
         $isAdmin = auth()->user()->role === 'admin';
 
-        $query = ChatSession::with(['messages', 'customer', 'repairOrder.vehicle'])
+        $query = ChatSession::with(['messages.sender', 'customer', 'repairOrder.vehicle'])
             ->where('status', 'open');
 
-        if (!$isAdmin) {
-            // Only show sessions where this mechanic has tasks in the repair order
-            $query->whereHas('repairOrder.tasks', function($q) use ($userId) {
-                $q->where('mechanic_id', $userId);
+        if (! $isAdmin) {
+            $query->where(function ($chatQuery) use ($userId) {
+                $chatQuery->whereNull('repair_order_id')
+                    ->orWhereHas('repairOrder', function ($orderQuery) use ($userId) {
+                        $orderQuery->where('advisor_id', $userId)
+                            ->orWhereHas('tasks', function ($taskQuery) use ($userId) {
+                                $taskQuery->where('mechanic_id', $userId);
+                            });
+                    });
             });
         }
 
         $sessions = $query->orderBy('updated_at', 'desc')->get();
-            
+
         return response()->json(['sessions' => $sessions]);
     }
 
     public function searchCustomer(Request $request)
     {
-        // Disabled as per new requirement: chats are auto-created from jobs
         return response()->json(['customers' => []]);
     }
 
     public function startSession(Request $request)
     {
-        // Disabled: chats are auto-created from StaffController status hook
         return response()->json(['success' => false, 'message' => 'Vui lòng bắt đầu công việc để tạo chat.']);
     }
 
@@ -58,15 +61,8 @@ class StaffChatController extends Controller
         $userId = auth()->id();
         $isAdmin = auth()->user()->role === 'admin';
 
-        // Permission check: only assigned mechanic or admin
-        if (!$isAdmin) {
-            $isAssigned = \App\Models\RepairTask::where('repair_order_id', $session->repair_order_id)
-                ->where('mechanic_id', $userId)
-                ->exists();
-            
-            if (!$isAssigned) {
-                return response()->json(['success' => false, 'message' => 'Bạn không có quyền chat trong công việc này.'], 403);
-            }
+        if (! $isAdmin && ! $this->canAccessSession($session, $userId)) {
+            return response()->json(['success' => false, 'message' => 'Bạn không có quyền chat trong công việc này.'], 403);
         }
 
         if ($session->status !== 'open') {
@@ -85,12 +81,31 @@ class StaffChatController extends Controller
             'sender_id' => $userId,
             'message' => $request->message ?? '',
             'attachment_path' => $attachmentPath,
-            'is_read' => true
+            'is_read' => true,
         ]);
+
+        $session->touch();
 
         return response()->json([
             'success' => true,
-            'message' => $message
+            'message' => $message,
         ]);
+    }
+
+    private function canAccessSession(ChatSession $session, int $userId): bool
+    {
+        if (! $session->repair_order_id) {
+            return true;
+        }
+
+        $session->loadMissing('repairOrder');
+
+        if ((int) ($session->repairOrder?->advisor_id) === $userId) {
+            return true;
+        }
+
+        return RepairTask::where('repair_order_id', $session->repair_order_id)
+            ->where('mechanic_id', $userId)
+            ->exists();
     }
 }

@@ -15,7 +15,7 @@ class QuoteController extends Controller
         // Require auth customer ownership OR valid guest signed route
         $isGuestRoute = str_starts_with($request->route()->getName(), 'guest.');
         
-        if (!$isGuestRoute && (!auth()->check() || $repairOrder->customer_id !== $request->user()->id)) {
+        if (!$isGuestRoute && (! auth()->check() || ! $this->customerOwnsOrder($repairOrder, $request->user()))) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -24,7 +24,8 @@ class QuoteController extends Controller
             'vehicle',
             'advisor:id,name,phone',
             'vhcReport.defects',
-            'tasks.children', // Load task hierarchies if they exist
+            'tasks.children.items', // Load task hierarchies if they exist
+            'tasks.items',
             'items'
         ]);
 
@@ -41,7 +42,7 @@ class QuoteController extends Controller
     {
         $isGuestRoute = str_starts_with($request->route()->getName(), 'guest.');
 
-        if (!$isGuestRoute && (!auth()->check() || $repairOrder->customer_id !== $request->user()->id)) {
+        if (!$isGuestRoute && (! auth()->check() || ! $this->customerOwnsOrder($repairOrder, $request->user()))) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -52,8 +53,15 @@ class QuoteController extends Controller
             'customer_note' => 'nullable|string'
         ]);
 
+        if ($repairOrder->status !== \App\Models\RepairOrder::STATUS_PENDING_APPROVAL) {
+            return response()->json([
+                'message' => 'Phiếu báo giá này đã được phản hồi hoặc không còn chờ duyệt.',
+            ], 409);
+        }
+
         $tasks = $validated['tasks'];
         $allApproved = true;
+        $validTaskIds = [];
 
         foreach ($tasks as $taskData) {
             $task = \App\Models\RepairTask::find($taskData['id']);
@@ -66,11 +74,22 @@ class QuoteController extends Controller
             $task->update([
                 'customer_approval_status' => $taskData['status']
             ]);
+            $validTaskIds[] = $task->id;
 
             if ($taskData['status'] === 'rejected') {
                 $allApproved = false;
             }
         }
+
+        $validTasks = collect($tasks)->filter(fn ($taskData) => in_array((int) $taskData['id'], $validTaskIds, true));
+        $approvedCount = $validTasks->where('status', 'approved')->count();
+        $rejectedCount = $validTasks->where('status', 'rejected')->count();
+        \App\Models\ActivityLog::create([
+            'user_id' => auth()->id(),
+            'action' => 'CUSTOMER_QUOTE_REVIEWED',
+            'details' => "Đơn #{$repairOrder->id}: Khách hàng đồng ý {$approvedCount} hạng mục, từ chối {$rejectedCount} hạng mục.",
+            'ip_address' => $request->ip(),
+        ]);
 
         // Save customer note if provided
         if (isset($validated['customer_note'])) {
@@ -91,17 +110,22 @@ class QuoteController extends Controller
         // Update overall repair order status based on task approvals
         if (!$hasPendingTasks) {
             if ($allApproved) {
-                $repairOrder->update(['status' => 'approved']);
+                $repairOrder->update([
+                    'status' => 'approved',
+                    'quote_status' => 'approved',
+                ]);
             } else {
-                // Determine what status means "partially approved" or "declined tasks". 
-                // We'll use 'approved' as well since work can commence on the approved pieces, 
-                // or just leave it pending if we need staff review. 
-                // Using 'approved' assuming any approved work means go ahead.
                 $hasApprovedTasks = $repairOrder->tasks()->where('customer_approval_status', 'approved')->exists();
                 if ($hasApprovedTasks) {
-                    $repairOrder->update(['status' => 'approved']);
+                    $repairOrder->update([
+                        'status' => 'approved',
+                        'quote_status' => 'approved',
+                    ]);
                 } else {
-                    $repairOrder->update(['status' => 'cancelled']); // or 'rejected' depending on existing enum
+                    $repairOrder->update([
+                        'status' => 'cancelled',
+                        'quote_status' => 'rejected',
+                    ]);
                 }
             }
             
@@ -123,5 +147,22 @@ class QuoteController extends Controller
             'message' => 'Task approvals updated.',
             'repair_order' => $repairOrder->fresh()
         ]);
+    }
+
+    private function customerOwnsOrder(\App\Models\RepairOrder $repairOrder, ?\App\Models\User $user): bool
+    {
+        if (! $user) {
+            return false;
+        }
+
+        $repairOrder->loadMissing('vehicle');
+
+        return (int) $repairOrder->customer_id === (int) $user->id
+            || (int) optional($repairOrder->vehicle)->user_id === (int) $user->id
+            || (
+                $user->phone
+                && optional($repairOrder->vehicle)->owner_phone
+                && preg_replace('/[^0-9]/', '', $user->phone) === preg_replace('/[^0-9]/', '', $repairOrder->vehicle->owner_phone)
+            );
     }
 }

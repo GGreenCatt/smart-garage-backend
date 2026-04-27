@@ -4,302 +4,290 @@
 
 @section('content')
 <style>
-    /* User Custom Styles */
-    .glass {
-        backdrop-filter: blur(12px);
-        -webkit-backdrop-filter: blur(12px);
-    }
-    .glow-primary {
-        box-shadow: 0 0 15px rgba(99, 102, 241, 0.4);
-    }
-    .floating-label-group {
-        position: relative;
-    }
-    .floating-label-group input:focus ~ label,
-    .floating-label-group input:not(:placeholder-shown) ~ label {
-        transform: translateY(-1.5rem) scale(0.85);
-        color: #818cf8;
-    }
-    .floating-label-group label {
-        position: absolute;
-        top: 1rem;
-        left: 1rem;
-        transition: all 0.2s ease;
-        pointer-events: none;
-    }
-    .switch {
+    .settings-switch {
         position: relative;
         display: inline-block;
-        width: 44px;
-        height: 22px;
+        width: 46px;
+        height: 24px;
     }
-    .switch input { opacity: 0; width: 0; height: 0; }
-    .slider {
+
+    .settings-switch input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+    }
+
+    .settings-slider {
         position: absolute;
         cursor: pointer;
-        top: 0; left: 0; right: 0; bottom: 0;
-        background-color: #475569;
-        transition: .4s;
-        border-radius: 34px;
+        inset: 0;
+        background: #475569;
+        border-radius: 999px;
+        transition: .2s;
     }
-    .slider:before {
-        position: absolute;
+
+    .settings-slider:before {
         content: "";
+        position: absolute;
         height: 18px;
         width: 18px;
-        left: 2px;
-        bottom: 2px;
-        background-color: white;
-        transition: .4s;
+        left: 3px;
+        bottom: 3px;
+        background: white;
         border-radius: 50%;
+        transition: .2s;
     }
-    input:checked + .slider { background-color: #6366f1; }
-    input:checked + .slider:before { transform: translateX(22px); }
+
+    .settings-switch input:checked + .settings-slider {
+        background: #6366f1;
+    }
+
+    .settings-switch input:checked + .settings-slider:before {
+        transform: translateX(22px);
+    }
 </style>
 
-<div class="h-full flex flex-col">
-    <!-- Header Actions (Placed inside content) -->
-    <div class="flex justify-between items-center mb-8 px-2">
+<div class="flex h-full flex-col">
+    <div class="mb-8 flex flex-col gap-4 px-2 lg:flex-row lg:items-end lg:justify-between">
         <div>
-            <h1 class="text-2xl font-bold tracking-tight text-white">Cài Đặt Hệ Thống</h1>
-            <p class="text-sm text-slate-400">Quản lý thông tin gara và các tham số vận hành</p>
+            <h1 class="text-3xl font-black tracking-tight text-white">Cài đặt hệ thống</h1>
+            <p class="mt-2 text-sm text-slate-400">Quản lý thông tin garage, tài chính, chuyển khoản và các tham số vận hành.</p>
         </div>
         <div class="flex items-center gap-3">
-            <button type="button" class="px-4 py-2 text-sm font-medium text-slate-300 hover:bg-slate-800 rounded-lg transition-colors">
+            <a href="{{ route('admin.settings.index') }}" class="rounded-xl border border-slate-700 px-4 py-2.5 text-sm font-bold text-slate-300 transition hover:bg-slate-800 hover:text-white">
                 Hủy thay đổi
-            </button>
-            <button onclick="document.getElementById('settingsForm').submit()" class="bg-primary hover:bg-indigo-500 text-white px-5 py-2 rounded-lg font-semibold flex items-center gap-2 glow-primary transition-all active:scale-95">
+            </a>
+            <button type="button" onclick="document.getElementById('settingsForm').submit()" class="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-black text-white shadow-lg shadow-indigo-600/20 transition hover:bg-indigo-500">
                 <span class="material-icons-round text-lg">save</span>
-                Lưu Thay Đổi
+                Lưu thay đổi
             </button>
         </div>
     </div>
 
-    <!-- Main Settings Layout -->
-    <div class="flex gap-8 flex-1 overflow-hidden">
-        
-        <!-- Settings Sidebar -->
-        <aside class="w-64 flex-shrink-0 hidden md:block overflow-y-auto">
-            <nav class="space-y-1 sticky top-0">
-                <a class="group flex items-center px-4 py-3 text-sm font-medium rounded-xl bg-primary/10 text-primary border border-primary/20" href="#general">
+    @if(session('success'))
+        <div class="mb-6 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 px-5 py-4 text-sm font-bold text-emerald-300">
+            <i class="fas fa-check-circle mr-2"></i>{{ session('success') }}
+        </div>
+    @endif
+
+    @if($errors->any())
+        <div class="mb-6 rounded-2xl border border-red-500/20 bg-red-500/10 px-5 py-4 text-sm font-bold text-red-300">
+            <i class="fas fa-circle-exclamation mr-2"></i>{{ $errors->first() }}
+        </div>
+    @endif
+
+    <div class="flex min-h-0 flex-1 gap-8">
+        <aside class="hidden w-72 shrink-0 overflow-y-auto md:block">
+            <nav class="sticky top-0 space-y-2">
+                <a class="flex items-center rounded-xl border border-indigo-500/20 bg-indigo-500/10 px-4 py-3 text-sm font-bold text-indigo-300" href="#general">
                     <span class="material-icons-round mr-3">settings</span>
-                    Thông Tin Chung
+                    Thông tin chung
                 </a>
-                <a class="group flex items-center px-4 py-3 text-sm font-medium rounded-xl text-slate-400 hover:bg-slate-800/50 transition-colors" href="#finance">
-                    <span class="material-icons-round mr-3">payments</span>
-                    Tài Chính & Thuế
+                <a class="flex items-center rounded-xl px-4 py-3 text-sm font-bold text-slate-400 transition hover:bg-slate-800/60 hover:text-white" href="#finance">
+                    <span class="material-icons-round mr-3">receipt_long</span>
+                    Tài chính & thuế
                 </a>
-                <a class="group flex items-center px-4 py-3 text-sm font-medium rounded-xl text-slate-400 hover:bg-slate-800/50 transition-colors" href="#operations">
+                <a class="flex items-center rounded-xl px-4 py-3 text-sm font-bold text-slate-400 transition hover:bg-slate-800/60 hover:text-white" href="#transfer">
+                    <span class="material-icons-round mr-3">qr_code_2</span>
+                    Chuyển khoản & mã QR
+                </a>
+                <a class="flex items-center rounded-xl px-4 py-3 text-sm font-bold text-slate-400 transition hover:bg-slate-800/60 hover:text-white" href="#operations">
                     <span class="material-icons-round mr-3">construction</span>
-                    Vận Hành
+                    Vận hành
                 </a>
-                <a class="group flex items-center px-4 py-3 text-sm font-medium rounded-xl text-slate-400 hover:bg-slate-800/50 transition-colors" href="#ui">
+                <a class="flex items-center rounded-xl px-4 py-3 text-sm font-bold text-slate-400 transition hover:bg-slate-800/60 hover:text-white" href="#branding">
                     <span class="material-icons-round mr-3">palette</span>
-                    Giao Diện & Thương Hiệu
+                    Giao diện & thương hiệu
                 </a>
-                <!-- Other links from user template omitted or kept as placeholder -->
             </nav>
         </aside>
 
-        <!-- Form Content -->
-        <div class="flex-1 overflow-y-auto pr-2 custom-scrollbar">
+        <div class="min-w-0 flex-1 overflow-y-auto pr-2">
             <form action="{{ route('admin.settings.update') }}" method="POST" id="settingsForm" enctype="multipart/form-data" class="space-y-8 pb-12">
                 @csrf
-                
-                <!-- General Info -->
-                <section id="general" class="bg-card-dark rounded-2xl p-8 border border-slate-800 shadow-sm">
-                    <div class="flex items-center gap-3 mb-8">
-                        <div class="p-2 bg-indigo-500/10 rounded-lg">
-                            <span class="material-icons-round text-primary">info</span>
+
+                <section id="general" class="rounded-2xl border border-slate-800 bg-card-dark p-8 shadow-sm">
+                    <div class="mb-8 flex items-center gap-3">
+                        <div class="rounded-xl bg-indigo-500/10 p-2">
+                            <span class="material-icons-round text-indigo-400">info</span>
                         </div>
-                        <h2 class="text-xl font-bold text-white">Thông Tin Chung</h2>
+                        <div>
+                            <h2 class="text-xl font-black text-white">Thông tin chung</h2>
+                            <p class="mt-1 text-sm text-slate-400">Thông tin hiển thị trên hóa đơn, phiếu in và khu vực quản trị.</p>
+                        </div>
                     </div>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
-                        <div class="space-y-6">
-                            <div class="floating-label-group">
-                                <input name="garage_name" class="w-full bg-slate-900 border border-slate-800 focus:border-primary focus:ring-1 focus:ring-primary rounded-xl px-4 py-3 outline-none transition-all text-white" id="garageName" placeholder=" " type="text" value="{{ \App\Models\Setting::get('garage_name', 'Smart Garage Admin') }}"/>
-                                <label class="text-slate-400" for="garageName">Tên Gara</label>
-                            </div>
-                            <div class="floating-label-group">
-                                <input name="garage_phone" class="w-full bg-slate-900 border border-slate-800 focus:border-primary focus:ring-1 focus:ring-primary rounded-xl px-4 py-3 outline-none transition-all text-white" id="phone" placeholder=" " type="text" value="{{ \App\Models\Setting::get('garage_phone', '') }}"/>
-                                <label class="text-slate-400" for="phone">Số Điện Thoại</label>
-                            </div>
-                            <div class="floating-label-group">
-                                <input name="garage_address" class="w-full bg-slate-900 border border-slate-800 focus:border-primary focus:ring-1 focus:ring-primary rounded-xl px-4 py-3 outline-none transition-all text-white" id="address" placeholder=" " type="text" value="{{ \App\Models\Setting::get('garage_address', '') }}"/>
-                                <label class="text-slate-400" for="address">Địa Chỉ Trụ Sở</label>
-                            </div>
+
+                    <div class="grid gap-8 lg:grid-cols-[1fr_320px]">
+                        <div class="grid gap-5 md:grid-cols-2">
+                            <label class="block md:col-span-2">
+                                <span class="mb-2 block text-sm font-bold text-slate-400">Tên garage</span>
+                                <input name="garage_name" class="w-full rounded-xl border border-slate-800 bg-slate-900 px-4 py-3 text-white outline-none transition focus:border-indigo-500" type="text" value="{{ \App\Models\Setting::get('garage_name', 'Smart Garage') }}">
+                            </label>
+                            <label class="block">
+                                <span class="mb-2 block text-sm font-bold text-slate-400">Số điện thoại</span>
+                                <input name="garage_phone" class="w-full rounded-xl border border-slate-800 bg-slate-900 px-4 py-3 text-white outline-none transition focus:border-indigo-500" type="text" value="{{ \App\Models\Setting::get('garage_phone', '') }}">
+                            </label>
+                            <label class="block">
+                                <span class="mb-2 block text-sm font-bold text-slate-400">Địa chỉ</span>
+                                <input name="garage_address" class="w-full rounded-xl border border-slate-800 bg-slate-900 px-4 py-3 text-white outline-none transition focus:border-indigo-500" type="text" value="{{ \App\Models\Setting::get('garage_address', '') }}">
+                            </label>
                         </div>
-                        
-                        <!-- Logo Upload -->
-                        <div class="flex flex-col items-center justify-center border-2 border-dashed border-slate-800 rounded-2xl p-6 bg-slate-900/50 hover:bg-slate-800 transition-colors cursor-pointer group relative overflow-hidden">
-                             @if(\App\Models\Setting::get('garage_logo'))
-                                <img src="{{ \App\Models\Setting::get('garage_logo') }}" class="h-20 mb-3 object-contain z-10">
+
+                        <label class="relative flex min-h-56 cursor-pointer flex-col items-center justify-center overflow-hidden rounded-2xl border-2 border-dashed border-slate-800 bg-slate-900/60 p-6 text-center transition hover:border-indigo-500/60 hover:bg-slate-900">
+                            @if(\App\Models\Setting::get('garage_logo'))
+                                <img src="{{ \App\Models\Setting::get('garage_logo') }}" class="z-10 mb-4 h-20 object-contain" alt="Logo garage">
                             @else
-                                <div class="mb-3 p-3 bg-slate-800 rounded-full shadow-sm group-hover:scale-110 transition-transform">
-                                    <span class="material-icons-round text-slate-400 text-3xl">add_photo_alternate</span>
+                                <div class="z-10 mb-4 rounded-full bg-slate-800 p-4">
+                                    <span class="material-icons-round text-4xl text-slate-400">add_photo_alternate</span>
                                 </div>
                             @endif
-                            <p class="text-sm font-semibold mb-1 text-white z-10 w-full text-center">Tải lên Logo Gara</p>
-                            <p class="text-xs text-slate-400 z-10">PNG, JPG tối đa 5MB</p>
-                            <input name="garage_logo" class="absolute inset-0 opacity-0 cursor-pointer z-20" type="file" accept="image/*"/>
-                        </div>
+                            <span class="z-10 text-sm font-black text-white">Tải lên logo garage</span>
+                            <span class="z-10 mt-1 text-xs font-semibold text-slate-500">PNG, JPG, WEBP tối đa 5MB</span>
+                            <input name="garage_logo" class="absolute inset-0 z-20 cursor-pointer opacity-0" type="file" accept="image/*">
+                        </label>
                     </div>
                 </section>
 
-                <!-- Finance -->
-                <section id="finance" class="bg-card-dark rounded-2xl p-8 border border-slate-800 shadow-sm opacity-60 pointer-events-none select-none grayscale-[0.5] relative overflow-hidden">
-                    <div class="absolute inset-0 bg-slate-900/10 z-10"></div>
-                    <div class="flex items-center gap-3 mb-8">
-                        <div class="p-2 bg-yellow-500/10 rounded-lg">
-                            <span class="material-icons-round text-yellow-500">payments</span>
-                        </div>
-                        <h2 class="text-xl font-bold text-white">Tài Chính & Thuế</h2>
+                <section id="finance" class="relative overflow-hidden rounded-2xl border border-slate-800 bg-card-dark p-8 opacity-60 shadow-sm grayscale-[0.35]">
+                    <div class="absolute inset-0 z-10 cursor-not-allowed bg-slate-950/20"></div>
+                    <div class="absolute right-6 top-6 z-20 rounded-full border border-amber-500/20 bg-amber-500/10 px-3 py-1 text-xs font-black uppercase tracking-wider text-amber-300">
+                        Đã khóa
                     </div>
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <div class="space-y-2">
-                            <label class="text-sm font-medium text-slate-400">Thuế VAT (%)</label>
-                            <input name="tax_rate" class="w-full bg-slate-900 border-slate-800 focus:ring-primary rounded-xl px-4 py-3 text-white" type="number" value="{{ \App\Models\Setting::get('tax_rate', '8') }}"/>
+                    <div class="mb-8 flex items-center gap-3">
+                        <div class="rounded-xl bg-amber-500/10 p-2">
+                            <span class="material-icons-round text-amber-400">receipt_long</span>
                         </div>
-                        <div class="space-y-2">
-                            <label class="text-sm font-medium text-slate-400">Đơn Vị Tiền Tệ</label>
-                            <select name="currency_symbol" class="w-full bg-slate-900 border-slate-800 focus:ring-primary rounded-xl px-4 py-3 text-white">
-                                <option value="₫" {{ \App\Models\Setting::get('currency_symbol') == '₫' ? 'selected' : '' }}>VNĐ (₫)</option>
+                        <div>
+                            <h2 class="text-xl font-black text-white">Tài chính & thuế</h2>
+                            <p class="mt-1 text-sm text-slate-400">Dự án cá nhân không dùng nghiệp vụ thuế nên phần này đang được tắt.</p>
+                        </div>
+                    </div>
+
+                    <div class="grid gap-6 md:grid-cols-3">
+                        <label class="block">
+                            <span class="mb-2 block text-sm font-bold text-slate-400">Thuế VAT (%)</span>
+                            <input name="tax_rate" class="w-full rounded-xl border border-slate-800 bg-slate-900 px-4 py-3 text-white outline-none transition focus:border-indigo-500" type="number" min="0" max="100" step="0.01" value="{{ \App\Models\Setting::get('tax_rate', '8') }}">
+                        </label>
+                        <label class="block">
+                            <span class="mb-2 block text-sm font-bold text-slate-400">Đơn vị tiền tệ</span>
+                            <select name="currency_symbol" class="w-full rounded-xl border border-slate-800 bg-slate-900 px-4 py-3 text-white outline-none transition focus:border-indigo-500">
+                                <option value="₫" {{ \App\Models\Setting::get('currency_symbol', '₫') == '₫' ? 'selected' : '' }}>VNĐ (₫)</option>
                                 <option value="$" {{ \App\Models\Setting::get('currency_symbol') == '$' ? 'selected' : '' }}>USD ($)</option>
                                 <option value="€" {{ \App\Models\Setting::get('currency_symbol') == '€' ? 'selected' : '' }}>EUR (€)</option>
                             </select>
-                        </div>
-                        <div class="space-y-2">
-                            <label class="text-sm font-medium text-slate-400">Tiền Tố Hóa Đơn</label>
-                            <input name="invoice_prefix" class="w-full bg-slate-900 border-slate-800 focus:ring-primary rounded-xl px-4 py-3 text-white" placeholder="Gõ tiền tố..." type="text" value="{{ \App\Models\Setting::get('invoice_prefix', 'INV-') }}"/>
-                        </div>
-                    </div>
-                    
-                    <div class="mt-8 pt-8 border-t border-slate-800/50">
-                        <div class="flex items-center gap-3 mb-6">
-                            <div class="p-2 bg-indigo-500/10 rounded-lg">
-                                <span class="material-icons-round text-indigo-400">account_balance</span>
-                            </div>
-                            <h3 class="text-lg font-bold text-white">Chuyển Khoản & Mã QR (VietQR)</h3>
-                        </div>
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                            <div class="space-y-2">
-                                <label class="text-sm font-medium text-slate-400">Ngân Hàng (Mã Ngắn gọn)</label>
-                                <input name="bank_id" class="w-full bg-slate-900 border-slate-800 focus:ring-primary rounded-xl px-4 py-3 text-white" placeholder="VD: mbbank, vietinbank, vietcombank..." type="text" value="{{ \App\Models\Setting::get('bank_id', 'vietinbank') }}"/>
-                            </div>
-                            <div class="space-y-2">
-                                <label class="text-sm font-medium text-slate-400">Số Tài Khoản</label>
-                                <input name="bank_account_no" class="w-full bg-slate-900 border-slate-800 focus:ring-primary rounded-xl px-4 py-3 text-white" placeholder="Gõ STK..." type="text" value="{{ \App\Models\Setting::get('bank_account_no', '102875143924') }}"/>
-                            </div>
-                            <div class="space-y-2">
-                                <label class="text-sm font-medium text-slate-400">Tên Chủ Tài Khoản (Không dấu)</label>
-                                <input name="bank_account_name" class="w-full bg-slate-900 border-slate-800 focus:ring-primary rounded-xl px-4 py-3 text-white uppercase" placeholder="VD: NGUYEN VAN A" type="text" value="{{ \App\Models\Setting::get('bank_account_name', 'NGO VAN DAN') }}"/>
-                            </div>
-                        </div>
+                        </label>
+                        <label class="block">
+                            <span class="mb-2 block text-sm font-bold text-slate-400">Tiền tố hóa đơn</span>
+                            <input name="invoice_prefix" class="w-full rounded-xl border border-slate-800 bg-slate-900 px-4 py-3 text-white outline-none transition focus:border-indigo-500" type="text" value="{{ \App\Models\Setting::get('invoice_prefix', 'INV-') }}">
+                        </label>
                     </div>
                 </section>
 
-                <!-- Operations -->
-                <section id="operations" class="bg-card-dark rounded-2xl p-8 border border-slate-800 shadow-sm">
-                    <div class="flex items-center gap-3 mb-8">
-                        <div class="p-2 bg-rose-500/10 rounded-lg">
-                            <span class="material-icons-round text-rose-500">construction</span>
+                <section id="transfer" class="rounded-2xl border border-slate-800 bg-card-dark p-8 shadow-sm">
+                    <div class="mb-8 flex items-center gap-3">
+                        <div class="rounded-xl bg-cyan-500/10 p-2">
+                            <span class="material-icons-round text-cyan-300">qr_code_2</span>
                         </div>
-                        <h2 class="text-xl font-bold text-white">Vận Hành</h2>
+                        <div>
+                            <h2 class="text-xl font-black text-white">Chuyển khoản & mã QR</h2>
+                            <p class="mt-1 text-sm text-slate-400">Cấu hình tài khoản nhận tiền và mã VietQR dùng ở hóa đơn/thanh toán tại quầy.</p>
+                        </div>
                     </div>
-                    <div class="space-y-6">
-                        <div class="flex items-center justify-between p-4 rounded-xl bg-slate-900/50 border border-slate-800/50">
-                            <div class="flex gap-4">
-                                <span class="material-icons-round text-rose-500">warning</span>
-                                <div>
-                                    <p class="font-semibold text-white">Chế Độ Bảo Trì</p>
-                                    <p class="text-sm text-slate-500">Chỉ Admin mới có thể truy cập hệ thống khi bật chế độ này.</p>
-                                </div>
-                            </div>
-                            <label class="switch">
-                                <input type="hidden" name="maintenance_mode" value="0">
-                                <input name="maintenance_mode" type="checkbox" value="1" {{ \App\Models\Setting::get('maintenance_mode') == '1' ? 'checked' : '' }}/>
-                                <span class="slider"></span>
-                            </label>
-                        </div>
 
-                        <!-- Global Notification Toggle -->
-                        <div class="flex items-center justify-between p-4 rounded-xl bg-slate-900/50 border border-slate-800/50">
-                            <div class="flex gap-4">
-                                <div class="p-2 bg-indigo-500/10 rounded-lg h-fit">
-                                    <span class="material-icons-round text-indigo-400">notifications_active</span>
-                                </div>
-                                <div class="flex-1">
-                                    <p class="font-semibold text-white">Thông Báo Hệ Thống</p>
-                                    <p class="text-sm text-slate-500">Bật/Tắt tất cả các thông báo và nút thông báo cho Nhân viên & Khách hàng.</p>
-                                </div>
-                            </div>
-                            <label class="switch">
-                                <input type="hidden" name="enable_notifications" value="0">
-                                <input name="enable_notifications" type="checkbox" value="1" {{ \App\Models\Setting::get('enable_notifications', '1') == '1' ? 'checked' : '' }}/>
-                                <span class="slider"></span>
-                            </label>
-                        </div>
+                    <div class="grid gap-6 md:grid-cols-3">
+                        <label class="block">
+                            <span class="mb-2 block text-sm font-bold text-slate-400">Mã ngân hàng</span>
+                            <input name="bank_id" class="w-full rounded-xl border border-slate-800 bg-slate-900 px-4 py-3 text-white outline-none transition focus:border-indigo-500" placeholder="VD: mbbank, vietinbank, vietcombank" type="text" value="{{ \App\Models\Setting::get('bank_id', 'vietinbank') }}">
+                        </label>
+                        <label class="block">
+                            <span class="mb-2 block text-sm font-bold text-slate-400">Số tài khoản</span>
+                            <input name="bank_account_no" class="w-full rounded-xl border border-slate-800 bg-slate-900 px-4 py-3 font-mono text-white outline-none transition focus:border-indigo-500" type="text" value="{{ \App\Models\Setting::get('bank_account_no', '102875143924') }}">
+                        </label>
+                        <label class="block">
+                            <span class="mb-2 block text-sm font-bold text-slate-400">Tên chủ tài khoản</span>
+                            <input name="bank_account_name" class="w-full rounded-xl border border-slate-800 bg-slate-900 px-4 py-3 uppercase text-white outline-none transition focus:border-indigo-500" placeholder="VD: NGUYEN VAN A" type="text" value="{{ \App\Models\Setting::get('bank_account_name', 'NGO VAN DAN') }}">
+                        </label>
+                        <label class="block">
+                            <span class="mb-2 block text-sm font-bold text-slate-400">Mẫu VietQR</span>
+                            <select name="vietqr_template" class="w-full rounded-xl border border-slate-800 bg-slate-900 px-4 py-3 text-white outline-none transition focus:border-indigo-500">
+                                @foreach(['compact2' => 'Compact 2 - đầy đủ', 'compact' => 'Compact', 'qr_only' => 'Chỉ mã QR', 'print' => 'Bản in'] as $value => $label)
+                                    <option value="{{ $value }}" {{ \App\Models\Setting::get('vietqr_template', 'compact2') === $value ? 'selected' : '' }}>{{ $label }}</option>
+                                @endforeach
+                            </select>
+                        </label>
+                        <label class="block md:col-span-2">
+                            <span class="mb-2 block text-sm font-bold text-slate-400">Nội dung chuyển khoản</span>
+                            <input name="qr_payment_content" class="w-full rounded-xl border border-slate-800 bg-slate-900 px-4 py-3 text-white outline-none transition focus:border-indigo-500" placeholder="VD: Thanh toan hoa don {order_id}" type="text" value="{{ \App\Models\Setting::get('qr_payment_content', 'Thanh toan hoa don {order_id}') }}">
+                            <span class="mt-2 block text-xs text-slate-500">Có thể dùng biến <b>{order_id}</b> hoặc <b>{track_id}</b>.</span>
+                        </label>
+                    </div>
+                </section>
 
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div class="flex items-center justify-between p-4 rounded-xl border border-slate-800/50">
-                                <div>
-                                    <p class="font-semibold text-white">Bật Kiểm Tra 3D</p>
-                                    <p class="text-xs text-slate-500">Sử dụng mô hình 3D để đánh dấu hư hỏng</p>
+                <section id="operations" class="rounded-2xl border border-slate-800 bg-card-dark p-8 shadow-sm">
+                    <div class="mb-8 flex items-center gap-3">
+                        <div class="rounded-xl bg-rose-500/10 p-2">
+                            <span class="material-icons-round text-rose-400">construction</span>
+                        </div>
+                        <div>
+                            <h2 class="text-xl font-black text-white">Vận hành</h2>
+                            <p class="mt-1 text-sm text-slate-400">Bật/tắt các chức năng hệ thống đang dùng trong vận hành hằng ngày.</p>
+                        </div>
+                    </div>
+
+                    <div class="space-y-4">
+                        @foreach([
+                            ['key' => 'maintenance_mode', 'default' => '0', 'icon' => 'warning', 'title' => 'Chế độ bảo trì', 'desc' => 'Chỉ quản trị viên nên truy cập khi hệ thống bảo trì.'],
+                            ['key' => 'enable_notifications', 'default' => '1', 'icon' => 'notifications_active', 'title' => 'Thông báo hệ thống', 'desc' => 'Bật/tắt khu vực thông báo cho nhân viên và khách hàng.'],
+                            ['key' => 'enable_3d_check', 'default' => '0', 'icon' => 'view_in_ar', 'title' => 'Kiểm tra 3D/VHC', 'desc' => 'Cho phép dùng mô hình 3D để đánh dấu hư hỏng khi kiểm tra xe.'],
+                        ] as $toggle)
+                            <div class="flex items-center justify-between gap-5 rounded-2xl border border-slate-800 bg-slate-900/50 p-5">
+                                <div class="flex gap-4">
+                                    <div class="h-fit rounded-xl bg-slate-800 p-2">
+                                        <span class="material-icons-round text-indigo-300">{{ $toggle['icon'] }}</span>
+                                    </div>
+                                    <div>
+                                        <p class="font-black text-white">{{ $toggle['title'] }}</p>
+                                        <p class="mt-1 text-sm text-slate-500">{{ $toggle['desc'] }}</p>
+                                    </div>
                                 </div>
-                                <label class="switch">
-                                    <input type="hidden" name="enable_3d_check" value="0">
-                                    <input name="enable_3d_check" type="checkbox" value="1" {{ \App\Models\Setting::get('enable_3d_check', '0') == '1' ? 'checked' : '' }}/>
-                                    <span class="slider"></span>
+                                <label class="settings-switch shrink-0">
+                                    <input type="hidden" name="{{ $toggle['key'] }}" value="0">
+                                    <input name="{{ $toggle['key'] }}" type="checkbox" value="1" {{ \App\Models\Setting::get($toggle['key'], $toggle['default']) == '1' ? 'checked' : '' }}>
+                                    <span class="settings-slider"></span>
                                 </label>
                             </div>
-                        </div>
+                        @endforeach
                     </div>
                 </section>
 
-                <!-- UI & Branding -->
-                <section id="ui" class="bg-card-dark rounded-2xl p-8 border border-slate-800 shadow-sm">
-                    <div class="flex items-center gap-3 mb-8">
-                        <div class="p-2 bg-emerald-500/10 rounded-lg">
-                            <span class="material-icons-round text-emerald-500">palette</span>
+                <section id="branding" class="rounded-2xl border border-slate-800 bg-card-dark p-8 shadow-sm">
+                    <div class="mb-8 flex items-center gap-3">
+                        <div class="rounded-xl bg-emerald-500/10 p-2">
+                            <span class="material-icons-round text-emerald-400">palette</span>
                         </div>
-                        <h2 class="text-xl font-bold text-white">Giao Diện & Thương Hiệu</h2>
+                        <div>
+                            <h2 class="text-xl font-black text-white">Giao diện & thương hiệu</h2>
+                            <p class="mt-1 text-sm text-slate-400">Màu sắc hiển thị cho portal khách hàng.</p>
+                        </div>
                     </div>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        <div class="space-y-4">
-                            <label class="text-sm font-medium text-slate-400">Màu Chủ Đạo Portal Khách Hàng</label>
+
+                    <div class="grid gap-8 md:grid-cols-2">
+                        <label class="block">
+                            <span class="mb-3 block text-sm font-bold text-slate-400">Màu chủ đạo portal khách hàng</span>
                             <div class="flex items-center gap-4">
-                                <input name="portal_color_primary" 
-                                       class="w-12 h-12 rounded-lg cursor-pointer border-none p-0 bg-transparent" 
-                                       type="color" 
-                                       value="{{ \App\Models\Setting::get('portal_color_primary', '#06b6d4') }}"
-                                       oninput="this.nextElementSibling.querySelector('input').value = this.value.toUpperCase()"/>
-                                <div class="flex-1">
-                                    <input class="w-full bg-slate-900 border-slate-800 rounded-lg px-3 py-2 uppercase text-sm font-mono text-white" 
-                                           type="text" 
-                                           value="{{ \App\Models\Setting::get('portal_color_primary', '#06b6d4') }}" 
-                                           readonly/>
-                                </div>
+                                <input name="portal_color_primary" class="h-12 w-14 cursor-pointer rounded-xl border-0 bg-transparent p-0" type="color" value="{{ \App\Models\Setting::get('portal_color_primary', '#06b6d4') }}" oninput="this.nextElementSibling.value = this.value.toUpperCase()">
+                                <input class="w-full rounded-xl border border-slate-800 bg-slate-900 px-4 py-3 font-mono text-sm uppercase text-white" type="text" readonly value="{{ \App\Models\Setting::get('portal_color_primary', '#06b6d4') }}">
                             </div>
-                        </div>
-                        <div class="space-y-4">
-                            <label class="text-sm font-medium text-slate-400">Màu Phụ (Accent)</label>
+                        </label>
+                        <label class="block">
+                            <span class="mb-3 block text-sm font-bold text-slate-400">Màu phụ</span>
                             <div class="flex items-center gap-4">
-                                <input name="portal_color_accent" 
-                                       class="w-12 h-12 rounded-lg cursor-pointer border-none p-0 bg-transparent" 
-                                       type="color" 
-                                       value="{{ \App\Models\Setting::get('portal_color_accent', '#10b981') }}"
-                                       oninput="this.nextElementSibling.querySelector('input').value = this.value.toUpperCase()"/>
-                                <div class="flex-1">
-                                    <input class="w-full bg-slate-900 border-slate-800 rounded-lg px-3 py-2 uppercase text-sm font-mono text-white" 
-                                           type="text" 
-                                           value="{{ \App\Models\Setting::get('portal_color_accent', '#10b981') }}" 
-                                           readonly/>
-                                </div>
+                                <input name="portal_color_accent" class="h-12 w-14 cursor-pointer rounded-xl border-0 bg-transparent p-0" type="color" value="{{ \App\Models\Setting::get('portal_color_accent', '#10b981') }}" oninput="this.nextElementSibling.value = this.value.toUpperCase()">
+                                <input class="w-full rounded-xl border border-slate-800 bg-slate-900 px-4 py-3 font-mono text-sm uppercase text-white" type="text" readonly value="{{ \App\Models\Setting::get('portal_color_accent', '#10b981') }}">
                             </div>
-                        </div>
+                        </label>
                     </div>
                 </section>
-
             </form>
         </div>
     </div>

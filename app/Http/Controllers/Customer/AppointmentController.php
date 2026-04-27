@@ -8,6 +8,7 @@ use App\Models\Appointment;
 use App\Models\Service;
 use App\Models\Vehicle;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\Rule;
 
 class AppointmentController extends Controller
 {
@@ -21,7 +22,7 @@ class AppointmentController extends Controller
 
     public function create()
     {
-        $services = Service::all();
+        $services = Service::orderBy('name')->get();
         $vehicles = Vehicle::where('user_id', Auth::id())->get();
         return view('customer.appointments.book', compact('services', 'vehicles'));
     }
@@ -29,7 +30,10 @@ class AppointmentController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'vehicle_id' => 'nullable|exists:vehicles,id',
+            'vehicle_id' => [
+                'nullable',
+                Rule::exists('vehicles', 'id')->where('user_id', Auth::id()),
+            ],
             'vehicle_name' => 'required_without:vehicle_id|nullable|string|max:255',
             'license_plate' => 'required_without:vehicle_id|nullable|string|max:50',
             'service_id' => 'nullable|exists:services,id',
@@ -41,8 +45,8 @@ class AppointmentController extends Controller
         Appointment::create([
             'customer_id' => Auth::id(),
             'vehicle_id' => $validated['vehicle_id'] ?? null,
-            'vehicle_name' => $validated['vehicle_name'] ?? null,
-            'license_plate' => $validated['license_plate'] ?? null,
+            'vehicle_name' => empty($validated['vehicle_id']) ? ($validated['vehicle_name'] ?? null) : null,
+            'license_plate' => empty($validated['vehicle_id']) ? strtoupper(trim($validated['license_plate'] ?? '')) : null,
             'service_id' => $validated['service_id'] ?? null,
             'scheduled_at' => $validated['scheduled_at'],
             'reason' => $validated['reason'] ?? null,
@@ -59,7 +63,7 @@ class AppointmentController extends Controller
         if ($appointment->status !== 'pending') {
             return redirect()->route('customer.appointments.index')->with('error', 'Chỉ có thể sửa lịch hẹn đang chờ xác nhận.');
         }
-        $services = Service::all();
+        $services = Service::orderBy('name')->get();
         $vehicles = Vehicle::where('user_id', Auth::id())->get();
         return view('customer.appointments.edit', compact('appointment', 'services', 'vehicles'));
     }
@@ -72,7 +76,10 @@ class AppointmentController extends Controller
         }
 
         $validated = $request->validate([
-            'vehicle_id' => 'nullable|exists:vehicles,id',
+            'vehicle_id' => [
+                'nullable',
+                Rule::exists('vehicles', 'id')->where('user_id', Auth::id()),
+            ],
             'vehicle_name' => 'required_without:vehicle_id|nullable|string|max:255',
             'license_plate' => 'required_without:vehicle_id|nullable|string|max:50',
             'service_id' => 'nullable|exists:services,id',
@@ -83,8 +90,8 @@ class AppointmentController extends Controller
 
         $appointment->update([
             'vehicle_id' => $validated['vehicle_id'] ?? null,
-            'vehicle_name' => $validated['vehicle_name'] ?? null,
-            'license_plate' => $validated['license_plate'] ?? null,
+            'vehicle_name' => empty($validated['vehicle_id']) ? ($validated['vehicle_name'] ?? null) : null,
+            'license_plate' => empty($validated['vehicle_id']) ? strtoupper(trim($validated['license_plate'] ?? '')) : null,
             'service_id' => $validated['service_id'] ?? null,
             'scheduled_at' => $validated['scheduled_at'],
             'reason' => $validated['reason'] ?? null,

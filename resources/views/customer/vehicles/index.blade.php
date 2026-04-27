@@ -1,53 +1,65 @@
 @extends('layouts.customer')
 
-@section('title', 'Xe Của Tôi')
+@section('title', 'Xe của tôi')
 
 @section('content')
-<main class="pt-24 min-h-screen">
-    <div class="px-4 py-6">
-        <div class="flex justify-between items-center mb-6">
-            <h1 class="text-3xl font-bold text-white">Xe Của Tôi</h1>
-            <button class="bg-cyan-600 hover:bg-cyan-500 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-lg shadow-cyan-900/30 transition">
-                <i class="fas fa-plus mr-2"></i> Thêm Xe
-            </button>
+<main class="pt-24 min-h-screen bg-[#0b1120]">
+    <div class="max-w-6xl mx-auto px-4 py-6 space-y-6">
+        <div class="flex flex-col md:flex-row md:items-end justify-between gap-4">
+            <div>
+                <a href="{{ route('customer.dashboard') }}" class="inline-flex items-center gap-2 text-sm text-slate-400 hover:text-white mb-3">
+                    <i class="fas fa-arrow-left"></i> Về tổng quan
+                </a>
+                <h1 class="text-3xl font-black text-white">Xe của tôi</h1>
+                <p class="text-slate-400 mt-2">Danh sách xe được garage liên kết với tài khoản của bạn.</p>
+            </div>
+            <a href="{{ route('customer.appointments.create') }}" class="inline-flex items-center justify-center gap-2 bg-cyan-600 hover:bg-cyan-500 text-white px-5 py-3 rounded-xl text-sm font-black shadow-lg shadow-cyan-950/30 transition">
+                <i class="fas fa-calendar-plus"></i> Đặt lịch cho xe
+            </a>
         </div>
 
         <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             @forelse($vehicles as $vehicle)
-            <div class="glass-panel bg-[#1e293b] border border-[#334155] rounded-xl overflow-hidden group hover:border-cyan-500/50 transition">
-                <div class="aspect-video bg-slate-800 relative flex items-center justify-center">
-                    <i class="fas fa-car text-5xl text-slate-600"></i>
-                    <div class="absolute inset-0 bg-gradient-to-t from-[#1e293b] to-transparent opacity-60"></div>
-                </div>
-                <div class="p-5">
-                    <h3 class="text-xl font-bold text-white mb-1">{{ $vehicle->model }}</h3>
-                    <p class="text-cyan-400 font-mono font-bold mb-4">{{ $vehicle->license_plate }}</p>
-                    
-                    <div class="space-y-2 text-sm text-slate-400 mb-6">
-                        <div class="flex justify-between">
-                            <span>Năm SX:</span> <span class="text-slate-300">{{ $vehicle->year ?? 'N/A' }}</span>
-                        </div>
-                        <div class="flex justify-between">
-                            <span>VIN:</span> <span class="text-slate-300 font-mono text-xs">{{ $vehicle->vin ?? 'N/A' }}</span>
+                <article class="bg-slate-900/70 border border-slate-800 rounded-2xl overflow-hidden hover:border-cyan-500/40 transition">
+                    <div class="aspect-video bg-slate-950 relative flex items-center justify-center">
+                        <i class="fas fa-car-side text-6xl text-slate-700"></i>
+                        <div class="absolute inset-0 bg-gradient-to-t from-slate-900 to-transparent opacity-70"></div>
+                        <div class="absolute left-4 bottom-4">
+                            <div class="text-white font-black text-lg">{{ $vehicle->license_plate }}</div>
+                            <div class="text-slate-400 text-sm">{{ $vehicle->model ?: 'Chưa rõ dòng xe' }}</div>
                         </div>
                     </div>
-
-                    <div class="flex gap-2">
-                        <a href="{{ route('customer.vehicle.3d', $vehicle->id) }}" class="flex-1 bg-slate-700 hover:bg-cyan-600 text-white py-2 rounded-lg text-xs font-bold text-center transition">
-                            <i class="fas fa-cube mr-1"></i> Xem 3D
-                        </a>
-                        <button class="flex-1 bg-slate-700 hover:bg-slate-600 text-white py-2 rounded-lg text-xs font-bold transition">
-                            <i class="fas fa-history mr-1"></i> Lịch Sử
-                        </button>
+                    <div class="p-5 space-y-5">
+                        <div class="grid grid-cols-2 gap-3 text-sm">
+                            <div class="rounded-xl bg-slate-950/50 border border-slate-800 p-3">
+                                <div class="text-slate-500 text-xs uppercase font-bold">Năm sản xuất</div>
+                                <div class="text-white font-bold mt-1">{{ $vehicle->year ?? 'Chưa rõ' }}</div>
+                            </div>
+                            <div class="rounded-xl bg-slate-950/50 border border-slate-800 p-3">
+                                <div class="text-slate-500 text-xs uppercase font-bold">Màu xe</div>
+                                <div class="text-white font-bold mt-1">{{ $vehicle->color ?? 'Chưa rõ' }}</div>
+                            </div>
+                        </div>
+                        @if($vehicle->vin)
+                            <div class="text-xs text-slate-500 font-mono break-all">VIN: {{ $vehicle->vin }}</div>
+                        @endif
+                        <div class="flex gap-2">
+                            <a href="{{ route('customer.vehicle.3d', $vehicle->id) }}" class="flex-1 bg-cyan-600/20 hover:bg-cyan-600/30 border border-cyan-500/25 text-cyan-200 py-3 rounded-xl text-xs font-black text-center transition">
+                                <i class="fas fa-cube mr-1"></i> Xem 3D
+                            </a>
+                            <a href="{{ route('customer.appointments.create') }}" class="flex-1 bg-slate-800 hover:bg-slate-700 text-white py-3 rounded-xl text-xs font-black text-center transition">
+                                <i class="fas fa-calendar-plus mr-1"></i> Đặt lịch
+                            </a>
+                        </div>
                     </div>
-                </div>
-            </div>
+                </article>
             @empty
-            <div class="col-span-full py-12 text-center text-slate-500">
-                <i class="fas fa-car-crash text-5xl mb-4 opacity-30"></i>
-                <p>Bạn chưa có xe nào trong hệ thống.</p>
-                <p class="text-sm mt-2">Vui lòng liên hệ garage để thêm xe mới.</p>
-            </div>
+                <div class="col-span-full py-16 text-center border border-dashed border-slate-700 rounded-2xl text-slate-400">
+                    <i class="fas fa-car-crash text-5xl mb-4 opacity-30"></i>
+                    <h3 class="font-black text-white">Chưa có xe trong hệ thống</h3>
+                    <p class="text-sm mt-2">Garage sẽ liên kết xe với tài khoản của bạn khi tiếp nhận hoặc xác nhận thông tin.</p>
+                    <a href="{{ route('customer.appointments.create') }}" class="inline-flex mt-5 bg-cyan-600 hover:bg-cyan-500 text-white font-black py-3 px-5 rounded-xl">Đặt lịch kiểm tra xe</a>
+                </div>
             @endforelse
         </div>
     </div>

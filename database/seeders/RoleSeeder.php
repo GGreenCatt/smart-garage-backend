@@ -17,13 +17,13 @@ class RoleSeeder extends Seeder
                 'name' => 'Administrator',
                 'slug' => 'admin',
                 'description' => 'Full access to all system modules',
-                'permissions' => ['*', 'delete_vehicles'] // Wildcard for all permissions
+                'permissions' => ['*']
             ],
             [
                 'name' => 'Manager',
                 'slug' => 'manager',
                 'description' => 'Can manage staff, inventory, and vehicles',
-                'permissions' => ['view_dashboard', 'manage_staff', 'manage_inventory', 'view_inventory', 'manage_vehicles', 'delete_vehicles', 'view_3d', 'edit_3d', 'manage_customers', 'manage_appointments']
+                'permissions' => ['view_dashboard', 'view_reports', 'manage_settings', 'manage_roles', 'manage_staff', 'manage_inventory', 'view_inventory', 'manage_vehicles', 'delete_vehicles', 'view_3d', 'edit_3d', 'manage_customers', 'manage_appointments', 'customer_support_chat']
             ],
             [
                 'name' => 'Technician',

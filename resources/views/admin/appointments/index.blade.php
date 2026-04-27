@@ -1,535 +1,347 @@
 @extends('layouts.admin')
 
-@section('title', 'Appointment Management')
+@section('title', 'Quản Lý Lịch Hẹn')
+
+@php
+    $statusStyles = [
+        'pending' => 'bg-amber-500/15 text-amber-300 border-amber-500/30',
+        'confirmed' => 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30',
+        'completed' => 'bg-sky-500/15 text-sky-300 border-sky-500/30',
+        'cancelled' => 'bg-rose-500/15 text-rose-300 border-rose-500/30',
+        'no_show' => 'bg-slate-500/15 text-slate-300 border-slate-500/30',
+    ];
+
+    $prevMonth = $month->copy()->subMonth()->format('Y-m');
+    $nextMonth = $month->copy()->addMonth()->format('Y-m');
+    $appointmentPayloads = $calendarAppointments->flatten()->merge($appointments)->unique('id')->values();
+@endphp
 
 @section('content')
-<!-- Custom Tailwind Config for this page -->
-<script src="https://cdn.tailwindcss.com?plugins=forms,typography"></script>
-<script>
-    tailwind.config = {
-        theme: {
-            extend: {
-                colors: {
-                    primary: "#6366f1", // Indigo 500
-                    "primary-hover": "#4f46e5",
-                    "background-dark": "#0f172a",
-                    "surface-dark": "#1e293b",
-                    "accent-cyan": "#06b6d4",
-                    "accent-purple": "#8b5cf6",
-                },
-                fontFamily: {
-                    sans: ['Inter', 'sans-serif'],
-                },
-            },
-        },
-    };
-</script>
-<style>
-    /* Enforce Dark Glass Panel */
-    .glass-panel {
-        background: rgba(30, 41, 59, 0.6);
-        backdrop-filter: blur(12px);
-        -webkit-backdrop-filter: blur(12px);
-        border: 1px solid rgba(255, 255, 255, 0.05);
-    }
-    
-    /* FullCalendar Dark Theme Overrides */
-    .fc-header-toolbar {
-        margin-bottom: 1.5rem !important;
-    }
-    .fc-button {
-        background-color: #6366f1 !important;
-        border-color: #6366f1 !important;
-        text-transform: capitalize !important;
-        font-weight: 600 !important;
-        color: white !important;
-    }
-    .fc-button:hover {
-        background-color: #4f46e5 !important;
-        border-color: #4f46e5 !important;
-    }
-    .fc-button-active {
-        background-color: #4338ca !important;
-        border-color: #4338ca !important;
-    }
-    .fc-toolbar-title {
-        font-size: 1.25rem !important;
-        font-weight: 700 !important;
-        color: white !important;
-    }
-    .fc-theme-standard td, .fc-theme-standard th {
-        border-color: #334155 !important;
-        background: transparent !important;
-    }
-    .fc-daygrid-day-number {
-        color: #e2e8f0 !important;
-    }
-    .fc-col-header-cell-cushion {
-        color: #cbd5e1 !important;
-    }
-    .fc-view {
-        background-color: transparent !important;
-    }
-    /* Hide scrollbar for FullCalendar */
-    .fc-scroller::-webkit-scrollbar {
-        display: none;
-    }
-    .fc-scroller {
-        -ms-overflow-style: none;  /* IE and Edge */
-        scrollbar-width: none;  /* Firefox */
-    }
-    /* Custom Scrollbar */
-    .custom-scrollbar::-webkit-scrollbar {
-        width: 6px;
-    }
-    .custom-scrollbar::-webkit-scrollbar-track {
-        background: #1e293b; 
-    }
-    .custom-scrollbar::-webkit-scrollbar-thumb {
-        background: #475569; 
-        border-radius: 3px;
-    }
-    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-        background: #64748b; 
-    }
-    .fc-event {
-        cursor: pointer !important;
-        border-radius: 9999px !important; /* Rounded Pills */
-        padding: 2px 4px !important;
-        border: none !important;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06) !important;
-        font-weight: 600 !important;
-        font-size: 0.75rem !important;
-    }
-    .fc-event-title {
-        font-weight: 600 !important;
-    }
-    
-    /* Sidebar Transitions */
-    #sidebarContainer {
-        transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease;
-    }
-    #sidebarContent {
-        transition: opacity 0.2s ease;
-    }
-    .sidebar-collapsed #sidebarContainer {
-        width: 0px !important;
-        border: none !important;
-        margin: 0 !important;
-        padding: 0 !important;
-        overflow: hidden !important;
-        opacity: 0;
-    }
-    .sidebar-collapsed #sidebarContent {
-        opacity: 0;
-        pointer-events: none;
-    }
-    
-    /* Calendar Cell Height - Squarer Look */
-    .fc-daygrid-day-frame {
-        min-height: 10rem !important; /* Taller cells */
-    }
+<div class="space-y-6">
+    <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <div>
+            <p class="text-sm font-bold uppercase tracking-[0.22em] text-indigo-300">Điều phối xưởng</p>
+            <h1 class="mt-2 text-3xl font-black text-white">Quản lý lịch hẹn</h1>
+            <p class="mt-2 max-w-2xl text-sm text-slate-400">
+                Theo dõi lịch khách đặt, xác nhận thời gian, ghi chú nội bộ và tiếp nhận xe thành phiếu sửa chữa.
+            </p>
+        </div>
+        <button type="button" onclick="openAppointmentModal()" class="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-5 py-3 text-sm font-black text-white shadow-lg shadow-indigo-950/30 transition hover:bg-indigo-500">
+            <i class="fas fa-plus"></i>
+            Thêm lịch hẹn
+        </button>
+    </div>
 
-    /* Modern Pill Event Styling */
-    .fc-event {
-        cursor: pointer !important;
-        background: rgba(15, 23, 42, 0.6) !important; /* Translucent Dark */
-        border: none !important;
-        border-left-width: 4px !important;
-        border-radius: 4px 12px 12px 4px !important; /* Unique Pill Shape */
-        padding: 4px 8px !important;
-        margin-bottom: 4px !important;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1) !important;
-        font-weight: 500 !important;
-        font-size: 0.75rem !important;
-        transition: all 0.2s ease;
-    }
-    .fc-event:hover {
-        transform: translateX(2px);
-        filter: brightness(1.2);
-    }
-    .fc-event-title, .fc-event-time {
-        font-weight: 600 !important;
-        color: #e2e8f0 !important;
-    }
+    @if(session('success'))
+        <div class="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-5 py-4 text-sm font-bold text-emerald-200">{{ session('success') }}</div>
+    @endif
+    @if(session('error'))
+        <div class="rounded-2xl border border-rose-500/30 bg-rose-500/10 px-5 py-4 text-sm font-bold text-rose-200">{{ session('error') }}</div>
+    @endif
+    @if($errors->any())
+        <div class="rounded-2xl border border-rose-500/30 bg-rose-500/10 px-5 py-4 text-sm text-rose-100">
+            <div class="font-black">Chưa thể lưu lịch hẹn</div>
+            <ul class="mt-2 list-disc space-y-1 pl-5">
+                @foreach($errors->all() as $error)
+                    <li>{{ $error }}</li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
 
-    /* Event Colors by Status */
-    .evt-confirmed { border-left-color: #059669 !important; background: linear-gradient(90deg, rgba(6, 78, 59, 0.4) 0%, rgba(6, 78, 59, 0.1) 100%) !important; }
-    .evt-pending { border-left-color: #d97706 !important; background: linear-gradient(90deg, rgba(120, 53, 15, 0.4) 0%, rgba(120, 53, 15, 0.1) 100%) !important; }
-    .evt-cancelled { border-left-color: #dc2626 !important; background: linear-gradient(90deg, rgba(127, 29, 29, 0.4) 0%, rgba(127, 29, 29, 0.1) 100%) !important; }
-    .evt-completed { border-left-color: #2563eb !important; background: linear-gradient(90deg, rgba(30, 58, 138, 0.4) 0%, rgba(30, 58, 138, 0.1) 100%) !important; }
-</style>
-<script>
-    function toggleSidebar() {
-        document.body.classList.toggle('sidebar-collapsed');
-        // Trigger resize for FullCalendar to adjust
-        setTimeout(() => window.dispatchEvent(new Event('resize')), 350);
-    }
-</script>
+    <div class="grid gap-4 md:grid-cols-4">
+        <div class="rounded-2xl border border-white/10 bg-slate-900/80 p-5">
+            <p class="text-xs font-black uppercase tracking-wider text-slate-500">Hôm nay</p>
+            <div class="mt-3 text-3xl font-black text-white">{{ $stats['today'] }}</div>
+        </div>
+        <div class="rounded-2xl border border-white/10 bg-slate-900/80 p-5">
+            <p class="text-xs font-black uppercase tracking-wider text-slate-500">Chờ xác nhận</p>
+            <div class="mt-3 text-3xl font-black text-amber-300">{{ $stats['pending'] }}</div>
+        </div>
+        <div class="rounded-2xl border border-white/10 bg-slate-900/80 p-5">
+            <p class="text-xs font-black uppercase tracking-wider text-slate-500">Đã xác nhận</p>
+            <div class="mt-3 text-3xl font-black text-emerald-300">{{ $stats['confirmed'] }}</div>
+        </div>
+        <div class="rounded-2xl border border-white/10 bg-slate-900/80 p-5">
+            <p class="text-xs font-black uppercase tracking-wider text-slate-500">Sắp tới</p>
+            <div class="mt-3 text-3xl font-black text-indigo-300">{{ $stats['upcoming'] }}</div>
+        </div>
+    </div>
 
-<div class="h-[calc(100vh-100px)] flex overflow-hidden font-sans bg-background-dark text-slate-200">
-    <!-- Sidebar Wrapper -->
-    <script> document.body.classList.add('sidebar-collapsed'); </script>
-    <div id="sidebarContainer" class="w-80 border-r border-slate-700 bg-surface-dark/50 backdrop-blur-sm z-10 shrink-0 rounded-l-2xl overflow-hidden relative transition-all">
-        <aside id="sidebarContent" class="w-80 flex flex-col h-full absolute inset-0">
-            <div class="p-6 pb-2">
-                <button onclick="document.getElementById('createModal').showModal()" class="w-full group relative flex items-center justify-center gap-2 bg-primary hover:bg-primary-hover text-white py-3.5 px-6 rounded-xl shadow-lg shadow-indigo-500/40 transition-all transform hover:-translate-y-0.5">
-                    <span class="material-icons-round text-xl">add_circle</span>
-                    <span class="font-semibold">Thêm Lịch Hẹn</span>
-                    <div class="absolute inset-0 rounded-xl bg-white opacity-0 group-hover:opacity-10 transition-opacity"></div>
-                </button>
+    <form method="GET" action="{{ route('admin.appointments.index') }}" class="rounded-2xl border border-white/10 bg-slate-900/80 p-4">
+        <div class="grid gap-3 lg:grid-cols-[1.3fr_0.8fr_0.8fr_0.8fr_auto]">
+            <input type="text" name="q" value="{{ request('q') }}" placeholder="Tìm theo khách, SĐT, biển số, yêu cầu..." class="rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm font-semibold text-white outline-none transition focus:border-indigo-400">
+            <input type="date" name="date" value="{{ request('date') }}" class="rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm font-semibold text-white outline-none transition focus:border-indigo-400">
+            <input type="month" name="month" value="{{ $month->format('Y-m') }}" class="rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm font-semibold text-white outline-none transition focus:border-indigo-400">
+            <select name="status" class="rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm font-semibold text-white outline-none transition focus:border-indigo-400">
+                <option value="all">Tất cả trạng thái</option>
+                @foreach($statusLabels as $value => $label)
+                    <option value="{{ $value }}" @selected(request('status') === $value)>{{ $label }}</option>
+                @endforeach
+            </select>
+            <div class="flex gap-2">
+                <button class="inline-flex items-center justify-center rounded-xl bg-indigo-600 px-5 py-3 text-sm font-black text-white transition hover:bg-indigo-500">Lọc</button>
+                <a href="{{ route('admin.appointments.index') }}" class="inline-flex items-center justify-center rounded-xl border border-slate-700 px-4 py-3 text-sm font-black text-slate-300 transition hover:border-slate-500 hover:text-white">Xóa</a>
             </div>
-            
-            <div class="px-6 py-4 flex items-center justify-between">
-                <h2 class="text-lg font-bold text-white flex items-center gap-2">
-                    <span class="material-icons-round text-accent-cyan text-base">event_available</span>
-                    Sắp Tới
-                </h2>
-                <span class="text-xs font-medium px-2 py-0.5 rounded-full bg-slate-700 text-slate-300">{{ $appointments->where('scheduled_at', '>=', now())->count() }}</span>
-            </div>
+        </div>
+    </form>
 
-            <div class="flex-1 overflow-y-auto px-4 pb-6 space-y-3 custom-scrollbar">
-                @forelse($appointments as $appt)
-                @php
-                    $statusColor = match($appt->status) {
-                        'confirmed' => 'bg-emerald-900/30 text-emerald-400 border-emerald-800',
-                        'cancelled' => 'bg-red-900/30 text-red-400 border-red-800',
-                        'completed' => 'bg-blue-900/30 text-blue-400 border-blue-800',
-                        default => 'bg-amber-900/30 text-amber-400 border-amber-800'
-                    };
-                    $indicatorColor = match($appt->status) {
-                        'confirmed' => 'bg-emerald-500',
-                        'cancelled' => 'bg-red-500',
-                        'completed' => 'bg-blue-500',
-                        default => 'bg-amber-500'
-                    };
-                @endphp
-                <div onclick="showEventDetails({{ $appt }})" class="p-4 rounded-xl bg-slate-800 border-l-4 border-l-{{ str_replace('bg-', '', $indicatorColor) }} border-y border-r border-slate-700 shadow-sm hover:shadow-md transition-all cursor-pointer group hover:border-r-indigo-500">
-                    <div class="flex justify-between items-start mb-2">
-                        <div class="flex items-center gap-2">
-                            <span class="text-xs font-bold text-slate-400">{{ $appt->scheduled_at->format('d/m • H:i') }}</span>
-                        </div>
-                        <span class="h-2 w-2 rounded-full {{ $indicatorColor }} {{ $appt->status == 'pending' ? 'animate-pulse' : '' }}"></span>
-                    </div>
-                    <div class="flex items-center gap-3 mb-3">
-                        <div class="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center text-slate-300 font-bold border border-slate-600">
-                            {{ substr($appt->customer->name ?? 'K', 0, 1) }}
-                        </div>
-                        <div>
-                            <h3 class="font-bold text-slate-100 group-hover:text-primary transition-colors text-sm">{{ $appt->customer->name ?? 'Khách lẻ' }}</h3>
-                            <p class="text-xs text-slate-400 font-mono">{{ $appt->vehicle ? $appt->vehicle->license_plate : ($appt->license_plate ?? 'Chưa rõ') }}</p>
-                        </div>
-                    </div>
-                    <div class="flex gap-2 flex-wrap">
-                        @if($appt->service)
-                        <span class="px-2 py-1 rounded-md {{ $statusColor }} text-[10px] font-bold uppercase tracking-wide border">
-                            {{ $appt->service->name }}
-                        </span>
-                        @endif
-                        @if($appt->reason)
-                        <span class="px-2 py-1 rounded-md bg-slate-700/50 text-slate-300 text-[10px] font-bold border border-slate-600 truncate max-w-[150px]">
-                            {{ $appt->reason }}
-                        </span>
-                        @endif
-                    </div>
+    <div class="grid gap-6 xl:grid-cols-[1.4fr_1fr]">
+        <section class="rounded-2xl border border-white/10 bg-slate-900/80 p-5">
+            <div class="mb-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <div>
+                    <h2 class="text-xl font-black text-white">Lịch tháng {{ $month->format('m/Y') }}</h2>
+                    <p class="mt-1 text-sm text-slate-500">Bấm vào một lịch hẹn trong ô ngày để xem và chỉnh sửa.</p>
                 </div>
+                <div class="flex items-center gap-2">
+                    <a href="{{ route('admin.appointments.index', array_merge(request()->except('page'), ['month' => $prevMonth])) }}" class="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-700 text-slate-300 transition hover:border-indigo-400 hover:text-white">
+                        <i class="fas fa-chevron-left"></i>
+                    </a>
+                    <a href="{{ route('admin.appointments.index', ['month' => now()->format('Y-m')]) }}" class="inline-flex h-10 items-center justify-center rounded-xl border border-slate-700 px-4 text-sm font-black text-slate-300 transition hover:border-indigo-400 hover:text-white">Tháng này</a>
+                    <a href="{{ route('admin.appointments.index', array_merge(request()->except('page'), ['month' => $nextMonth])) }}" class="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-700 text-slate-300 transition hover:border-indigo-400 hover:text-white">
+                        <i class="fas fa-chevron-right"></i>
+                    </a>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-7 overflow-hidden rounded-2xl border border-slate-800">
+                @foreach(['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'] as $weekday)
+                    <div class="border-b border-slate-800 bg-slate-950 px-3 py-2 text-center text-xs font-black uppercase tracking-wider text-slate-500">{{ $weekday }}</div>
+                @endforeach
+
+                @foreach($calendarDays as $day)
+                    @php
+                        $dayAppointments = $calendarAppointments->get($day->toDateString(), collect());
+                        $isCurrentMonth = $day->month === $month->month;
+                    @endphp
+                    <div class="min-h-[132px] border-b border-r border-slate-800 p-2 {{ $isCurrentMonth ? 'bg-slate-900' : 'bg-slate-950/70' }}">
+                        <div class="flex items-center justify-between">
+                            <span class="inline-flex h-7 w-7 items-center justify-center rounded-lg text-xs font-black {{ $day->isToday() ? 'bg-indigo-600 text-white' : ($isCurrentMonth ? 'text-slate-200' : 'text-slate-600') }}">
+                                {{ $day->day }}
+                            </span>
+                            @if($dayAppointments->count())
+                                <span class="rounded-full bg-slate-800 px-2 py-0.5 text-[11px] font-black text-slate-300">{{ $dayAppointments->count() }}</span>
+                            @endif
+                        </div>
+                        <div class="mt-2 space-y-1.5">
+                            @foreach($dayAppointments->take(3) as $appointment)
+                                <button type="button" onclick="openAppointmentById({{ $appointment->id }})" class="block w-full rounded-lg border px-2 py-1.5 text-left text-[11px] font-bold leading-tight transition hover:scale-[1.01] {{ $statusStyles[$appointment->status] ?? $statusStyles['pending'] }}">
+                                    <span class="block truncate">{{ $appointment->scheduled_at->format('H:i') }} - {{ $appointment->customer->name ?? 'Khách lẻ' }}</span>
+                                    <span class="block truncate opacity-80">{{ $appointment->vehicle->license_plate ?? $appointment->license_plate ?? 'Chưa có biển số' }}</span>
+                                </button>
+                            @endforeach
+                            @if($dayAppointments->count() > 3)
+                                <a href="{{ route('admin.appointments.index', ['date' => $day->toDateString(), 'month' => $month->format('Y-m')]) }}" class="block rounded-lg bg-slate-800 px-2 py-1 text-center text-[11px] font-black text-slate-300 hover:bg-slate-700">
+                                    +{{ $dayAppointments->count() - 3 }} lịch nữa
+                                </a>
+                            @endif
+                        </div>
+                    </div>
+                @endforeach
+            </div>
+        </section>
+
+        <section class="rounded-2xl border border-white/10 bg-slate-900/80">
+            <div class="border-b border-white/10 p-5">
+                <h2 class="text-xl font-black text-white">Danh sách lịch hẹn</h2>
+                <p class="mt-1 text-sm text-slate-500">{{ $appointments->count() }} lịch hẹn theo bộ lọc hiện tại</p>
+            </div>
+            <div class="max-h-[760px] overflow-y-auto p-4">
+                @forelse($appointments as $appointment)
+                    <div class="mb-3 rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
+                        <div class="flex items-start justify-between gap-3">
+                            <div>
+                                <div class="text-sm font-black text-white">{{ $appointment->customer->name ?? 'Khách lẻ' }}</div>
+                                <div class="mt-1 text-xs font-semibold text-slate-500">{{ $appointment->customer->phone ?? 'Chưa có SĐT' }}</div>
+                            </div>
+                            <span class="rounded-full border px-3 py-1 text-xs font-black {{ $statusStyles[$appointment->status] ?? $statusStyles['pending'] }}">
+                                {{ $statusLabels[$appointment->status] ?? $appointment->status }}
+                            </span>
+                        </div>
+
+                        <div class="mt-4 grid gap-3 text-sm text-slate-300">
+                            <div class="flex items-center gap-2">
+                                <i class="fas fa-clock w-4 text-indigo-300"></i>
+                                <span class="font-bold">{{ $appointment->scheduled_at->format('H:i d/m/Y') }}</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <i class="fas fa-car w-4 text-indigo-300"></i>
+                                <span>{{ $appointment->vehicle->model ?? $appointment->vehicle_name ?? 'Chưa rõ xe' }} - {{ $appointment->vehicle->license_plate ?? $appointment->license_plate ?? 'Chưa có biển số' }}</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <i class="fas fa-screwdriver-wrench w-4 text-indigo-300"></i>
+                                <span>{{ $appointment->service->name ?? 'Chưa chọn dịch vụ' }}</span>
+                            </div>
+                        </div>
+
+                        @if($appointment->reason)
+                            <div class="mt-3 rounded-xl bg-slate-900 px-3 py-2 text-sm text-slate-400">{{ $appointment->reason }}</div>
+                        @endif
+
+                        <div class="mt-4 grid gap-2 sm:grid-cols-3">
+                            <button type="button" onclick="openAppointmentById({{ $appointment->id }})" class="rounded-xl border border-slate-700 px-3 py-2 text-sm font-black text-slate-200 transition hover:border-indigo-400 hover:text-white">
+                                Sửa
+                            </button>
+                            @if(! in_array($appointment->status, ['completed', 'cancelled', 'no_show'], true))
+                                <form method="POST" action="{{ route('admin.appointments.convert', $appointment) }}" onsubmit="return confirm('Tiếp nhận xe và tạo phiếu sửa chữa từ lịch hẹn này?');">
+                                    @csrf
+                                    <button class="w-full rounded-xl bg-emerald-600 px-3 py-2 text-sm font-black text-white transition hover:bg-emerald-500">Tiếp nhận</button>
+                                </form>
+                            @endif
+                            @if($appointment->status !== 'completed')
+                                <form method="POST" action="{{ route('admin.appointments.destroy', $appointment) }}" onsubmit="return confirm('Xóa lịch hẹn này?');">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button class="w-full rounded-xl border border-rose-500/40 px-3 py-2 text-sm font-black text-rose-300 transition hover:bg-rose-500/10">Xóa</button>
+                                </form>
+                            @endif
+                        </div>
+                    </div>
                 @empty
-                <div class="text-center text-slate-500 py-8 italic text-sm">Chưa có lịch hẹn sắp tới</div>
+                    <div class="rounded-2xl border border-dashed border-slate-700 p-8 text-center">
+                        <div class="text-lg font-black text-white">Chưa có lịch hẹn</div>
+                        <p class="mt-2 text-sm text-slate-500">Thử đổi bộ lọc hoặc tạo lịch hẹn mới cho khách.</p>
+                    </div>
                 @endforelse
             </div>
-        </aside>
+        </section>
     </div>
-
-    <!-- Main Calendar Area -->
-    <main class="flex-1 p-6 flex flex-col z-10 overflow-hidden bg-background-dark/50">
-        <!-- Custom Header -->
-        <div class="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
-            <div class="flex items-center gap-4 w-full sm:w-auto">
-                <div class="flex items-center bg-surface-dark rounded-lg shadow-sm border border-slate-700 p-1">
-                    <button onclick="toggleSidebar()" class="p-2 hover:bg-slate-700 rounded-md text-slate-400 transition-colors mr-2 border-r border-slate-700">
-                        <span class="material-icons-round">menu_open</span>
-                    </button>
-                    <button id="cal-prev" class="p-1 hover:bg-slate-700 rounded-md text-slate-400 transition-colors">
-                        <span class="material-icons-round">chevron_left</span>
-                    </button>
-                    <button id="cal-next" class="p-1 hover:bg-slate-700 rounded-md text-slate-400 transition-colors">
-                        <span class="material-icons-round">chevron_right</span>
-                    </button>
-                    <button id="cal-today" class="px-3 py-1 text-sm font-medium text-slate-200 hover:bg-slate-700 rounded-md ml-1 transition-colors">Today</button>
-                </div>
-                <h2 id="cal-title" class="text-2xl font-bold text-white min-w-[200px]">...</h2>
-            </div>
-
-            <div class="flex items-center gap-4 w-full sm:w-auto">
-                <div class="relative group flex-1 sm:flex-none">
-                    <span class="absolute left-3 top-2.5 text-slate-400 material-icons-round text-sm">search</span>
-                    <input id="cal-search" class="w-full sm:w-64 pl-9 pr-4 py-2 bg-surface-dark border border-slate-700 rounded-lg text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all placeholder-slate-500" placeholder="Search..." type="text">
-                </div>
-                <div class="flex bg-surface-dark rounded-lg p-1 border border-slate-700 shadow-sm">
-                    <button class="view-btn px-4 py-1.5 rounded-md text-sm font-medium text-slate-400 hover:text-white transition-colors" data-view="dayGridMonth">Month</button>
-                    <button class="view-btn px-4 py-1.5 rounded-md text-sm font-medium text-slate-400 hover:text-white transition-colors" data-view="timeGridWeek">Week</button>
-                    <button class="view-btn px-4 py-1.5 rounded-md text-sm font-medium text-slate-400 hover:text-white transition-colors" data-view="timeGridDay">Day</button>
-                </div>
-            </div>
-        </div>
-
-        <!-- Calendar Container -->
-        <div class="flex-1 glass-panel rounded-2xl border border-slate-700 shadow-xl overflow-hidden p-4">
-             <div id="calendar" class="h-full text-slate-200"></div>
-        </div>
-    </main>
 </div>
 
-<!-- Create Modal -->
-<dialog id="createModal" class="bg-surface-dark text-white border border-slate-700 rounded-2xl shadow-2xl p-6 w-[500px] backdrop:bg-black/80">
-    <div class="flex justify-between items-center mb-6">
-        <h3 class="font-bold text-xl flex items-center gap-2">
-            <span class="material-icons-round text-primary">add_circle_outline</span>
-            Tạo Lịch Hẹn Mới
-        </h3>
-        <button onclick="document.getElementById('createModal').close()" class="p-2 hover:bg-slate-800 rounded-full transition-colors text-slate-500"><span class="material-icons-round">close</span></button>
-    </div>
-    
-    <form action="{{ route('admin.appointments.store') }}" method="POST" class="space-y-4">
+<dialog id="appointmentModal" class="w-[min(720px,calc(100vw-24px))] rounded-2xl border border-slate-700 bg-slate-950 p-0 text-white shadow-2xl backdrop:bg-black/70">
+    <form id="appointmentForm" method="POST" action="{{ route('admin.appointments.store') }}">
         @csrf
-        <div>
-            <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Khách Hàng (SĐT)</label>
-            <div class="relative">
-                <span class="absolute left-3 top-2.5 text-slate-400 material-icons-round text-sm">search</span>
-                <input type="number" list="customer_list" name="customer_phone" class="w-full bg-slate-800 border border-slate-700 rounded-xl pl-9 pr-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm transition-all text-white placeholder-slate-500" placeholder="Tìm bằng số điện thoại..." required onchange="findCustomer(this.value)">
+        <input type="hidden" name="_method" id="appointmentMethod" value="POST" disabled>
+
+        <div class="flex items-center justify-between border-b border-slate-800 px-6 py-4">
+            <div>
+                <h3 id="appointmentModalTitle" class="text-xl font-black">Thêm lịch hẹn</h3>
+                <p class="mt-1 text-sm text-slate-500">Nhập thông tin khách, xe và thời gian hẹn.</p>
             </div>
-            <input type="hidden" name="customer_id" id="customer_id">
-            <datalist id="customer_list">
-                @foreach(\App\Models\User::where('role', 'customer')->get() as $c)
-                    <option value="{{ $c->phone }}">{{ $c->name }}</option>
-                @endforeach
-            </datalist>
+            <button type="button" onclick="closeAppointmentModal()" class="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-800 text-slate-400 hover:text-white">
+                <i class="fas fa-times"></i>
+            </button>
         </div>
 
-        <div class="grid grid-cols-2 gap-4">
-            <div>
-                <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Ngày Giờ</label>
-                <input type="datetime-local" name="scheduled_at" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm text-white" required>
-            </div>
-            <div>
-                <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Dịch Vụ</label>
-                 <select name="service_id" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm text-white">
-                    <option value="">-- Chọn Dịch Vụ --</option>
-                    @foreach(\App\Models\Service::all() as $s)
-                        <option value="{{ $s->id }}">{{ $s->name }}</option>
+        <div class="grid gap-5 p-6 md:grid-cols-2">
+            <div class="md:col-span-2">
+                <label class="mb-2 block text-xs font-black uppercase tracking-wider text-slate-500">Chọn khách đã có</label>
+                <select name="customer_id" id="customer_id" class="w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm font-semibold text-white outline-none focus:border-indigo-400">
+                    <option value="">Tạo khách mới hoặc nhập theo SĐT</option>
+                    @foreach($customers as $customer)
+                        <option value="{{ $customer->id }}">{{ $customer->name }} - {{ $customer->phone }}</option>
                     @endforeach
                 </select>
             </div>
+
+            <div>
+                <label class="mb-2 block text-xs font-black uppercase tracking-wider text-slate-500">Tên khách mới</label>
+                <input type="text" name="customer_name" id="customer_name" class="w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm font-semibold text-white outline-none focus:border-indigo-400">
+            </div>
+            <div>
+                <label class="mb-2 block text-xs font-black uppercase tracking-wider text-slate-500">Số điện thoại</label>
+                <input type="text" name="customer_phone" id="customer_phone" class="w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm font-semibold text-white outline-none focus:border-indigo-400">
+            </div>
+
+            <div>
+                <label class="mb-2 block text-xs font-black uppercase tracking-wider text-slate-500">Tên xe / dòng xe</label>
+                <input type="text" name="vehicle_name" id="vehicle_name" placeholder="Toyota Vios, Mazda 3..." class="w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm font-semibold text-white outline-none focus:border-indigo-400">
+            </div>
+            <div>
+                <label class="mb-2 block text-xs font-black uppercase tracking-wider text-slate-500">Biển số</label>
+                <input type="text" name="license_plate" id="license_plate" class="w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm font-semibold text-white outline-none focus:border-indigo-400">
+            </div>
+
+            <div>
+                <label class="mb-2 block text-xs font-black uppercase tracking-wider text-slate-500">Thời gian hẹn</label>
+                <input type="datetime-local" name="scheduled_at" id="scheduled_at" class="w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm font-semibold text-white outline-none focus:border-indigo-400" required>
+            </div>
+            <div>
+                <label class="mb-2 block text-xs font-black uppercase tracking-wider text-slate-500">Trạng thái</label>
+                <select name="status" id="status" class="w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm font-semibold text-white outline-none focus:border-indigo-400">
+                    @foreach($statusLabels as $value => $label)
+                        <option value="{{ $value }}">{{ $label }}</option>
+                    @endforeach
+                </select>
+            </div>
+
+            <div class="md:col-span-2">
+                <label class="mb-2 block text-xs font-black uppercase tracking-wider text-slate-500">Dịch vụ dự kiến</label>
+                <select name="service_id" id="service_id" class="w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm font-semibold text-white outline-none focus:border-indigo-400">
+                    <option value="">Chưa chọn dịch vụ</option>
+                    @foreach($services as $service)
+                        <option value="{{ $service->id }}">{{ $service->name }}{{ $service->base_price ? ' - '.number_format($service->base_price, 0, ',', '.').'đ' : '' }}</option>
+                    @endforeach
+                </select>
+            </div>
+
+            <div>
+                <label class="mb-2 block text-xs font-black uppercase tracking-wider text-slate-500">Yêu cầu của khách</label>
+                <textarea name="reason" id="reason" rows="4" class="w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm font-semibold text-white outline-none focus:border-indigo-400"></textarea>
+            </div>
+            <div>
+                <label class="mb-2 block text-xs font-black uppercase tracking-wider text-slate-500">Ghi chú nội bộ</label>
+                <textarea name="notes" id="notes" rows="4" class="w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm font-semibold text-white outline-none focus:border-indigo-400"></textarea>
+            </div>
         </div>
 
-        <div>
-            <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Lý do / Vấn đề xe</label>
-            <textarea name="reason" rows="2" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm text-white placeholder-slate-500"></textarea>
+        <div class="flex items-center justify-end gap-3 border-t border-slate-800 px-6 py-4">
+            <button type="button" onclick="closeAppointmentModal()" class="rounded-xl border border-slate-700 px-5 py-3 text-sm font-black text-slate-300 transition hover:border-slate-500 hover:text-white">Đóng</button>
+            <button class="rounded-xl bg-indigo-600 px-5 py-3 text-sm font-black text-white transition hover:bg-indigo-500">Lưu lịch hẹn</button>
         </div>
-
-        <div>
-            <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Ghi Chú Nội Bộ</label>
-            <textarea name="notes" rows="2" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm text-white placeholder-slate-500"></textarea>
-        </div>
-
-        <button class="w-full bg-primary hover:bg-primary-hover text-white py-3 rounded-xl font-bold mt-4 shadow-lg shadow-indigo-500/30 transition-all">Xác Nhận Đặt Lịch</button>
     </form>
 </dialog>
 
-<!-- Detail Modal -->
-<dialog id="detailModal" class="bg-surface-dark text-white border border-slate-700 rounded-2xl shadow-2xl p-6 w-[500px] backdrop:bg-black/80">
-    <div class="flex justify-between items-center mb-6">
-        <h3 class="font-bold text-xl flex items-center gap-2">
-            <span class="material-icons-round text-accent-cyan">info</span>
-            Chi Tiết Lịch Hẹn
-        </h3>
-        <button onclick="document.getElementById('detailModal').close()" class="p-2 hover:bg-slate-800 rounded-full transition-colors text-slate-500"><span class="material-icons-round">close</span></button>
-    </div>
-    
-    <div class="space-y-6">
-        <div class="bg-slate-800 p-5 rounded-xl border border-slate-700">
-            <div class="flex items-center gap-4 mb-4">
-                <div class="w-12 h-12 rounded-full bg-indigo-900/30 text-primary flex items-center justify-center font-bold text-lg" id="detail_avatar">KH</div>
-                <div>
-                    <div class="font-bold text-lg text-white" id="detail_customer">Nguyen Van A</div>
-                    <div class="text-sm text-slate-400 font-mono flex items-center gap-1">
-                        <span class="material-icons-round text-xs">call</span>
-                        <span id="detail_phone">0923000000</span>
-                    </div>
-                </div>
-            </div>
-            <form id="updateForm" method="POST" class="space-y-4">
-                @csrf
-                @method('PUT')
-                
-                <div class="grid grid-cols-2 gap-4 text-sm">
-                    <div>
-                        <span class="text-slate-400 text-xs uppercase font-bold block mb-1">Phương tiện (Chỉ xem)</span>
-                        <input type="text" id="detail_vehicle" class="w-full bg-slate-900/50 border border-slate-700/50 rounded-lg px-3 py-2 text-slate-300 outline-none cursor-not-allowed" readonly>
-                    </div>
-                    <div>
-                        <span class="text-slate-400 text-xs uppercase font-bold block mb-1">Thời gian hẹn</span>
-                        <input type="datetime-local" name="scheduled_at" id="detail_scheduled_at" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:border-primary outline-none" required>
-                    </div>
-                </div>
-
-                <div>
-                    <span class="text-slate-400 text-xs uppercase font-bold block mb-1">Dịch vụ</span>
-                    <select name="service_id" id="detail_service_select" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:border-primary outline-none">
-                        <option value="">-- Chưa xác định / Tư vấn thêm --</option>
-                        @foreach(App\Models\Service::all() as $service)
-                            <option value="{{ $service->id }}">{{ $service->name }} ({{ number_format($service->price) }}đ)</option>
-                        @endforeach
-                    </select>
-                </div>
-
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                    <div>
-                        <span class="text-slate-400 text-xs uppercase font-bold block mb-1">Lý do / Yêu cầu (KH)</span>
-                        <textarea name="reason" id="detail_reason" rows="2" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:border-primary outline-none placeholder-slate-600" placeholder="Chưa có thông tin..."></textarea>
-                    </div>
-                    <div>
-                        <span class="text-slate-400 text-xs uppercase font-bold block mb-1">Ghi chú (Nội bộ Admin)</span>
-                        <textarea name="notes" id="detail_notes_input" rows="2" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:border-primary outline-none placeholder-slate-600" placeholder="Ghi chú thêm..."></textarea>
-                    </div>
-                </div>
-
-                <div class="flex items-end gap-3 pt-2">
-                    <div class="flex-1">
-                        <span class="text-slate-400 text-xs uppercase font-bold block mb-1">Trạng thái</span>
-                        <select name="status" id="detail_status" class="w-full bg-slate-800 border border-slate-600 rounded-lg px-4 py-2.5 text-slate-200 focus:ring-2 focus:ring-primary focus:border-transparent outline-none font-semibold">
-                            <option value="pending">Chờ xác nhận</option>
-                            <option value="confirmed">Đã xác nhận</option>
-                            <option value="cancelled">Hủy</option>
-                            <option value="completed">Hoàn thành</option>
-                        </select>
-                    </div>
-                    <button type="submit" class="bg-indigo-600 hover:bg-indigo-500 text-white px-6 py-2.5 rounded-lg font-bold shadow-md transition-all">Lưu Lại</button>
-                </div>
-            </form>
-
-            <div class="flex gap-3 mt-4 pt-4 border-t border-slate-700">
-                <form id="deleteForm" method="POST" class="w-1/3" onsubmit="return confirm('Bạn có chắc chắn muốn xóa/hủy lịch hẹn này?');">
-                    @csrf
-                    @method('DELETE')
-                    <button class="w-full bg-red-900/40 hover:bg-red-800/60 text-red-400 font-bold py-3 rounded-lg border border-red-800/50 transition-all flex justify-center items-center gap-2">
-                        <span class="material-icons-round text-sm">delete</span> Xóa Lịch
-                    </button>
-                </form>
-                <form id="convertForm" method="POST" class="flex-1">
-                    @csrf
-                    <button class="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold py-3 rounded-lg flex items-center justify-center gap-2 shadow-lg shadow-emerald-900/30 transition-all">
-                        <span class="material-icons-round text-sm">build_circle</span> Tạo Phiếu Sửa Chữa
-                    </button>
-                </form>
-            </div>
-    </div>
-</dialog>
-
-<!-- FullCalendar CDN -->
-<script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js'></script>
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        var calendarEl = document.getElementById('calendar');
-        var calendar = new FullCalendar.Calendar(calendarEl, {
-            initialView: 'dayGridMonth',
-            headerToolbar: false, // Hide default toolbar to use custom one
-            themeSystem: 'standard',
-            height: '100%',
-            events: [
-                @foreach($appointments as $appt)
-                {
-                    title: '{{ $appt->scheduled_at->format("H:i") }} {{ $appt->customer->name ?? "K/L" }}',
-                    start: '{{ $appt->scheduled_at }}',
-                    classNames: ['evt-{{ $appt->status }}'],
-                    extendedProps: @json($appt)
-                },
-                @endforeach
-            ],
-            datesSet: function(info) {
-                // Update Title
-                document.getElementById('cal-title').innerText = info.view.title;
-                // Update Active View Button
-                document.querySelectorAll('.view-btn').forEach(btn => {
-                    if(btn.dataset.view === info.view.type) {
-                        btn.classList.add('bg-primary', 'text-white');
-                        btn.classList.remove('text-slate-400');
-                    } else {
-                        btn.classList.remove('bg-primary', 'text-white');
-                        btn.classList.add('text-slate-400');
-                    }
-                });
-            },
-            eventClick: function(info) {
-                const appt = info.event.extendedProps;
-                const modal = document.getElementById('detailModal');
-                
-                // Populate Data
-                document.getElementById('detail_customer').innerText = appt.customer ? appt.customer.name : 'Khách lẻ';
-                document.getElementById('detail_avatar').innerText = appt.customer ? appt.customer.name.charAt(0) : 'K';
-                document.getElementById('detail_phone').innerText = appt.customer ? appt.customer.phone : 'N/A';
-                
-                // Inputs
-                document.getElementById('detail_vehicle').value = appt.vehicle ? (appt.vehicle.license_plate + ' • ' + appt.vehicle.model) : (appt.license_plate ? appt.license_plate + ' • ' + (appt.vehicle_name || '') : 'Chưa rõ xe');
-                
-                // Format date for datetime-local: YYYY-MM-DDTHH:mm
-                if (appt.scheduled_at) {
-                    const dateObj = new Date(appt.scheduled_at);
-                    const tzOffset = dateObj.getTimezoneOffset() * 60000;
-                    const localISOTime = (new Date(dateObj.getTime() - tzOffset)).toISOString().slice(0, 16);
-                    document.getElementById('detail_scheduled_at').value = localISOTime;
-                }
+    const appointmentModal = document.getElementById('appointmentModal');
+    const appointmentForm = document.getElementById('appointmentForm');
+    const appointmentMethod = document.getElementById('appointmentMethod');
+    const appointmentPayloads = @json($appointmentPayloads);
+    const storeUrl = @json(route('admin.appointments.store'));
 
-                document.getElementById('detail_service_select').value = appt.service_id || '';
-                document.getElementById('detail_reason').value = appt.reason || '';
-                document.getElementById('detail_notes_input').value = appt.notes || '';
-                document.getElementById('detail_status').value = appt.status;
-                
-                // Update Action URLs
-                document.getElementById('updateForm').action = `/admin/appointments/${appt.id}`;
-                document.getElementById('convertForm').action = `/admin/appointments/${appt.id}/convert`;
-                document.getElementById('deleteForm').action = `/admin/appointments/${appt.id}`;
-
-                modal.showModal();
-            }
-        });
-        calendar.render();
-
-        // Custom Control Logic
-        document.getElementById('cal-prev').addEventListener('click', () => calendar.prev());
-        document.getElementById('cal-next').addEventListener('click', () => calendar.next());
-        document.getElementById('cal-today').addEventListener('click', () => calendar.today());
-        
-        document.querySelectorAll('.view-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                calendar.changeView(e.target.dataset.view);
-            });
-        });
-
-        // Simple Search Logic (Client-side filter by title)
-        document.getElementById('cal-search').addEventListener('input', function(e) {
-            const keyword = e.target.value.toLowerCase();
-            const allEvents = calendar.getEvents();
-            allEvents.forEach(evt => {
-                if (evt.title.toLowerCase().includes(keyword)) {
-                    evt.setProp('display', 'auto');
-                } else {
-                    evt.setProp('display', 'none');
-                }
-            });
-        });
-    });
-
-    // Simple mocked customer finder script
-    @php
-        $customerList = \App\Models\User::where('role', 'customer')->get(['id', 'phone', 'name']);
-    @endphp
-    const customers = @json($customerList);
-    function findCustomer(phone) {
-        const found = customers.find(c => c.phone == phone);
-        if(found) {
-            document.getElementById('customer_id').value = found.id;
+    function openAppointmentById(appointmentId) {
+        const appointment = appointmentPayloads.find((item) => Number(item.id) === Number(appointmentId));
+        if (appointment) {
+            openAppointmentModal(appointment);
         }
+    }
+
+    function openAppointmentModal(appointment = null) {
+        appointmentForm.reset();
+        appointmentForm.action = storeUrl;
+        appointmentMethod.disabled = true;
+        appointmentMethod.value = 'POST';
+        document.getElementById('appointmentModalTitle').innerText = 'Thêm lịch hẹn';
+        document.getElementById('status').value = 'confirmed';
+
+        if (appointment) {
+            document.getElementById('appointmentModalTitle').innerText = 'Cập nhật lịch hẹn';
+            appointmentForm.action = `/admin/appointments/${appointment.id}`;
+            appointmentMethod.disabled = false;
+            appointmentMethod.value = 'PUT';
+
+            document.getElementById('customer_id').value = appointment.customer_id || '';
+            document.getElementById('customer_name').value = appointment.customer?.name || '';
+            document.getElementById('customer_phone').value = appointment.customer?.phone || '';
+            document.getElementById('vehicle_name').value = appointment.vehicle?.model || appointment.vehicle_name || '';
+            document.getElementById('license_plate').value = appointment.vehicle?.license_plate || appointment.license_plate || '';
+            document.getElementById('service_id').value = appointment.service_id || '';
+            document.getElementById('status').value = appointment.status || 'pending';
+            document.getElementById('reason').value = appointment.reason || '';
+            document.getElementById('notes').value = appointment.notes || '';
+
+            if (appointment.scheduled_at) {
+                const date = new Date(appointment.scheduled_at);
+                const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+                document.getElementById('scheduled_at').value = localDate.toISOString().slice(0, 16);
+            }
+        }
+
+        appointmentModal.showModal();
+    }
+
+    function closeAppointmentModal() {
+        appointmentModal.close();
     }
 </script>
 @endsection

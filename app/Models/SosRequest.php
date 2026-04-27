@@ -25,15 +25,18 @@ class SosRequest extends Model
         'completed_at'
     ];
 
-    // Accessors for generic display
     public function getDisplayNameAttribute()
     {
-        return $this->customer_id ? ($this->customer->name ?? 'Khách Hàng Mới') : $this->guest_name;
+        return $this->customer_id
+            ? ($this->customer->name ?? 'Khách hàng mới')
+            : ($this->guest_name ?: 'Khách vãng lai');
     }
 
     public function getDisplayPhoneAttribute()
     {
-        return $this->customer_id ? ($this->customer->phone ?? 'Không có SĐT') : $this->guest_phone;
+        return $this->customer_id
+            ? ($this->customer->phone ?? 'Không có SĐT')
+            : ($this->guest_phone ?: 'Không có SĐT');
     }
 
     protected $casts = [
@@ -58,3 +61,4 @@ class SosRequest extends Model
         return $this->belongsTo(Vehicle::class);
     }
 }
+

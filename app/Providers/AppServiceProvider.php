@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Models\Role;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -30,25 +31,7 @@ class AppServiceProvider extends ServiceProvider
             }
         });
 
-        $permissions = [
-            'view_dashboard',
-            'manage_settings',
-            'view_staff',
-            'manage_staff',
-            'manage_customers',
-            'manage_vehicles',
-            'view_inventory',
-            'manage_inventory',
-            'view_reports',
-            'delete_vehicles',
-            'manage_appointments',
-            'view_repair_orders',
-            'create_repair_orders',
-            'manage_sos',
-            'view_requests'
-        ];
-
-        foreach ($permissions as $permission) {
+        foreach (Role::permissions() as $permission) {
             \Illuminate\Support\Facades\Gate::define($permission, function ($user) use ($permission) {
                 return $user->hasPermission($permission);
             });

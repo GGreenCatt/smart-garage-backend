@@ -12,11 +12,15 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('repair_tasks', function (Blueprint $table) {
-            $table->decimal('labor_cost', 12, 2)->default(0)->after('status');
+            if (!Schema::hasColumn('repair_tasks', 'labor_cost')) {
+                $table->decimal('labor_cost', 12, 2)->default(0)->after('status');
+            }
         });
 
         Schema::table('repair_order_items', function (Blueprint $table) {
-            $table->foreignId('repair_task_id')->nullable()->after('repair_order_id')->constrained('repair_tasks')->nullOnDelete();
+            if (!Schema::hasColumn('repair_order_items', 'repair_task_id')) {
+                $table->foreignId('repair_task_id')->nullable()->after('repair_order_id')->constrained('repair_tasks')->nullOnDelete();
+            }
         });
     }
 
@@ -26,12 +30,16 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('repair_order_items', function (Blueprint $table) {
-            $table->dropForeign(['repair_task_id']);
-            $table->dropColumn('repair_task_id');
+            if (Schema::hasColumn('repair_order_items', 'repair_task_id')) {
+                $table->dropForeign(['repair_task_id']);
+                $table->dropColumn('repair_task_id');
+            }
         });
 
         Schema::table('repair_tasks', function (Blueprint $table) {
-            $table->dropColumn('labor_cost');
+            if (Schema::hasColumn('repair_tasks', 'labor_cost')) {
+                $table->dropColumn('labor_cost');
+            }
         });
     }
 };

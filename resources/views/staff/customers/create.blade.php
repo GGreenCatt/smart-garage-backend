@@ -28,7 +28,7 @@
                     </div>
                     <div>
                         <label class="block text-slate-400 text-sm font-bold mb-2">Email</label>
-                        <input type="email" name="email" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-cyan-500" required>
+                        <input type="email" name="email" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-cyan-500">
                     </div>
                 </div>
 
@@ -39,6 +39,7 @@
             </div>
 
             <div class="pt-4 border-t border-slate-700 flex justify-end">
+                <p class="mr-auto text-xs text-slate-400 self-center">Mật khẩu mặc định: 12345678</p>
                 <button type="submit" class="bg-cyan-600 hover:bg-cyan-500 text-white px-6 py-3 rounded-lg font-bold shadow-lg shadow-cyan-900/40 transition">
                     <i class="fas fa-save mr-2"></i> Lưu Khách Hàng
                 </button>

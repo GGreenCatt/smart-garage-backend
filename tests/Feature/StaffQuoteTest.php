@@ -55,20 +55,15 @@ class StaffQuoteTest extends TestCase
             'status' => 'pending',
         ]);
 
-        $task = RepairTask::factory()->create([
-            'repair_order_id' => $repairOrder->id,
-            'title' => 'Replace Brake Pads',
-            'status' => 'pending',
-        ]);
-
         $response = $this->actingAs($staff)->postJson(route('staff.order.send-quote', $repairOrder->id));
 
         $response->assertStatus(200);
-        $response->assertJsonPath('message', 'Quote sent to customer successfully.');
+        $response->assertJsonPath('success', true);
 
         $this->assertDatabaseHas('repair_orders', [
             'id' => $repairOrder->id,
-            'status' => 'pending_approval'
+            'status' => 'pending_approval',
+            'quote_status' => 'sent',
         ]);
 
         $this->assertDatabaseHas('repair_tasks', [
@@ -106,6 +101,6 @@ class StaffQuoteTest extends TestCase
         $response = $this->actingAs($staff)->postJson(route('staff.order.send-quote', $repairOrder->id));
 
         $response->assertStatus(400);
-        $response->assertJsonPath('message', 'Cannot send quote without any tasks or VHC report.');
+        $response->assertJsonPath('success', false);
     }
 }

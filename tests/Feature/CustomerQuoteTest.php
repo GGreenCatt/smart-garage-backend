@@ -46,18 +46,11 @@ class CustomerQuoteTest extends TestCase
             'track_id' => 'TRK-' . uniqid()
         ]);
 
-        $response = $this->actingAs($customer)->getJson(route('customer.order.quote.show', $repairOrder->id));
+        $response = $this->actingAs($customer)->get(route('customer.order.quote.show', $repairOrder->id));
 
         $response->assertStatus(200);
-        $response->assertJsonStructure([
-            'repair_order' => [
-                'id',
-                'customer_id',
-                'status',
-                'vehicle',
-                'advisor',
-            ]
-        ]);
+        $response->assertViewIs('customer.quote');
+        $response->assertViewHas('order', fn ($order) => $order->id === $repairOrder->id);
     }
 
     public function test_customer_cannot_view_others_quote()
@@ -145,12 +138,68 @@ class CustomerQuoteTest extends TestCase
 
         $this->assertDatabaseHas('repair_orders', [
             'id' => $repairOrder->id,
-            'status' => 'approved' // Overall status becomes approved if at least one task is approved and all are answered
+            'status' => 'approved', // Overall status becomes approved if at least one task is approved and all are answered
+            'quote_status' => 'approved',
         ]);
         
         $this->assertDatabaseHas('notifications', [
             'notifiable_id' => $staff->id,
             'type' => 'quote_reviewed'
         ]);
+    }
+
+    public function test_customer_rejecting_all_tasks_marks_quote_rejected_and_order_cancelled()
+    {
+        $customer = User::factory()->create(['role' => 'customer', 'role_id' => Role::where('name', 'customer')->first()->id, 'phone' => '1133557799']);
+        $vehicle = Vehicle::factory()->create([
+            'user_id' => $customer->id,
+            'owner_phone' => $customer->phone,
+            'license_plate' => '32A-11111',
+            'make' => 'Mazda',
+            'model' => 'CX5',
+            'year' => 2023,
+            'color' => 'Red',
+            'type' => 'suv',
+        ]);
+
+        $repairOrder = RepairOrder::factory()->create([
+            'customer_id' => $customer->id,
+            'vehicle_id' => $vehicle->id,
+            'status' => 'pending_approval',
+            'quote_status' => 'sent',
+            'track_id' => 'TRK-' . uniqid(),
+        ]);
+
+        $parentTask = RepairTask::factory()->create([
+            'repair_order_id' => $repairOrder->id,
+            'title' => 'Kiểm tra tổng quát',
+        ]);
+
+        $task = RepairTask::factory()->create([
+            'repair_order_id' => $repairOrder->id,
+            'parent_id' => $parentTask->id,
+            'title' => 'Thay má phanh',
+            'customer_approval_status' => 'pending',
+        ]);
+
+        $response = $this->actingAs($customer)->postJson(route('customer.order.quote.tasks', $repairOrder->id), [
+            'tasks' => [
+                ['id' => $task->id, 'status' => 'rejected'],
+            ],
+        ]);
+
+        $response->assertStatus(200);
+
+        $this->assertDatabaseHas('repair_orders', [
+            'id' => $repairOrder->id,
+            'status' => 'cancelled',
+            'quote_status' => 'rejected',
+        ]);
+    }
+
+    public function test_legacy_customer_quote_actions_are_removed()
+    {
+        $this->assertFalse(\Illuminate\Support\Facades\Route::has('customer.order.approve'));
+        $this->assertFalse(\Illuminate\Support\Facades\Route::has('customer.order.reject'));
     }
 }

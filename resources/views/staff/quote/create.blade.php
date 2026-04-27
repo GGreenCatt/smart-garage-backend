@@ -1,6 +1,6 @@
 @extends('layouts.staff')
 
-@section('title', 'Smart Repair Inspection & Quote')
+@section('title', 'Tạo Báo Giá Sửa Chữa')
 
 @section('main_class', 'p-6 xl:p-10 max-w-7xl mx-auto space-y-6 bg-[#f6f6f8] dark:bg-[#101622] font-display min-h-screen')
 
@@ -9,10 +9,33 @@
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght@100..700,0..1&display=swap" rel="stylesheet"/>
 <style>
     .glass {
-        background: rgba(35, 47, 72, 0.4);
-        backdrop-filter: blur(12px);
-        -webkit-backdrop-filter: blur(12px);
-        border: 1px solid rgba(255, 255, 255, 0.1);
+        background: rgba(255, 255, 255, 0.92);
+        border: 1px solid rgba(148, 163, 184, 0.28);
+        box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+    }
+    .dark .glass {
+        background: rgba(15, 23, 42, 0.92);
+        border-color: rgba(51, 65, 85, 0.8);
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.22);
+    }
+    .quote-surface {
+        background: rgba(255, 255, 255, 0.96);
+        border: 1px solid rgba(226, 232, 240, 0.95);
+        box-shadow: 0 16px 40px rgba(15, 23, 42, 0.07);
+    }
+    .dark .quote-surface {
+        background: rgba(15, 23, 42, 0.96);
+        border-color: rgba(51, 65, 85, 0.85);
+    }
+    .field-label {
+        font-size: 11px;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: .04em;
+        color: rgb(100 116 139);
+    }
+    .dark .field-label {
+        color: rgb(148 163 184);
     }
     .locked-field {
         background-color: rgba(16, 22, 34, 0.5);
@@ -24,23 +47,81 @@
     .ring-primary { --tw-ring-color: #2b6cee; }
     .focus\:ring-primary:focus { --tw-ring-color: #2b6cee; box-shadow: var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #0000); }
     .focus\:border-primary:focus { border-color: #2b6cee; }
+    @media (max-width: 767px) {
+        .quote-surface,
+        .glass {
+            border-radius: 14px;
+        }
+        .fix-row {
+            padding: 1rem !important;
+        }
+        .fix-row .grid {
+            grid-template-columns: 1fr !important;
+            gap: 1rem !important;
+        }
+        .part-item {
+            flex-direction: column;
+            align-items: stretch;
+            gap: .75rem;
+        }
+        .part-item > div,
+        .part-item .w-24,
+        .part-item .w-40 {
+            width: 100% !important;
+        }
+        .part-item button {
+            width: 100%;
+            border-radius: .75rem;
+            background: rgba(239, 68, 68, .08);
+        }
+        #quoteForm .sticky {
+            position: static !important;
+        }
+    }
 </style>
 @endpush
 
 @section('content')
-<div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8">
+@php
+    $vhcReport = $order->vhcReport;
+    $vhcDefects = $vhcReport?->defects ?? collect();
+    $quoteStatusLabels = [
+        'draft' => 'Bản nháp',
+        'sent' => 'Đã gửi cho khách',
+        'approved' => 'Khách đã duyệt',
+        'rejected' => 'Khách đã từ chối',
+    ];
+    $orderStatusLabels = [
+        'pending' => 'Chờ tiếp nhận',
+        'in_progress' => 'Đang kiểm tra/lập báo giá',
+        'pending_approval' => 'Chờ khách duyệt',
+        'approved' => 'Khách đã duyệt',
+        'completed' => 'Đã hoàn thành',
+        'cancelled' => 'Đã hủy',
+    ];
+    $severityLabels = [
+        'low' => 'Nhẹ',
+        'minor' => 'Nhẹ',
+        'medium' => 'Trung bình',
+        'high' => 'Nghiêm trọng',
+        'critical' => 'Rất nghiêm trọng',
+    ];
+@endphp
+
+<div class="quote-surface rounded-lg p-5 md:p-6 mb-6">
+<div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
     <div>
-        <h2 class="text-3xl font-bold mb-1 font-display">Smart Repair Inspection & Quote</h2>
+        <h2 class="text-3xl font-bold mb-1 font-display">Tạo Báo Giá Sửa Chữa</h2>
         <div class="flex flex-wrap items-center gap-4 text-slate-600 dark:text-slate-300 text-sm">
-            <span class="flex items-center gap-1"><span class="material-icons-round text-xs">fingerprint</span> MÃ PHIẾU: #{{ $order->id }}</span>
-            <span class="flex items-center gap-1"><span class="material-icons-round text-xs">directions_car</span> BX: {{ $order->vehicle->license_plate ?? 'N/A' }}</span>
-            <span class="flex items-center gap-1 text-green-500 font-medium"><span class="material-icons-round text-xs">check_circle</span> Status: {{ ucfirst($order->status) }}</span>
+            <span class="flex items-center gap-1"><span class="material-icons-round text-xs">fingerprint</span> Mã phiếu: #{{ $order->id }}</span>
+            <span class="flex items-center gap-1"><span class="material-icons-round text-xs">directions_car</span> Biển số: {{ $order->vehicle->license_plate ?? 'N/A' }}</span>
+            <span class="flex items-center gap-1 text-green-500 font-medium"><span class="material-icons-round text-xs">check_circle</span> Trạng thái: {{ $orderStatusLabels[$order->status] ?? $order->status }}</span>
         </div>
     </div>
-    <div class="glass p-3 rounded-lg flex items-center gap-6">
+    <div class="bg-slate-50 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-700 p-3 rounded-lg flex items-center gap-6">
         <div class="flex flex-col">
-            <span class="text-sm font-bold text-slate-900 dark:text-slate-100">Đính kèm Dữ liệu Quét 3D</span>
-            <span class="text-xs text-slate-600 dark:text-slate-300">Đồng bộ hóa với máy quét tự động</span>
+            <span class="text-sm font-bold text-slate-900 dark:text-slate-100">Đính kèm dữ liệu kiểm tra 3D</span>
+            <span class="text-xs text-slate-600 dark:text-slate-300">Khách sẽ xem được các điểm lỗi 3D khi báo giá được gửi</span>
         </div>
         <label class="relative inline-flex items-center cursor-pointer">
             <input type="checkbox" id="include3dScan" class="sr-only peer" checked>
@@ -48,14 +129,79 @@
         </label>
     </div>
 </div>
+</div>
 
-<form id="quoteForm" class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-    <!-- Left Column: Inspection Sections -->
+@if(!empty($quoteWarnings))
+<div class="glass rounded-lg border border-amber-300 dark:border-amber-800 p-4 mb-8">
+    <h3 class="text-sm font-black uppercase tracking-widest text-amber-700 dark:text-amber-300 flex items-center gap-2 mb-3">
+        <span class="material-icons-round text-base">warning</span>
+        Cần kiểm tra trước khi gửi
+    </h3>
+    <ul class="space-y-2 text-sm">
+        @foreach($quoteWarnings as $warning)
+            <li class="flex items-start gap-2 {{ $warning['level'] === 'critical' ? 'text-red-700 dark:text-red-300' : 'text-amber-700 dark:text-amber-300' }}">
+                <span class="material-icons-round text-base">{{ $warning['level'] === 'critical' ? 'error' : 'info' }}</span>
+                <span>{{ $warning['message'] }}</span>
+            </li>
+        @endforeach
+    </ul>
+</div>
+@endif
+<div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+    <div class="quote-surface rounded-lg p-4">
+        <div class="text-xs uppercase font-black text-slate-500 dark:text-slate-400 tracking-widest mb-1">Trạng thái báo giá</div>
+        <div class="text-lg font-bold text-slate-900 dark:text-white">{{ $quoteStatusLabels[$order->quote_status ?? 'draft'] ?? 'Bản nháp' }}</div>
+    </div>
+    <div class="quote-surface rounded-lg p-4">
+        <div class="text-xs uppercase font-black text-slate-500 dark:text-slate-400 tracking-widest mb-1">Lỗi ghi nhận từ VHC/3D</div>
+        <div class="flex items-center gap-2">
+            <span class="text-lg font-bold {{ $vhcDefects->count() > 0 ? 'text-red-600 dark:text-red-400' : 'text-slate-900 dark:text-white' }}">{{ $vhcDefects->count() }}</span>
+            <span class="text-sm text-slate-500 dark:text-slate-400">lỗi cần báo giá</span>
+        </div>
+    </div>
+    <div class="quote-surface rounded-lg p-4 border-l-4 {{ $vhcReport ? 'border-l-green-500' : 'border-l-amber-500' }}">
+        <div class="text-xs uppercase font-black text-slate-500 dark:text-slate-400 tracking-widest mb-1">Kiểm tra trước khi gửi</div>
+        <div class="text-sm font-bold {{ $vhcReport ? 'text-green-700 dark:text-green-300' : 'text-amber-700 dark:text-amber-300' }}">
+            {{ $vhcReport ? 'Đã có dữ liệu VHC, khách sẽ xem được sau khi gửi báo giá' : 'Chưa có dữ liệu VHC' }}
+        </div>
+    </div>
+</div>
+
+@if($vhcReport && $vhcDefects->count() > 0)
+<div class="glass rounded-lg border border-red-200 dark:border-red-900/60 p-4 mb-8">
+    <div class="flex items-center justify-between gap-4 mb-3">
+        <h3 class="text-sm font-black uppercase tracking-widest text-red-700 dark:text-red-300 flex items-center gap-2">
+            <span class="material-icons-round text-base">fact_check</span>
+            Xác nhận lỗi VHC trước khi gửi báo giá
+        </h3>
+        <a href="{{ route('staff.vehicle.inspection', ['id' => $order->vehicle->id ?? 0, 'fullscreen' => 1, 'order_id' => $order->id]) }}" class="text-xs font-bold text-[#2b6cee] hover:underline">Mở 3D/VHC</a>
+    </div>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+        @foreach($vhcDefects->take(6) as $defect)
+            <div class="rounded-md bg-white/70 dark:bg-slate-900/60 border border-red-100 dark:border-red-900/40 p-3">
+                <div class="flex items-center justify-between gap-3">
+                    <span class="font-bold text-sm text-slate-900 dark:text-white">{{ $defect->title }}</span>
+                    <span class="text-[10px] uppercase font-black px-2 py-0.5 rounded bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300">{{ $severityLabels[strtolower($defect->severity ?? 'high')] ?? 'Nghiêm trọng' }}</span>
+                </div>
+                @if($defect->description)
+                    <p class="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-2">{{ $defect->description }}</p>
+                @endif
+            </div>
+        @endforeach
+    </div>
+    @if($vhcDefects->count() > 6)
+        <p class="text-xs text-slate-500 dark:text-slate-400 mt-3">Còn {{ $vhcDefects->count() - 6 }} lỗi khác trong màn VHC.</p>
+    @endif
+</div>
+@endif
+
+<form id="quoteForm" class="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_360px] gap-6 xl:gap-8">
+    <!-- Cột trái: danh sách hạng mục kiểm tra -->
     <div class="lg:col-span-2 space-y-8" id="tasksContainer">
         
-        <!-- Dynamic Inspection Tasks & Add Labor -->
+        <!-- Hạng mục kiểm tra và đề xuất sửa chữa -->
         @forelse($order->tasks->where('parent_id', null) as $index => $task)
-        <section class="task-group glass p-5 rounded-lg border border-slate-300 dark:border-slate-800" data-task-id="{{ $task->id }}">
+        <section class="task-group quote-surface p-5 rounded-lg" data-task-id="{{ $task->id }}">
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4 pb-4 border-b border-slate-200 dark:border-slate-800/60">
                 <div class="flex items-center gap-3">
                     <span class="material-icons-round text-primary">{{ $task->type == 'vhc' ? 'view_in_ar' : 'engineering' }}</span>
@@ -66,7 +212,7 @@
                     </span>
                     @endif
                 </div>
-                <button type="button" onclick="addProposedFix({{ $task->id }})" class="flex items-center justify-center gap-2 px-4 py-2 bg-transparent text-slate-700 dark:text-slate-300 text-sm font-bold rounded-md border border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all transition-all">
+                <button type="button" onclick="addProposedFix({{ $task->id }})" class="flex items-center justify-center gap-2 px-4 py-2 bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-sm font-bold rounded-md hover:bg-slate-700 dark:hover:bg-slate-200 transition-all">
                     <span class="material-icons-round text-sm">add</span> {{ $task->type == 'vhc' ? 'Thêm Đề Xuất Khác' : 'Thêm Đề Xuất Sửa Chữa' }}
                 </button>
             </div>
@@ -75,21 +221,21 @@
                 @if($task->type == 'vhc' && $order->vhcReport && $order->vhcReport->defects->count() > 0)
                     <!-- VHC Defects act as pre-filled suggested fixes -->
                     @foreach($order->vhcReport->defects as $defect)
-                        <div class="fix-row vhc-defect-row glass p-5 rounded-xl border-l-4 border-red-500 shadow-lg shadow-red-500/20 mb-6 transition-all hover:shadow-xl hover:shadow-red-500/30">
+                        <div class="fix-row vhc-defect-row bg-red-50/70 dark:bg-red-950/20 p-5 rounded-lg border border-red-200 dark:border-red-900/70 border-l-4 border-l-red-500 mb-5 transition-all">
                             <div class="flex justify-between items-start mb-4">
                                 @php
                                     $childDefectTask = $task->children->where('type', 'defect')->where('title', $defect->title)->first();
                                 @endphp
                                 <div class="flex items-start gap-4 text-slate-800 dark:text-slate-200">
                                     @if($defect->image_url)
-                                        <img src="{{ asset('storage/' . $defect->image_url) }}" alt="Defect Image" class="w-16 h-16 rounded-lg object-cover border border-slate-200 dark:border-slate-700 shadow-sm">
+                                        <img src="{{ asset('storage/' . $defect->image_url) }}" alt="Ảnh lỗi" class="w-16 h-16 rounded-lg object-cover border border-slate-200 dark:border-slate-700 shadow-sm">
                                     @else
                                         <span class="p-3 bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 rounded-lg material-icons-round text-2xl shadow-sm">car_crash</span>
                                     @endif
                                     
                                     <div class="pt-1">
                                         <p class="font-bold text-sm flex items-center gap-2">
-                                            Marker ID: #3D-{{ $defect->id }} 
+                                            Mã điểm lỗi: #3D-{{ $defect->id }} 
                                             <span class="text-slate-400 font-normal">|</span> 
                                             <span class="text-red-500 dark:text-red-400 uppercase tracking-widest text-xs font-black">{{ $defect->title }}</span>
                                         </p>
@@ -161,17 +307,17 @@
     </div>
 
     <!-- Right Column: Summary Panel -->
-    <div class="lg:col-span-1">
-        <div class="sticky top-24 space-y-6">
+    <div>
+        <div class="sticky top-6 space-y-4">
             <!-- Financial Summary Card -->
-            <div class="glass rounded-lg overflow-hidden shadow-2xl shadow-[#2b6cee]/5 border border-white/10 dark:border-primary/20">
-                <div class="bg-[#2b6cee] px-6 py-4">
+            <div class="quote-surface rounded-lg overflow-hidden">
+                <div class="bg-slate-900 dark:bg-slate-800 px-5 py-4">
                     <h4 class="text-white font-bold flex items-center gap-2 uppercase tracking-widest text-xs">
                         <span class="material-icons-round text-sm">receipt_long</span>
-                        Tổng Hợp Chi Phí
+                        Tổng hợp chi phí
                     </h4>
                 </div>
-                <div class="p-6 space-y-4">
+                <div class="p-5 space-y-4">
                     <!-- Dynamic Line Items Container -->
                     <div id="costLineItems" class="space-y-3">
                         <div class="flex justify-between items-center text-sm text-slate-500 italic">
@@ -181,26 +327,25 @@
                     
                     <div class="h-px bg-slate-200 dark:bg-white/10 my-4"></div>
                     <div class="flex justify-between items-center">
-                        <span class="text-lg font-bold text-slate-900 dark:text-white">Tổng Cộng</span>
+                        <span class="text-lg font-bold text-slate-900 dark:text-white">Tổng cộng</span>
                         <span class="text-2xl font-black text-[#2b6cee]" id="totalPreview">0 VNĐ</span>
                     </div>
                     
-                    <div class="bg-[#2b6cee]/5 border border-[#2b6cee]/20 rounded-md p-3 mt-6">
-                        <p class="text-[10px] text-[#2b6cee] font-bold uppercase mb-1 tracking-wider">Lưu ý Hệ Thống</p>
-                        <p class="text-xs text-slate-600 dark:text-slate-300 italic">Tổng chi phí dự kiến tạm tính đã bao gồm chi phí vật liệu. Nhân viên xưởng không nhập tiền công.</p>
+                    <div class="bg-blue-50 dark:bg-blue-950/30 border border-blue-100 dark:border-blue-900/60 rounded-md p-3 mt-6">
+                        <p class="text-[10px] text-blue-700 dark:text-blue-300 font-bold uppercase mb-1 tracking-wider">Lưu ý</p>
+                        <p class="text-xs text-slate-600 dark:text-slate-300">Tổng chi phí là tạm tính trước khi khách duyệt. Kiểm tra kỹ công việc, vật tư và dữ liệu VHC trước khi gửi.</p>
                     </div>
                 </div>
             </div>
 
             <!-- Actions -->
-            <div class="glass rounded-lg p-4 border border-white/10 dark:border-transparent mt-6">
-                <!-- Action Buttons from Bottom bar moved here or keep separate footer if preferred -->
-                <button type="button" onclick="window.location.href='{{ route('staff.dashboard') }}?order_id={{ $order->id }}'" class="w-full mt-4 py-2 bg-slate-200 dark:bg-white/5 border border-slate-300 dark:border-white/10 hover:bg-slate-300 dark:hover:bg-white/10 text-slate-700 dark:text-white rounded-lg text-xs font-bold transition-all uppercase tracking-widest">
-                    Hủy (Quay Về)
-                </button>
-                <button type="button" onclick="submitQuote()" class="w-full mt-2 flex items-center justify-center gap-2 py-3 bg-[#2b6cee] hover:bg-[#2b6cee]/90 text-white font-bold text-sm rounded-lg shadow-[0_0_15px_rgba(43,108,238,0.3)] transition-all uppercase tracking-widest">
+            <div class="quote-surface rounded-lg p-4">
+                <button type="button" onclick="submitQuote()" class="w-full mt-2 flex items-center justify-center gap-2 py-3 bg-[#2b6cee] hover:bg-[#245bc5] text-white font-bold text-sm rounded-lg shadow-lg shadow-blue-600/20 transition-all uppercase tracking-widest">
                     <span class="material-icons-round text-sm">send</span>
-                    Gửi Báo Giá
+                    Gửi báo giá
+                </button>
+                <button type="button" onclick="window.location.href='{{ route('staff.dashboard') }}?order_id={{ $order->id }}'" class="w-full mt-2 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-white rounded-lg text-xs font-bold transition-all uppercase tracking-widest">
+                    Quay về order
                 </button>
             </div>
         </div>
@@ -209,7 +354,7 @@
 
 <!-- Hidden Template for Proposed Fix Row -->
 <template id="fix-template">
-    <div class="fix-row glass p-6 rounded-xl border-l-4 border-amber-500 shadow-md shadow-amber-500/10 mb-8 relative transition-all group hover:shadow-lg hover:shadow-amber-500/20">
+    <div class="fix-row quote-surface p-5 rounded-lg border-l-4 border-l-amber-500 mb-5 relative transition-all group">
         <!-- Delete Button -->
         <button type="button" onclick="this.closest('.fix-row').remove(); calculateTotal();" class="absolute -top-3 -right-3 bg-red-500 text-white rounded-lg p-1.5 shadow-lg hover:bg-red-600 transition-colors opacity-0 group-hover:opacity-100 z-10 transition-opacity">
             <span class="material-icons-round text-[16px]">close</span>
@@ -407,7 +552,7 @@
         });
     });
     
-    function submitQuote() {
+    async function submitQuote() {
         // Build Nested JSON Payload
         const payload = { 
             tasks: {},
@@ -415,10 +560,12 @@
         };
         const taskGroups = document.querySelectorAll('.task-group');
         let isValid = true;
+        let liveTasksMissingQuote = 0;
 
         taskGroups.forEach(group => {
             const taskId = group.getAttribute('data-task-id');
             const fixes = group.querySelectorAll('.fix-row');
+            let hasQuoteContent = false;
             
             if (fixes.length > 0) {
                 payload.tasks[taskId] = { proposed_fixes: [] };
@@ -446,14 +593,14 @@
                     const laborCost = laborCostInput && laborCostInput.value ? parseFloat(laborCostInput.value) : 0;
                     
                     if (!title && partsArr.length === 0 && laborCost === 0) {
-                        // Skip completely if it's a VHC defect row without a title AND no cost (they haven't proposed a fix yet)
+                        // Bỏ qua lỗi VHC nếu nhân viên chưa nhập đề xuất và chi phí.
                         if (fix.classList.contains('vhc-defect-row')) return;
                         
                         isValid = false;
                         titleInput.classList.add('border-red-500', 'ring-red-500');
                         return; // exit forEach iteration
                     } else if (!title && fix.classList.contains('vhc-defect-row')) {
-                        // Allow empty title for VHC defects if they at least set a price
+                        // Cho phép lỗi VHC không có tên đề xuất nếu đã nhập chi phí.
                         titleInput.classList.remove('border-red-500', 'ring-red-500');
                         title = '';
                     } else if (!title) {
@@ -479,7 +626,12 @@
                         parts: partsArr,
                         description: fix.querySelector('.fix-desc')?.value || ''
                     });
+                    hasQuoteContent = true;
                 });
+            }
+
+            if (!hasQuoteContent) {
+                liveTasksMissingQuote++;
             }
         });
 
@@ -489,10 +641,51 @@
         }
 
         if (Object.keys(payload.tasks).length === 0) {
-           // It's okay to send an empty quote if they just want to send the 3D VHC report without fixes yet.
-           // However we can warn them.
+           // Có thể gửi riêng dữ liệu VHC/3D nếu chưa có đề xuất sửa chữa cụ thể.
+           // Hệ thống vẫn sẽ cảnh báo để nhân viên xác nhận trước khi gửi.
         }
         
+        const warnings = (@json($quoteWarnings ?? [])).filter(w => w.code !== 'missing_task_quote');
+        if (liveTasksMissingQuote > 0) {
+            warnings.push({
+                level: 'warning',
+                code: 'missing_task_quote',
+                message: `${liveTasksMissingQuote} hạng mục kiểm tra chưa có đề xuất sửa chữa hoặc chi phí. Nếu hạng mục này không cần sửa, bạn vẫn có thể gửi báo giá.`
+            });
+        }
+        if (warnings.length > 0) {
+            const warningHtml = `
+                <div class="text-left space-y-3 mt-2">
+                    ${warnings.map(w => `
+                        <div class="flex gap-3 rounded-lg border ${w.level === 'critical' ? 'border-red-200 bg-red-50 text-red-800' : 'border-amber-200 bg-amber-50 text-amber-800'} px-4 py-3">
+                            <span class="material-icons-round text-lg shrink-0">${w.level === 'critical' ? 'error' : 'info'}</span>
+                            <div class="text-sm leading-relaxed">${w.message}</div>
+                        </div>
+                    `).join('')}
+                </div>
+                <p class="text-xs text-slate-500 mt-4 text-left">
+                    Cảnh báo màu vàng vẫn có thể gửi nếu nhân viên đã kiểm tra và xác nhận. Cảnh báo màu đỏ cần xử lý trước.
+                </p>
+            `;
+            const confirmResult = await Swal.fire({
+                title: 'Kiểm tra trước khi gửi',
+                html: warningHtml,
+                icon: warnings.some(w => w.level === 'critical') ? 'error' : 'warning',
+                showCancelButton: true,
+                width: 620,
+                customClass: {
+                    popup: 'rounded-xl',
+                    htmlContainer: 'text-left'
+                },
+                confirmButtonText: warnings.some(w => w.level === 'critical') ? 'Đã hiểu' : 'Vẫn gửi',
+                cancelButtonText: 'Quay lại'
+            });
+
+            if (!confirmResult.isConfirmed || warnings.some(w => w.level === 'critical')) {
+                return;
+            }
+        }
+
         // Disable button, show loading
         const btn = document.querySelector('button[onclick="submitQuote()"]');
         const oldContent = btn.innerHTML;

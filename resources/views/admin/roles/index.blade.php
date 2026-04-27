@@ -118,6 +118,7 @@
                     'manage_promotions' => 'QL Khuyến Mãi',
                     'manage_sos' => 'QL Cứu Hộ',
                 ];
+                $permMap = array_merge($permMap, \App\Models\Role::permissionLabels());
             @endphp
             
             <div class="group relative p-6 rounded-2xl border border-slate-800 bg-card-dark shadow-sm hover:shadow-xl hover:shadow-primary/5 transition-all duration-300">

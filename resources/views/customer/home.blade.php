@@ -325,11 +325,17 @@
                      window.location.href = res.body.redirect;
                 }, 1500);
             } else {
+                let message = res.body.message || 'Đăng ký thất bại!';
+                if (res.body.errors) {
+                    message = Object.values(res.body.errors).flat().join('\n');
+                }
+
                  Swal.fire({
                     toast: true,
                     position: 'top-end',
                     icon: 'error',
-                    title: res.body.message || 'Đăng ký thất bại!',
+                    title: 'Đăng ký thất bại',
+                    text: message,
                     showConfirmButton: false,
                     timer: 3000
                 });

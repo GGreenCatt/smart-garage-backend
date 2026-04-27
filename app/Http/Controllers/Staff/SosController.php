@@ -84,6 +84,13 @@ class SosController extends Controller
             ], 403);
         }
 
+        if (in_array($sosRequest->status, ['completed', 'cancelled'], true)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Ca cứu hộ đã kết thúc, không thể cập nhật trạng thái.'
+            ], 409);
+        }
+
         $validated = $request->validate([
             'status' => 'required|in:in_progress,completed,cancelled'
         ]);
@@ -123,6 +130,13 @@ class SosController extends Controller
             ], 400);
         }
 
+        if ($sosRequest->status === 'cancelled') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Ca cứu hộ đã hủy, không thể nhận/trả ca.'
+            ], 409);
+        }
+
         $sosRequest->status = 'pending';
         $sosRequest->assigned_staff_id = null;
         $sosRequest->save();
@@ -140,14 +154,14 @@ class SosController extends Controller
     public function updateLocation(Request $request)
     {
         $validated = $request->validate([
-            'latitude' => 'nullable|numeric',
-            'longitude' => 'nullable|numeric',
+            'latitude' => 'required_if:is_sharing_location,true|nullable|numeric',
+            'longitude' => 'required_if:is_sharing_location,true|nullable|numeric',
             'is_sharing_location' => 'required|boolean'
         ]);
 
         $user = Auth::user();
-        $user->latitude = $validated['latitude'];
-        $user->longitude = $validated['longitude'];
+        $user->latitude = $validated['latitude'] ?? null;
+        $user->longitude = $validated['longitude'] ?? null;
         $user->is_sharing_location = $validated['is_sharing_location'];
         $user->last_location_update = now();
         $user->save();
@@ -165,7 +179,10 @@ class SosController extends Controller
     {
         // Fetch staff who shared location in the last 5 minutes
         $staffMembers = \App\Models\User::where('is_sharing_location', true)
+            ->where('role', 'staff')
             ->where('id', '!=', Auth::id())
+            ->whereNotNull('latitude')
+            ->whereNotNull('longitude')
             ->where('last_location_update', '>=', now()->subMinutes(5))
             ->get(['id', 'name', 'latitude', 'longitude', 'last_location_update']);
 

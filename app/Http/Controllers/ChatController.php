@@ -2,9 +2,10 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
-use App\Models\ChatSession;
 use App\Models\ChatMessage;
+use App\Models\ChatSession;
+use App\Models\RepairOrder;
+use Illuminate\Http\Request;
 
 class ChatController extends Controller
 {
@@ -14,70 +15,74 @@ class ChatController extends Controller
             'message' => 'required_without:image|string|nullable',
             'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120',
             'guest_session_id' => 'nullable|string',
-            'context' => 'nullable|string' // e.g. "VHC #1"
+            'context' => 'nullable|string',
+            'repair_order_id' => 'nullable|integer|exists:repair_orders,id',
         ]);
 
         $user = auth()->user();
         $guestId = $request->guest_session_id;
+        $repairOrderId = $request->integer('repair_order_id') ?: null;
 
-        // Find Session
-        $session = null;
-        if ($user) {
-            $session = ChatSession::where('customer_id', $user->id)->where('status', 'open')->latest()->first();
-        } elseif ($guestId) {
-            $session = ChatSession::where('guest_session_id', $guestId)->where('status', 'open')->latest()->first();
+        if ($repairOrderId) {
+            if (! $user) {
+                return response()->json(['success' => false, 'message' => 'Vui lòng đăng nhập để chat theo lệnh sửa chữa.'], 403);
+            }
+
+            $canAccessOrder = RepairOrder::where('id', $repairOrderId)
+                ->where('customer_id', $user->id)
+                ->exists();
+
+            if (! $canAccessOrder) {
+                return response()->json(['success' => false, 'message' => 'Bạn không có quyền chat trong lệnh sửa chữa này.'], 403);
+            }
         }
 
-        // Create Session if not exists
-        if (!$session) {
+        $session = $this->findSession($user?->id, $guestId, $repairOrderId, true);
+
+        if (! $session && $user && ! $repairOrderId && blank($request->context)) {
+            $session = ChatSession::where('customer_id', $user->id)
+                ->whereNotNull('repair_order_id')
+                ->where('status', 'open')
+                ->latest()
+                ->first();
+        }
+
+        if (! $session) {
             $session = ChatSession::create([
                 'customer_id' => $user ? $user->id : null,
                 'guest_session_id' => $user ? null : $guestId,
-                'status' => 'open'
+                'repair_order_id' => $repairOrderId,
+                'status' => 'open',
             ]);
-            
-            // Auto-reply for new session
+
             ChatMessage::create([
                 'chat_session_id' => $session->id,
                 'is_staff' => true,
-                'message' => "Chào bạn! Chúng tôi có thể giúp gì cho bạn hôm nay?",
-                'is_read' => true
+                'message' => 'Chào bạn! Garage đã nhận được tin nhắn, nhân viên sẽ phản hồi sớm.',
+                'is_read' => true,
             ]);
         }
 
-        // Handle Image Upload
         $attachmentPath = null;
         if ($request->hasFile('image')) {
             $path = $request->file('image')->store('chat_images', 'public');
             $attachmentPath = '/storage/' . $path;
         }
 
-        // Save User Message
         $message = ChatMessage::create([
             'chat_session_id' => $session->id,
             'sender_id' => $user ? $user->id : null,
             'is_staff' => false,
             'message' => $request->message ?? '',
             'attachment_path' => $attachmentPath,
-            'is_read' => false
+            'is_read' => false,
         ]);
 
-        // Simulated Auto-Reply logic (Simple Bot)
-        // In real app, this would be handled by Staff or Async Job
-        // For MVP, if message contains "lỗi", reply generic
-        if ($request->message && (str_contains(strtolower($request->message), 'lỗi') || str_contains(strtolower($request->message), 'giá'))) {
-            sleep(1); // Simulate think
-            ChatMessage::create([
-                'chat_session_id' => $session->id,
-                'is_staff' => true,
-                'message' => "Cảm ơn bạn. Kỹ thuật viên đã nhận được thông tin và sẽ phản hồi trong ít phút.",
-                'is_read' => false // Unread for user? actually user sees it immediately
-            ]);
-        }
+        $session->touch();
 
         return response()->json([
             'success' => true,
-            'message' => $message
+            'message' => $message,
         ]);
     }
 
@@ -85,18 +90,53 @@ class ChatController extends Controller
     {
         $user = auth()->user();
         $guestId = $request->query('guest_session_id');
+        $repairOrderId = $request->integer('repair_order_id') ?: null;
 
-        $session = null;
-        if ($user) {
-            $session = ChatSession::where('customer_id', $user->id)->latest()->first();
-        } elseif ($guestId) {
-            $session = ChatSession::where('guest_session_id', $guestId)->latest()->first();
+        if ($repairOrderId) {
+            if (! $user) {
+                return response()->json(['messages' => []], 403);
+            }
+
+            $canAccessOrder = RepairOrder::where('id', $repairOrderId)
+                ->where('customer_id', $user->id)
+                ->exists();
+
+            if (! $canAccessOrder) {
+                return response()->json(['messages' => []], 403);
+            }
         }
 
-        if (!$session) {
+        $session = $this->findSession($user?->id, $guestId, $repairOrderId, false);
+
+        if (! $session) {
             return response()->json(['messages' => []]);
         }
 
         return response()->json(['messages' => $session->messages]);
+    }
+
+    private function findSession(?int $userId, ?string $guestId, ?int $repairOrderId, bool $openOnly): ?ChatSession
+    {
+        if ($userId) {
+            return ChatSession::where('customer_id', $userId)
+                ->when($openOnly, fn ($query) => $query->where('status', 'open'))
+                ->when(
+                    $repairOrderId,
+                    fn ($query) => $query->where('repair_order_id', $repairOrderId),
+                    fn ($query) => $query->whereNull('repair_order_id')
+                )
+                ->latest()
+                ->first();
+        }
+
+        if ($guestId) {
+            return ChatSession::where('guest_session_id', $guestId)
+                ->whereNull('repair_order_id')
+                ->when($openOnly, fn ($query) => $query->where('status', 'open'))
+                ->latest()
+                ->first();
+        }
+
+        return null;
     }
 }

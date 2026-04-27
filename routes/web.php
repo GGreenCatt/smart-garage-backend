@@ -45,13 +45,9 @@ Route::middleware(['auth', 'verified', 'customer'])->prefix('customer')->name('c
     Route::get('/quote/{repairOrder}', [App\Http\Controllers\Customer\QuoteController::class, 'show'])->name('quote.show');
     Route::post('/quote/{repairOrder}', [App\Http\Controllers\Customer\QuoteController::class, 'approveRejectTasks'])->name('quote.action');
 
-    Route::post('/order/{id}/approve', [CustomerController::class, 'approveQuote'])->name('order.approve');
-    Route::post('/order/{id}/reject', [CustomerController::class, 'rejectQuote'])->name('order.reject');
-    
     // My Orders & Payment
     Route::get('/orders', [CustomerController::class, 'myOrders'])->name('orders.index');
     Route::get('/orders/{id}', [CustomerController::class, 'showOrder'])->name('orders.show');
-    Route::post('/orders/{id}/coupon', [CustomerController::class, 'applyCoupon'])->name('orders.coupon');
 
     // My Vehicles
     Route::get('/vehicles', [CustomerController::class, 'myVehicles'])->name('vehicles.index');
@@ -141,7 +137,6 @@ Route::middleware(['auth', 'verified', 'staff'])->prefix('staff')->name('staff.'
     // Quotation
     Route::get('/inventory-search', [StaffController::class, 'searchParts'])->name('inventory.search');
     Route::post('/order/{id}/items', [StaffController::class, 'storeItem'])->name('order.items.store');
-    Route::get('/order/{id}/invoice', [StaffController::class, 'printInvoice'])->name('order.invoice');
     
     // Quote Flow
     Route::get('/order/{id}/quote/create', [App\Http\Controllers\Staff\QuoteController::class, 'create'])->name('quote.create');
@@ -202,6 +197,7 @@ Route::middleware(['auth', 'verified', 'staff'])->prefix('staff')->name('staff.'
 // Admin Routes
 Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/', [App\Http\Controllers\AdminController::class, 'dashboard'])->name('dashboard');
+    Route::get('/workshop', [App\Http\Controllers\Admin\WorkshopController::class, 'index'])->name('workshop.index');
     Route::resource('staff', App\Http\Controllers\Admin\StaffController::class);
     Route::get('/logs', [App\Http\Controllers\Admin\StaffController::class, 'logs'])->name('staff.logs');
     Route::resource('customers', App\Http\Controllers\Admin\CustomerController::class);

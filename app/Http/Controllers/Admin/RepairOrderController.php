@@ -2,188 +2,214 @@
 
 namespace App\Http\Controllers\Admin;
 
-
-
 use App\Http\Controllers\Controller;
-use App\Models\Service;
+use App\Models\ActivityLog;
 use App\Models\Part;
-use App\Models\RepairOrderItem;
+use App\Models\Promotion;
 use App\Models\RepairOrder;
+use App\Models\RepairOrderItem;
+use App\Models\RepairTask;
+use App\Models\Role;
+use App\Models\Service;
+use App\Models\Setting;
 use App\Models\User;
 use App\Models\Vehicle;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 
 class RepairOrderController extends Controller
 {
+    private array $statusLabels = [
+        RepairOrder::STATUS_PENDING => 'Chờ tiếp nhận',
+        RepairOrder::STATUS_IN_PROGRESS => 'Đang sửa chữa',
+        RepairOrder::STATUS_PENDING_APPROVAL => 'Chờ khách duyệt báo giá',
+        RepairOrder::STATUS_APPROVED => 'Khách đã duyệt',
+        RepairOrder::STATUS_COMPLETED => 'Hoàn thành',
+        RepairOrder::STATUS_CANCELLED => 'Đã hủy',
+    ];
+
     public function index(Request $request)
     {
         Gate::authorize('view_repair_orders');
-        
-        $query = RepairOrder::with(['customer', 'vehicle', 'advisor'])
+
+        $query = RepairOrder::with(['customer', 'vehicle', 'advisor', 'tasks'])
             ->latest();
 
-        if ($request->has('search')) {
-            $search = $request->search;
-            $query->where('track_id', 'like', "%{$search}%")
-                  ->orWhereHas('customer', function($q) use ($search) {
-                      $q->where('name', 'like', "%{$search}%")
-                        ->orWhere('phone', 'like', "%{$search}%");
-                  })
-                  ->orWhereHas('vehicle', function($q) use ($search) {
-                      $q->where('license_plate', 'like', "%{$search}%");
-                  });
+        if ($request->filled('search')) {
+            $search = trim($request->search);
+            $query->where(function ($subQuery) use ($search) {
+                $subQuery->where('track_id', 'like', "%{$search}%")
+                    ->orWhereHas('customer', function ($customerQuery) use ($search) {
+                        $customerQuery->where('name', 'like', "%{$search}%")
+                            ->orWhere('phone', 'like', "%{$search}%");
+                    })
+                    ->orWhereHas('vehicle', function ($vehicleQuery) use ($search) {
+                        $vehicleQuery->where('license_plate', 'like', "%{$search}%")
+                            ->orWhere('model', 'like', "%{$search}%")
+                            ->orWhere('make', 'like', "%{$search}%");
+                    });
+            });
         }
 
-        if ($request->has('status') && $request->status !== 'all') {
+        if ($request->filled('status') && $request->status !== 'all') {
             $query->where('status', $request->status);
         }
 
-        $repairOrders = $query->paginate(10);
-
+        $repairOrders = $query->paginate(10)->withQueryString();
         $stats = [
             'total' => RepairOrder::count(),
-            'pending' => RepairOrder::where('status', 'pending')->count(),
-            'in_progress' => RepairOrder::where('status', 'in_progress')->count(),
+            'pending' => RepairOrder::where('status', RepairOrder::STATUS_PENDING)->count(),
+            'pending_approval' => RepairOrder::where('status', RepairOrder::STATUS_PENDING_APPROVAL)->count(),
+            'in_progress' => RepairOrder::whereIn('status', [RepairOrder::STATUS_IN_PROGRESS, RepairOrder::STATUS_APPROVED])->count(),
             'due_today' => RepairOrder::whereDate('expected_completion_date', today())->count(),
         ];
+        $statusLabels = $this->statusLabels;
 
-        return view('admin.repair_orders.index', compact('repairOrders', 'stats'));
+        return view('admin.repair_orders.index', compact('repairOrders', 'stats', 'statusLabels'));
     }
 
     public function create()
     {
         Gate::authorize('create_repair_orders');
-        $customers = User::where('role', 'customer')->get(); 
-        // We will load vehicles dynamically via AJAX based on customer selection
+
+        $customers = User::where(function ($query) {
+            $query->where('role', 'customer')
+                ->orWhereHas('assignedRole', fn ($roleQuery) => $roleQuery->where('slug', 'customer'));
+        })->orderBy('name')->get(['id', 'name', 'phone', 'email']);
+
         return view('admin.repair_orders.create', compact('customers'));
     }
 
     public function store(Request $request)
     {
         Gate::authorize('create_repair_orders');
-        
-        $validated = $request->validate([
-            // Customer Validation
-            'customer_id' => 'nullable|exists:users,id',
-            'customer_phone' => 'required_without:customer_id|nullable|string',
-            'customer_name' => 'required_without:customer_id|nullable|string',
-            'customer_email' => 'nullable|email',
 
-            // Vehicle Validation
+        $validated = $request->validate([
+            'customer_id' => 'nullable|exists:users,id',
+            'customer_phone' => 'required_without:customer_id|nullable|string|max:30',
+            'customer_name' => 'required_without:customer_id|nullable|string|max:255',
+            'customer_email' => 'nullable|email',
             'vehicle_id' => 'nullable|exists:vehicles,id',
-            'vehicle_license_plate' => 'required_without:vehicle_id|nullable|string',
-            'vehicle_model' => 'required_without:vehicle_id|nullable|string',
-            'vehicle_make' => 'nullable|string',
-            'vehicle_type' => 'nullable|string', // Sedan, SUV, etc.
-            'vehicle_year' => 'nullable|integer',
-            'vehicle_vin' => 'nullable|string',
-            
-            // Order Details
-            'odometer_reading' => 'nullable|integer',
+            'vehicle_license_plate' => 'required_without:vehicle_id|nullable|string|max:30',
+            'vehicle_model' => 'required_without:vehicle_id|nullable|string|max:150',
+            'vehicle_make' => 'nullable|string|max:100',
+            'vehicle_type' => 'nullable|string|max:50',
+            'vehicle_year' => 'nullable|integer|min:1900|max:'.(date('Y') + 1),
+            'vehicle_vin' => 'nullable|string|max:50',
+            'odometer_reading' => 'nullable|integer|min:0',
             'expected_completion_date' => 'nullable|date',
             'diagnosis_note' => 'nullable|string',
         ]);
 
-        // 1. Handle Customer
-        if ($request->filled('customer_id')) {
-            $customer = User::find($request->customer_id);
-        } else {
-            // Check if customer exists by phone
-            $customer = User::where('phone', $request->customer_phone)->first();
-            
-            if (!$customer) {
-                // Create new Customer
-                $customer = User::create([
-                    'name' => $request->customer_name,
-                    'phone' => $request->customer_phone,
-                    'email' => $request->customer_email, // Can be null
-                    'password' => \Illuminate\Support\Facades\Hash::make('12345678'), // Default password
-                    'role' => 'customer',
-                    'role_id' => \App\Models\Role::where('slug', 'customer')->first()->id ?? 1, // Fallback role ID
-                ]);
-            }
-        }
+        $customer = $this->resolveCustomer($validated);
+        $vehicle = $this->resolveVehicle($validated, $customer);
 
-        // 2. Handle Vehicle
-        if ($request->filled('vehicle_id')) {
-            $vehicle = Vehicle::find($request->vehicle_id);
-        } else {
-            // Check if vehicle exists by license plate
-            $plate = strtoupper(str_replace(['-', ' '], '', $request->vehicle_license_plate)); // Normalize
-            $vehicle = Vehicle::whereRaw("REPLACE(REPLACE(license_plate, '-', ''), ' ', '') = ?", [$plate])->first();
-
-            if (!$vehicle) {
-                $vehicle = Vehicle::create([
-                    'user_id' => $customer->id,
-                    'license_plate' => $request->vehicle_license_plate,
-                    'model' => $request->vehicle_model,
-                    'make' => $request->vehicle_make ?? 'Unknown',
-                    'type' => $request->vehicle_type ?? 'sedan',
-                    'year' => $request->vehicle_year ?? date('Y'),
-                    'vin' => $request->vehicle_vin,
-                    'owner_name' => $customer->name,
-                    'owner_phone' => $customer->phone,
-                ]);
-            } else {
-                // If vehicle exists but user_id is null (Walk-in), assign it?
-                // Or just use it.
-                if (!$vehicle->user_id) {
-                    $vehicle->update(['user_id' => $customer->id]);
-                }
-            }
-        }
-
-        $ro = RepairOrder::create([
-            'track_id' => 'LSC-' . strtoupper(Str::random(8)),
+        $repairOrder = RepairOrder::create([
+            'track_id' => 'PSC-'.strtoupper(Str::random(8)),
             'customer_id' => $customer->id,
             'vehicle_id' => $vehicle->id,
             'advisor_id' => auth()->id(),
-            'status' => 'pending',
-            'odometer_reading' => $validated['odometer_reading'],
-            'expected_completion_date' => $validated['expected_completion_date'],
-            'diagnosis_note' => $validated['diagnosis_note'],
+            'status' => RepairOrder::STATUS_PENDING,
+            'quote_status' => 'draft',
+            'payment_status' => 'unpaid',
+            'odometer_reading' => $validated['odometer_reading'] ?? null,
+            'expected_completion_date' => $validated['expected_completion_date'] ?? null,
+            'diagnosis_note' => $validated['diagnosis_note'] ?? null,
+            'subtotal' => 0,
+            'discount_amount' => 0,
+            'tax_amount' => 0,
+            'total_amount' => 0,
         ]);
 
-        // Auto-generate Default Tasks
-        $defaultTasks = [
-            'Tiếp nhận xe & Kiểm tra sơ bộ',
-            'Kiểm tra kỹ thuật chi tiết',
-            'Báo giá & Chờ khách duyệt',
-            'Thực hiện sửa chữa / bảo dưỡng',
-            'Kiểm tra chất lượng sau sửa chữa (QC)',
-            'Rửa xe & Vệ sinh nội thất',
-            'Bàn giao xe & Thanh toán'
-        ];
-
-        foreach ($defaultTasks as $index => $title) {
-            \App\Models\RepairTask::create([
-                'repair_order_id' => $ro->id,
+        foreach ($this->defaultTasks() as $title) {
+            $repairOrder->tasks()->create([
                 'title' => $title,
                 'status' => 'pending',
-                'description' => 'Công việc tiêu chuẩn quy trình',
-                // 'assigned_to' => null // Can be assigned later
+                'customer_approval_status' => 'not_required',
+                'type' => 'inspection',
+                'description' => 'Công việc tiêu chuẩn trong quy trình tiếp nhận và sửa chữa.',
             ]);
         }
 
-        return redirect()->route('admin.repair_orders.show', $ro)
-            ->with('success', 'Lệnh tiếp nhận đã được tạo thành công!');
+        ActivityLog::create([
+            'user_id' => auth()->id(),
+            'action' => 'CREATE_REPAIR_ORDER',
+            'details' => "Tạo phiếu sửa chữa {$repairOrder->track_id} cho xe {$vehicle->license_plate}",
+            'ip_address' => $request->ip(),
+        ]);
+
+        return redirect()->route('admin.repair_orders.show', $repairOrder)
+            ->with('success', 'Đã tạo phiếu sửa chữa thành công');
     }
 
     public function show(RepairOrder $repairOrder)
     {
         Gate::authorize('view_repair_orders');
-        $repairOrder->load(['customer', 'vehicle', 'items.itemable']);
-        $services = Service::all();
-        $parts = Part::where('stock_quantity', '>', 0)->get();
-        return view('admin.repair_orders.show', compact('repairOrder', 'services', 'parts'));
+
+        $repairOrder->load(['customer', 'vehicle', 'advisor', 'tasks.children', 'items.itemable', 'promotion']);
+        $services = Service::orderBy('name')->get();
+        $parts = Part::where('stock_quantity', '>', 0)->orderBy('name')->get();
+        $statusLabels = $this->statusLabels;
+
+        return view('admin.repair_orders.show', compact('repairOrder', 'services', 'parts', 'statusLabels'));
+    }
+
+    public function edit(RepairOrder $repairOrder)
+    {
+        Gate::authorize('manage_repair_orders');
+
+        return redirect()->route('admin.repair_orders.show', $repairOrder)
+            ->with('info', 'Thông tin phiếu sửa chữa được chỉnh trực tiếp tại màn chi tiết');
+    }
+
+    public function update(Request $request, RepairOrder $repairOrder)
+    {
+        Gate::authorize('manage_repair_orders');
+        $this->ensureOrderEditable($repairOrder);
+
+        $validated = $request->validate([
+            'expected_completion_date' => 'nullable|date',
+            'diagnosis_note' => 'nullable|string',
+            'notes' => 'nullable|string',
+        ]);
+
+        $repairOrder->update($validated);
+
+        return redirect()->route('admin.repair_orders.show', $repairOrder)
+            ->with('success', 'Đã cập nhật phiếu sửa chữa');
+    }
+
+    public function destroy(RepairOrder $repairOrder)
+    {
+        Gate::authorize('manage_repair_orders');
+
+        if ($repairOrder->status !== RepairOrder::STATUS_PENDING || $repairOrder->items()->exists() || $repairOrder->tasks()->where('status', '!=', 'pending')->exists()) {
+            return back()->with('error', 'Không thể xóa phiếu đã bắt đầu xử lý. Hãy chuyển sang trạng thái đã hủy nếu cần ngừng xử lý.');
+        }
+
+        $trackId = $repairOrder->track_id;
+        $repairOrder->tasks()->delete();
+        $repairOrder->items()->delete();
+        $repairOrder->delete();
+
+        ActivityLog::create([
+            'user_id' => auth()->id(),
+            'action' => 'DELETE_REPAIR_ORDER',
+            'details' => "Xóa phiếu sửa chữa {$trackId}",
+            'ip_address' => request()->ip(),
+        ]);
+
+        return redirect()->route('admin.repair_orders.index')->with('success', 'Đã xóa phiếu sửa chữa');
     }
 
     public function storeItem(Request $request, RepairOrder $repairOrder)
     {
         Gate::authorize('manage_repair_orders');
-        
+        $this->ensureOrderEditable($repairOrder);
+
         $validated = $request->validate([
             'type' => 'required|in:service,part',
             'item_id' => 'required|integer',
@@ -198,205 +224,297 @@ class RepairOrderController extends Controller
             $item = Part::findOrFail($validated['item_id']);
             $unitPrice = $item->selling_price;
             $modelType = Part::class;
-            
-            // Basic stock check
+
             if ($item->stock_quantity < $validated['quantity']) {
-                return back()->with('error', 'Insufficient stock for this part.');
+                return back()->with('error', 'Vật tư không đủ tồn kho');
             }
         }
-
-        $subtotal = $unitPrice * $validated['quantity'];
 
         $repairOrder->items()->create([
             'itemable_type' => $modelType,
             'itemable_id' => $item->id,
             'quantity' => $validated['quantity'],
             'unit_price' => $unitPrice,
-            'subtotal' => $subtotal,
+            'subtotal' => $unitPrice * $validated['quantity'],
         ]);
 
         $this->recalculateTotal($repairOrder);
 
-        return back()->with('success', 'Item added successfully');
+        return back()->with('success', 'Đã thêm hạng mục vào phiếu sửa chữa');
     }
 
     public function updateStatus(Request $request, RepairOrder $repairOrder)
     {
         Gate::any(['manage_repair_orders', 'approve_repair_orders', 'update_repair_progress']);
-        
+
         $validated = $request->validate([
-            'status' => 'required|in:pending,approved,in_progress,completed,cancelled'
+            'status' => ['required', Rule::in(array_keys($this->statusLabels))],
         ]);
 
+        if ($repairOrder->isLockedForStaffChanges() && $validated['status'] !== $repairOrder->status) {
+            return back()->with('error', 'Phiếu đã hoàn tất hoặc đã hủy nên không thể đổi trạng thái');
+        }
+
+        if ($validated['status'] === RepairOrder::STATUS_COMPLETED) {
+            $unfinishedTasks = $repairOrder->tasks()->where('status', '!=', 'completed')->count();
+            if ($unfinishedTasks > 0) {
+                return back()->with('error', "Còn {$unfinishedTasks} công việc chưa hoàn thành");
+            }
+        }
+
+        $oldStatus = $repairOrder->status;
         $repairOrder->update(['status' => $validated['status']]);
 
-        // If completed, deduct stock (Simplified logic for now)
-        // ideally we deduct when allocated or in_progress, but let's stick to completed for this check
-        // Or better: Deduct when "Approved"? Let's allow negative stock for simplicity or handle it later.
-        // For now: Just status update.
+        ActivityLog::create([
+            'user_id' => auth()->id(),
+            'action' => 'UPDATE_REPAIR_ORDER_STATUS',
+            'details' => "Phiếu {$repairOrder->track_id}: đổi trạng thái từ {$this->statusLabels[$oldStatus]} sang {$this->statusLabels[$validated['status']]}",
+            'ip_address' => $request->ip(),
+        ]);
 
-        return back()->with('success', 'Status updated to ' . ucfirst($validated['status']));
+        return back()->with('success', 'Đã cập nhật trạng thái phiếu sửa chữa');
     }
 
     public function destroyItem(RepairOrder $repairOrder, RepairOrderItem $item)
     {
         Gate::authorize('manage_repair_orders');
+        $this->ensureOrderEditable($repairOrder);
+
+        abort_if($item->repair_order_id !== $repairOrder->id, 404);
         $item->delete();
         $this->recalculateTotal($repairOrder);
-        return back()->with('success', 'Item removed');
+
+        return back()->with('success', 'Đã xóa hạng mục');
     }
 
     public function invoice(RepairOrder $repairOrder)
     {
         Gate::authorize('view_repair_orders');
         $repairOrder->load(['customer', 'vehicle', 'tasks', 'items.itemable', 'advisor']);
-        
-        $bankId = \App\Models\Setting::get('bank_id', 'vietinbank'); 
-        $accountNo = \App\Models\Setting::get('bank_account_no', '102875143924');
-        $accountName = urlencode(\App\Models\Setting::get('bank_account_name', 'NGO VAN DAN'));
-        
-        $amount = round($repairOrder->total_amount); 
-        $addInfo = urlencode('Thanh toan hoa don ' . $repairOrder->id);
 
-        $qrUrl = "https://img.vietqr.io/image/{$bankId}-{$accountNo}-compact2.png?amount={$amount}&addInfo={$addInfo}&accountName={$accountName}";
+        $bankId = Setting::get('bank_id', 'vietinbank');
+        $accountNo = Setting::get('bank_account_no', '102875143924');
+        $accountName = urlencode(Setting::get('bank_account_name', 'NGO VAN DAN'));
+        $qrTemplate = Setting::get('vietqr_template', 'compact2');
+        $amount = round($repairOrder->total_amount);
+        $contentTemplate = Setting::get('qr_payment_content', 'Thanh toan hoa don {order_id}');
+        $addInfo = urlencode(str_replace(
+            ['{order_id}', '{track_id}'],
+            [$repairOrder->id, $repairOrder->track_id ?? $repairOrder->id],
+            $contentTemplate
+        ));
 
-        // Use DomPDF to render using the shared template
+        $qrUrl = "https://img.vietqr.io/image/{$bankId}-{$accountNo}-{$qrTemplate}.png?amount={$amount}&addInfo={$addInfo}&accountName={$accountName}";
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('staff.invoices.template', ['order' => $repairOrder, 'qrUrl' => $qrUrl]);
-        
-        return $pdf->stream('hoadon_' . $repairOrder->track_id . '.pdf');
+
+        return $pdf->stream('hoadon_'.$repairOrder->track_id.'.pdf');
     }
 
     public function updatePayment(Request $request, RepairOrder $repairOrder)
     {
         Gate::any(['manage_finance', 'manage_repair_orders']);
-        
+
+        if ($repairOrder->status !== RepairOrder::STATUS_COMPLETED) {
+            return back()->with('error', 'Chỉ thanh toán khi phiếu đã hoàn thành');
+        }
+
         $validated = $request->validate([
             'payment_status' => 'required|in:unpaid,partial,paid',
-            'payment_method' => 'nullable|string',
-            'notes' => 'nullable|string'
+            'payment_method' => 'nullable|string|max:100',
+            'notes' => 'nullable|string',
         ]);
 
-        $repairOrder->update([
-            'payment_status' => $validated['payment_status'],
-            'payment_method' => $validated['payment_method'],
-            'notes' => $validated['notes']
-        ]);
+        $repairOrder->update($validated);
 
-        // Auto-update order status logic (optional)
-        // if ($validated['payment_status'] === 'paid' && $repairOrder->status !== 'completed') {
-        //     $repairOrder->update(['status' => 'completed']);
-        // }
-
-        return back()->with('success', 'Payment status updated');
+        return back()->with('success', 'Đã cập nhật thanh toán');
     }
 
     public function applyCoupon(Request $request, RepairOrder $repairOrder)
     {
         Gate::authorize('manage_repair_orders');
-        
+        $this->ensureOrderEditable($repairOrder);
+
         $request->validate(['code' => 'required|string']);
-        
-        $code = strtoupper($request->code);
-        $promotion = \App\Models\Promotion::where('code', $code)->first();
+        $promotion = Promotion::where('code', strtoupper($request->code))->first();
 
-        // 1. Check existence
-        if (!$promotion) {
-            return back()->withErrors(['coupon' => 'Mã giảm giá không tồn tại!']);
+        if (! $promotion) {
+            return back()->withErrors(['coupon' => 'Mã giảm giá không tồn tại']);
         }
 
-        // 2. Check validity (Date, Limit, Active)
-        if (!$promotion->isValid()) {
-             return back()->withErrors(['coupon' => 'Mã giảm giá đã hết hạn hoặc không khả dụng!']);
+        if (! $promotion->isValid()) {
+            return back()->withErrors(['coupon' => 'Mã giảm giá đã hết hạn hoặc không khả dụng']);
         }
 
-        // 3. Check specific customer
         if ($promotion->customer_id && $promotion->customer_id !== $repairOrder->customer_id) {
-             return back()->withErrors(['coupon' => 'Mã này không áp dụng cho khách hàng này!']);
+            return back()->withErrors(['coupon' => 'Mã này không áp dụng cho khách hàng này']);
         }
 
-        // 4. Apply
         $repairOrder->promotion_id = $promotion->id;
-        $this->recalculateTotal($repairOrder); // Will calculate discount amount inside
-        
-        // Increment usage (Optional: only increment when marked as Paid? For now, increment on apply)
-        //$promotion->increment('used_count'); 
+        $this->recalculateTotal($repairOrder);
 
-        return back()->with('success', 'Đã áp dụng mã giảm giá: ' . $promotion->code);
+        return back()->with('success', 'Đã áp dụng mã giảm giá: '.$promotion->code);
     }
 
     public function removeCoupon(RepairOrder $repairOrder)
     {
         Gate::authorize('manage_repair_orders');
+        $this->ensureOrderEditable($repairOrder);
+
         $repairOrder->promotion_id = null;
         $repairOrder->discount_amount = 0;
         $this->recalculateTotal($repairOrder);
-        return back()->with('success', 'Đã gỡ bỏ mã giảm giá');
-    }
 
-    private function recalculateTotal(RepairOrder $ro)
-    {
-        $subtotal = $ro->items()->sum('subtotal');
-        $ro->subtotal = $subtotal;
-        
-        // Calculate Discount
-        $discount = 0;
-        if ($ro->promotion_id) {
-            $promo = $ro->promotion; // Ensure relation is loaded or load it
-            if ($promo && $promo->isValid()) {
-                if ($promo->type == 'fixed') {
-                    $discount = $promo->value;
-                } else {
-                    $discount = $subtotal * ($promo->value / 100);
-                }
-            } else {
-                // If invalid (expired since applied), remove it
-                $ro->promotion_id = null;
-            }
-        }
-        
-        // Ensure discount doesn't exceed subtotal
-        $discount = min($discount, $subtotal);
-        $ro->discount_amount = $discount;
-        
-        // Calculate Tax (e.g., 10% VAT standard, can be config later)
-        // $tax = ($subtotal - $discount) * 0.10; 
-        $tax = 0; // Keeping simple for now or use Settings later
-        $ro->tax_amount = $tax;
-
-        $ro->total_amount = $subtotal - $discount + $tax;
-        $ro->save();
+        return back()->with('success', 'Đã gỡ mã giảm giá');
     }
 
     public function storeTask(Request $request, RepairOrder $repairOrder)
     {
         Gate::authorize('manage_repair_orders');
+        $this->ensureOrderEditable($repairOrder);
 
         $validated = $request->validate([
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
-            'assigned_to' => 'nullable|exists:users,id'
+            'mechanic_id' => 'nullable|exists:users,id',
         ]);
 
         $repairOrder->tasks()->create([
             'title' => $validated['title'],
-            'description' => $validated['description'],
-            'assigned_to' => $validated['assigned_to'],
-            'status' => 'pending'
+            'description' => $validated['description'] ?? null,
+            'mechanic_id' => $validated['mechanic_id'] ?? null,
+            'status' => 'pending',
+            'customer_approval_status' => 'not_required',
+            'type' => 'repair',
         ]);
 
         return back()->with('success', 'Đã thêm công việc mới');
     }
 
-    public function updateTaskStatus(Request $request, \App\Models\RepairTask $task)
+    public function updateTaskStatus(Request $request, RepairTask $task)
     {
         Gate::any(['manage_repair_orders', 'update_repair_progress']);
-        
+        $task->load('repairOrder', 'children');
+        $this->ensureOrderEditable($task->repairOrder);
+
         $validated = $request->validate([
-            'status' => 'required|in:pending,in_progress,completed'
+            'status' => 'required|in:pending,in_progress,completed',
         ]);
+
+        if ($validated['status'] === 'completed' && $task->children()->where('status', '!=', 'completed')->exists()) {
+            return back()->with('error', 'Không thể hoàn thành công việc cha khi còn công việc con chưa xong');
+        }
 
         $task->update(['status' => $validated['status']]);
 
-        return back()->with('success', 'Cập nhật trạng thái công việc thành công');
+        return back()->with('success', 'Đã cập nhật trạng thái công việc');
+    }
+
+    private function resolveCustomer(array $validated): User
+    {
+        if (! empty($validated['customer_id'])) {
+            return User::findOrFail($validated['customer_id']);
+        }
+
+        $customer = User::where('phone', $validated['customer_phone'])->first();
+        if ($customer) {
+            return $customer;
+        }
+
+        $customerRole = Role::where('slug', 'customer')->first();
+
+        return User::create([
+            'name' => $validated['customer_name'],
+            'phone' => $validated['customer_phone'],
+            'email' => $validated['customer_email'] ?? null,
+            'password' => Hash::make('12345678'),
+            'role' => 'customer',
+            'role_id' => $customerRole?->id,
+            'status' => 'active',
+        ]);
+    }
+
+    private function resolveVehicle(array $validated, User $customer): Vehicle
+    {
+        if (! empty($validated['vehicle_id'])) {
+            $vehicle = Vehicle::findOrFail($validated['vehicle_id']);
+            if (! $vehicle->user_id) {
+                $vehicle->update([
+                    'user_id' => $customer->id,
+                    'owner_name' => $customer->name,
+                    'owner_phone' => $customer->phone,
+                ]);
+            }
+
+            return $vehicle;
+        }
+
+        $plate = strtoupper(str_replace(['-', ' ', '.'], '', $validated['vehicle_license_plate']));
+        $vehicle = Vehicle::whereRaw("REPLACE(REPLACE(REPLACE(UPPER(license_plate), '-', ''), ' ', ''), '.', '') = ?", [$plate])->first();
+
+        if ($vehicle) {
+            if (! $vehicle->user_id) {
+                $vehicle->update([
+                    'user_id' => $customer->id,
+                    'owner_name' => $customer->name,
+                    'owner_phone' => $customer->phone,
+                ]);
+            }
+
+            return $vehicle;
+        }
+
+        return Vehicle::create([
+            'user_id' => $customer->id,
+            'license_plate' => $validated['vehicle_license_plate'],
+            'model' => $validated['vehicle_model'],
+            'make' => $validated['vehicle_make'] ?? null,
+            'type' => $validated['vehicle_type'] ?? 'sedan',
+            'year' => $validated['vehicle_year'] ?? date('Y'),
+            'vin' => $validated['vehicle_vin'] ?? null,
+            'owner_name' => $customer->name,
+            'owner_phone' => $customer->phone,
+        ]);
+    }
+
+    private function defaultTasks(): array
+    {
+        return [
+            'Tiếp nhận xe và kiểm tra sơ bộ',
+            'Kiểm tra kỹ thuật chi tiết',
+            'Lập báo giá và chờ khách duyệt',
+            'Thực hiện sửa chữa / bảo dưỡng',
+            'Kiểm tra chất lượng sau sửa chữa',
+            'Vệ sinh và bàn giao xe',
+            'Thanh toán tại quầy',
+        ];
+    }
+
+    private function recalculateTotal(RepairOrder $repairOrder): void
+    {
+        $subtotal = $repairOrder->items()->sum('subtotal');
+        $discount = 0;
+
+        if ($repairOrder->promotion_id && $repairOrder->promotion?->isValid()) {
+            $discount = $repairOrder->promotion->type === 'fixed'
+                ? $repairOrder->promotion->value
+                : $subtotal * ($repairOrder->promotion->value / 100);
+        } elseif ($repairOrder->promotion_id) {
+            $repairOrder->promotion_id = null;
+        }
+
+        $discount = min($discount, $subtotal);
+
+        $repairOrder->subtotal = $subtotal;
+        $repairOrder->discount_amount = $discount;
+        $repairOrder->tax_amount = 0;
+        $repairOrder->total_amount = $subtotal - $discount;
+        $repairOrder->save();
+    }
+
+    private function ensureOrderEditable(RepairOrder $repairOrder): void
+    {
+        if ($repairOrder->isLockedForStaffChanges()) {
+            abort(403, 'Phiếu đã hoàn tất, đã hủy hoặc đã thanh toán nên không thể chỉnh sửa');
+        }
     }
 }

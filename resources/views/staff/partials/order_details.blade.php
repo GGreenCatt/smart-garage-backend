@@ -1,4 +1,57 @@
 @if($selectedOrder)
+@once
+<style>
+    @media (max-width: 767px) {
+        #order-details-container > div,
+        #order-details-container .p-8 {
+            padding: 1rem !important;
+        }
+        #order-details-container h1 {
+            font-size: 1.75rem !important;
+            line-height: 2.1rem !important;
+        }
+        #order-details-container .flex {
+            min-width: 0;
+        }
+        #order-details-container table {
+            min-width: 680px;
+        }
+        #order-details-container .grid {
+            min-width: 0;
+        }
+        #order-details-container button,
+        #order-details-container a {
+            min-height: 40px;
+        }
+    }
+</style>
+@endonce
+@php
+    $statusLabels = [
+        'pending' => 'Chờ tiếp nhận',
+        'in_progress' => 'Đang kiểm tra',
+        'pending_approval' => 'Chờ khách duyệt',
+        'approved' => 'Khách đã duyệt',
+        'completed' => $selectedOrder->payment_status === 'paid' ? 'Đã thanh toán' : 'Chờ thanh toán',
+        'cancelled' => 'Đã hủy',
+    ];
+    $isLocked = in_array($selectedOrder->status, ['completed', 'cancelled'], true) || $selectedOrder->payment_status === 'paid';
+    $canManageFlow = ! (auth()->user()?->isTechnician() && ! auth()->user()?->isAdmin() && ! auth()->user()?->isManager());
+    $canEditIntake = $canManageFlow && $selectedOrder->status === 'in_progress' && ! $isLocked;
+    $canWorkTasks = in_array($selectedOrder->status, ['in_progress', 'approved'], true) && ! $isLocked;
+    $canCompleteOrder = $canManageFlow && $selectedOrder->status === 'approved' && ! $isLocked;
+    $canCreateQuote = $canManageFlow && $selectedOrder->status === 'in_progress' && ! $isLocked;
+    $canViewQuote = in_array($selectedOrder->status, ['pending_approval', 'approved', 'completed'], true)
+        || $selectedOrder->quote_status === 'rejected';
+    $quoteReviewTasks = ($currentTasks ?? collect())
+        ->whereNotNull('parent_id')
+        ->filter(fn ($task) => (float) ($task->labor_cost ?? 0) > 0 || $task->items->isNotEmpty());
+    $quoteApprovedTasks = $quoteReviewTasks->where('customer_approval_status', 'approved');
+    $quoteRejectedTasks = $quoteReviewTasks->where('customer_approval_status', 'rejected');
+    $quotePendingTasks = $quoteReviewTasks->filter(fn ($task) => blank($task->customer_approval_status) || $task->customer_approval_status === 'pending');
+    $quoteApprovedTotal = $quoteApprovedTasks->sum(fn ($task) => (float) ($task->labor_cost ?? 0) + $task->items->sum('subtotal'));
+    $quoteTotal = $quoteReviewTasks->sum(fn ($task) => (float) ($task->labor_cost ?? 0) + $task->items->sum('subtotal'));
+@endphp
 <!-- Hero Header -->
 <div class="p-8 pb-4">
     <div class="flex flex-col md:flex-row justify-between items-start gap-4">
@@ -23,11 +76,23 @@
                                (in_array($selectedOrder->status, ['in_progress', 'pending_approval', 'approved']) ? 'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400' : 'bg-gray-100 text-gray-700') }}">
                             {{ $selectedOrder->status == 'completed' ? 'Hoàn thành' : (in_array($selectedOrder->status, ['in_progress', 'pending_approval', 'approved']) ? 'Đang xử lý' : 'Chờ xử lý') }}
                         </span>
-                        @if(in_array($selectedOrder->status, ['in_progress', 'pending_approval', 'approved']))
+                        <span class="px-3 py-1 rounded-lg text-xs font-bold bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200">
+                            {{ $statusLabels[$selectedOrder->status] ?? ucfirst($selectedOrder->status) }}
+                        </span>
+                        @if($selectedOrder->status === 'in_progress')
                             <button onclick="cancelRepair()" class="px-3 py-1.5 bg-amber-100 hover:bg-amber-200 dark:bg-amber-900/30 dark:hover:bg-amber-900/50 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800 text-sm font-bold rounded-lg shadow-sm flex items-center gap-1 transition-all">
                                 <span class="material-icons-round !text-[16px]">undo</span>
                                 Hủy nhận sửa
                             </button>
+                        @endif
+                        @if($selectedOrder->status === 'pending_approval')
+                            <span class="px-3 py-1.5 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 text-xs font-bold rounded-lg">
+                                Khóa sửa trong lúc chờ khách duyệt
+                            </span>
+                        @elseif($selectedOrder->status === 'approved')
+                            <span class="px-3 py-1.5 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 border border-green-200 dark:border-green-800 text-xs font-bold rounded-lg">
+                                Chỉ thi công task đã duyệt
+                            </span>
                         @endif
                     </div>
                 @endif
@@ -48,14 +113,15 @@
     if ($selectedOrder->status == 'completed') {
         $currentStage = 5;
     } elseif (in_array($selectedOrder->status, ['in_progress', 'pending_approval', 'approved'])) {
-        $vhcTask = $currentTasks->firstWhere('title', 'Kiểm tra tổng quát (3D)') ?? $currentTasks->firstWhere('title', 'Kiểm tra tổng quát (VHC)');
+        $actionableTasks = $currentTasks->reject(fn ($task) => $task->customer_approval_status === 'rejected');
+        $vhcTask = $actionableTasks->firstWhere('title', 'Kiểm tra tổng quát (3D)') ?? $actionableTasks->firstWhere('title', 'Kiểm tra tổng quát (VHC)');
         // If VHC exists and is effectively not done (or if we are just starting)
         // Adjust logic: If VHC is pending, we are in stage 2.
         if ($vhcTask && $vhcTask->status != 'completed') {
              $currentStage = 2;
         } else {
              // If VHC done, check other tasks
-             $hasPending = $currentTasks->where('status', '!=', 'completed')->count() > 0;
+             $hasPending = $actionableTasks->where('status', '!=', 'completed')->count() > 0;
              if ($hasPending) {
                  $currentStage = 3;
              } else {
@@ -140,6 +206,54 @@
     </div>
 </div>
 
+@if($canViewQuote && $quoteReviewTasks->isNotEmpty())
+<div class="px-8 py-5 bg-white dark:bg-[#0f172a] border-b border-gray-200 dark:border-[#1e293b]">
+    <div class="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_auto] gap-4 items-center rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/70 p-5">
+        <div>
+            <div class="flex flex-wrap items-center gap-2 mb-2">
+                <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-black bg-indigo-100 text-indigo-700 dark:bg-indigo-500/10 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-500/20">
+                    <span class="material-icons-round !text-[15px]">receipt_long</span>
+                    Kết quả báo giá
+                </span>
+                @if($selectedOrder->status === 'pending_approval')
+                    <span class="text-xs font-bold text-amber-700 dark:text-amber-300">Đang chờ khách phản hồi</span>
+                @elseif($selectedOrder->quote_status === 'rejected')
+                    <span class="text-xs font-bold text-red-700 dark:text-red-300">Khách đã từ chối toàn bộ báo giá</span>
+                @else
+                    <span class="text-xs font-bold text-emerald-700 dark:text-emerald-300">Khách đã phản hồi, chỉ thi công hạng mục được đồng ý</span>
+                @endif
+            </div>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4">
+                <div class="rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-3">
+                    <div class="text-[10px] uppercase tracking-widest font-black text-slate-500">Tổng hạng mục</div>
+                    <div class="text-xl font-black text-slate-900 dark:text-white">{{ $quoteReviewTasks->count() }}</div>
+                </div>
+                <div class="rounded-xl bg-white dark:bg-slate-800 border border-emerald-200 dark:border-emerald-500/30 p-3">
+                    <div class="text-[10px] uppercase tracking-widest font-black text-emerald-600 dark:text-emerald-300">Đồng ý</div>
+                    <div class="text-xl font-black text-emerald-700 dark:text-emerald-300">{{ $quoteApprovedTasks->count() }}</div>
+                </div>
+                <div class="rounded-xl bg-white dark:bg-slate-800 border border-red-200 dark:border-red-500/30 p-3">
+                    <div class="text-[10px] uppercase tracking-widest font-black text-red-600 dark:text-red-300">Từ chối</div>
+                    <div class="text-xl font-black text-red-700 dark:text-red-300">{{ $quoteRejectedTasks->count() }}</div>
+                </div>
+                <div class="rounded-xl bg-white dark:bg-slate-800 border border-amber-200 dark:border-amber-500/30 p-3">
+                    <div class="text-[10px] uppercase tracking-widest font-black text-amber-600 dark:text-amber-300">Chờ phản hồi</div>
+                    <div class="text-xl font-black text-amber-700 dark:text-amber-300">{{ $quotePendingTasks->count() }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="lg:w-64 rounded-2xl bg-slate-900 dark:bg-indigo-600 text-white p-5">
+            <div class="text-[10px] uppercase tracking-widest font-black text-slate-300 dark:text-indigo-100">Giá trị khách đồng ý</div>
+            <div class="text-2xl font-black mt-1">{{ number_format($quoteApprovedTotal ?: ($selectedOrder->status === 'pending_approval' ? $quoteTotal : 0)) }}đ</div>
+            <a href="{{ route('staff.quote.show', $selectedOrder->id) }}" class="mt-4 inline-flex w-full justify-center items-center gap-2 rounded-xl bg-white/10 hover:bg-white/20 px-4 py-2 text-sm font-bold transition">
+                <span class="material-icons-round !text-[16px]">visibility</span>
+                Xem chi tiết
+            </a>
+        </div>
+    </div>
+</div>
+@endif
+
 <!-- Content Split -->
 <div class="flex-1 flex flex-col xl:flex-row">
     <!-- Tasks List -->
@@ -150,8 +264,8 @@
                 Danh sách công việc
             </h3>
             <div class="flex items-center gap-2 flex-wrap sm:flex-nowrap justify-end">
-                @if(in_array($selectedOrder->status, ['in_progress', 'pending_approval', 'approved', 'completed']))
-                    @if($selectedOrder->status == 'in_progress')
+                @if($canCreateQuote || $canViewQuote)
+                    @if($canCreateQuote)
                         <button onclick="window.location.href='{{ route('staff.quote.create', $selectedOrder->id) }}'" class="text-sm whitespace-nowrap shrink-0 w-max bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-bold py-1.5 px-3 rounded-lg shadow-md hover:shadow-lg flex items-center justify-center gap-1.5 transition-all transform hover:-translate-y-0.5" title="Tạo Báo Giá gửi Khách Hàng">
                             <span class="material-icons-round !text-[16px]">receipt_long</span>
                             Tạo Báo Giá
@@ -168,20 +282,25 @@
                     @endif
                 @endif
                 @php
-                    $completedCount = $currentTasks->where('status', 'completed')->count();
-                    $totalCount = $currentTasks->count();
+                    $actionableTasks = $currentTasks->reject(fn ($task) => $task->customer_approval_status === 'rejected');
+                    $completedCount = $actionableTasks->where('status', 'completed')->count();
+                    $totalCount = $actionableTasks->count();
+                    $rejectedCount = $currentTasks->where('customer_approval_status', 'rejected')->count();
                     $allCompleted = $totalCount > 0 && $completedCount === $totalCount;
                 @endphp
                 
                 @if(in_array($selectedOrder->status, ['in_progress', 'pending_approval', 'approved']))
                     @if($allCompleted)
-                        <button onclick="completeOrder()" class="text-sm whitespace-nowrap shrink-0 w-max bg-green-500 hover:bg-green-600 text-white font-bold py-1.5 px-3 rounded-lg shadow-md hover:shadow-lg flex items-center justify-center gap-1.5 transition-all transform hover:-translate-y-0.5 animate-pulse" title="Xác nhận hoàn thành tất cả công việc">
+                        <button onclick="@if($canCompleteOrder) completeOrder() @else Swal.fire('Thông báo', 'Chỉ hoàn thành đơn sau khi khách đã duyệt báo giá.', 'info') @endif" class="text-sm whitespace-nowrap shrink-0 w-max {{ $canCompleteOrder ? 'bg-green-500 hover:bg-green-600 text-white animate-pulse' : 'bg-gray-200 dark:bg-slate-700 text-gray-500 dark:text-gray-300 cursor-not-allowed' }} font-bold py-1.5 px-3 rounded-lg shadow-md hover:shadow-lg flex items-center justify-center gap-1.5 transition-all transform hover:-translate-y-0.5" title="Xác nhận hoàn thành tất cả công việc">
                             <span class="material-icons-round !text-[16px]">task_alt</span>
                             HOÀN THÀNH ĐƠN
                         </button>
                     @else
                         <span class="text-xs shrink-0 w-max text-gray-500 dark:text-gray-400 font-mono font-bold bg-white dark:bg-[#1e293b] px-2 py-1.5 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700" title="Cần hoàn thành tất cả công việc để đóng đơn">
                             {{ $completedCount }}/{{ $totalCount }} HOÀN THÀNH
+                            @if($rejectedCount > 0)
+                                <span class="ml-1 text-red-500">({{ $rejectedCount }} việc khách từ chối)</span>
+                            @endif
                         </span>
                     @endif
                 @elseif($selectedOrder->status == 'completed')
@@ -202,11 +321,22 @@
         
                 <div class="space-y-3">
                     @forelse($currentTasks->where('parent_id', null) as $task)
+                    @php
+                        $incompleteChildrenCount = $task->children
+                            ->where('status', '!=', 'completed')
+                            ->reject(fn ($child) => $child->customer_approval_status === 'rejected')
+                            ->count();
+                        $parentBlockedByChildren = $task->status !== 'completed' && $incompleteChildrenCount > 0;
+                        $taskBlocked = ! $canWorkTasks || $task->customer_approval_status === 'rejected' || $parentBlockedByChildren;
+                        $taskBlockedMessage = $parentBlockedByChildren
+                            ? "Cần hoàn thành {$incompleteChildrenCount} nhiệm vụ con trước khi hoàn thành nhiệm vụ cha."
+                            : 'Công việc này đang bị khóa theo trạng thái đơn hoặc đã bị khách từ chối.';
+                    @endphp
                     <!-- Parent Task -->
-                    <div onclick="@if($selectedOrder->status == 'pending') Swal.fire('Thông báo', 'Vui lòng \'Tiếp Nhận\' xe để xem và chỉnh sửa.', 'info'); @elseif($task->customer_approval_status === 'rejected') Swal.fire('Thông báo', 'Khách hàng đã từ chối mục này.', 'warning'); @else openTaskDetails('{{ $task->id }}') @endif" class="group bg-white dark:bg-[#1e293b] rounded-xl p-4 transition-all hover:bg-gray-50 dark:hover:bg-[#334155]/20 border border-dash border-gray-100 dark:border-[#334155] hover:border-indigo-200 dark:hover:border-indigo-500/50 cursor-pointer {{ $task->customer_approval_status === 'rejected' ? 'opacity-60 bg-red-50/50' : '' }}">
+                    <div onclick="@if($selectedOrder->status == 'pending') Swal.fire('Thông báo', 'Vui lòng \'Tiếp Nhận\' xe để xem và chỉnh sửa.', 'info'); @elseif($task->customer_approval_status === 'rejected') Swal.fire('Thông báo', 'Khách hàng đã từ chối mục này.', 'warning'); @else openTaskDetails('{{ $task->id }}') @endif" class="group bg-white dark:bg-[#1e293b] rounded-xl p-4 transition-all hover:bg-gray-50 dark:hover:bg-[#334155]/20 border border-dash border-gray-100 dark:border-[#334155] hover:border-indigo-200 dark:hover:border-indigo-500/50 cursor-pointer {{ $task->customer_approval_status === 'rejected' ? 'opacity-60 bg-red-50/50' : '' }} {{ $parentBlockedByChildren ? 'opacity-75' : '' }}">
                         <div class="flex items-start gap-3">
                             <div class="pt-1">
-                                <input type="checkbox" onclick="event.stopPropagation(); @if($selectedOrder->status == 'pending') Swal.fire('Thông báo', 'Vui lòng \'Tiếp Nhận\' xe để bắt đầu công việc.', 'info'); @elseif($selectedOrder->status == 'completed') Swal.fire('Thông báo', 'Đơn sửa chữa đã hoàn thành, không thể thay đổi.', 'warning'); @else toggleTask('{{ $task->id }}', '{{ $task->status }}') @endif" {{ $task->status == 'completed' ? 'checked' : '' }} {{ in_array($selectedOrder->status, ['pending', 'completed']) || $task->customer_approval_status === 'rejected' ? 'disabled' : '' }} class="w-5 h-5 rounded border-gray-300 dark:border-white/20 text-indigo-600 focus:ring-0 bg-transparent {{ in_array($selectedOrder->status, ['pending', 'completed']) || $task->customer_approval_status === 'rejected' ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer' }} transition-colors">
+                                <input type="checkbox" onclick="event.stopPropagation(); @if($taskBlocked) Swal.fire('Thông báo', '{{ $taskBlockedMessage }}', 'info'); @else toggleTask('{{ $task->id }}', '{{ $task->status }}') @endif" {{ $task->status == 'completed' ? 'checked' : '' }} {{ $taskBlocked ? 'disabled' : '' }} title="{{ $parentBlockedByChildren ? $taskBlockedMessage : '' }}" class="w-5 h-5 rounded border-gray-300 dark:border-white/20 text-indigo-600 focus:ring-0 bg-transparent {{ $taskBlocked ? 'opacity-40 cursor-not-allowed grayscale' : 'cursor-pointer' }} transition-colors">
                             </div>
                             <div class="flex-1">
                                 <div class="flex justify-between items-start">
@@ -221,6 +351,8 @@
 
                                         @if($task->status == 'completed')
                                         <span class="text-[10px] font-bold bg-green-100 text-green-700 px-2 py-0.5 rounded uppercase">Hoàn thành</span>
+                                        @elseif($parentBlockedByChildren)
+                                        <span class="text-[10px] font-bold bg-amber-100 text-amber-700 px-2 py-0.5 rounded uppercase border border-amber-200">{{ $incompleteChildrenCount }} việc con chưa xong</span>
                                         @elseif($task->mechanic_id)
                                         <span class="text-[10px] font-bold bg-indigo-600 text-white px-2 py-0.5 rounded uppercase shadow-md shadow-indigo-600/30">Đang làm</span>
                                         @endif
@@ -241,9 +373,32 @@
                         @if($task->children->count() > 0)
                         <div class="ml-8 pl-4 border-l-2 border-gray-100 dark:border-[#1e293b] mt-2 space-y-2">
                             @foreach($task->children as $child)
-                            <div class="flex items-center gap-3 p-3 rounded-lg {{ $child->status == 'completed' ? 'bg-gray-50 dark:bg-[#1f2937]/30 opacity-75' : 'bg-white dark:bg-[#1f2937]/20 border border-gray-100 dark:border-[#374151]' }}">
-                                <input onclick="event.stopPropagation(); @if($selectedOrder->status == 'pending') Swal.fire('Thông báo', 'Vui lòng \'Tiếp Nhận\' xe để bắt đầu công việc.', 'info'); @elseif($selectedOrder->status == 'completed') Swal.fire('Thông báo', 'Đơn sửa chữa đã hoàn thành, không thể thay đổi.', 'warning'); @else toggleTask('{{ $child->id }}', '{{ $child->status }}') @endif" {{ $child->status == 'completed' ? 'checked' : '' }} {{ in_array($selectedOrder->status, ['pending', 'completed']) ? 'disabled' : '' }} class="size-4 shrink-0 rounded border-gray-300 dark:border-white/20 text-teal-600 focus:ring-0 bg-transparent {{ in_array($selectedOrder->status, ['pending', 'completed']) ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer' }}" type="checkbox">
-                                <span class="flex-1 text-sm font-medium text-gray-700 dark:text-gray-300 {{ $child->status == 'completed' ? 'line-through decoration-gray-400' : '' }} break-words pr-2">{{ $child->title }}</span>
+                            @php
+                                $childBlocked = ! $canWorkTasks || $child->customer_approval_status === 'rejected';
+                                $childApprovalLabel = match ($child->customer_approval_status) {
+                                    'approved' => 'Khách đồng ý',
+                                    'rejected' => 'Khách từ chối',
+                                    default => null,
+                                };
+                            @endphp
+                            <div class="flex items-center gap-3 p-3 rounded-lg {{ $child->status == 'completed' ? 'bg-gray-50 dark:bg-[#1f2937]/30 opacity-75' : 'bg-white dark:bg-[#1f2937]/20 border border-gray-100 dark:border-[#374151]' }} {{ $child->customer_approval_status === 'rejected' ? 'bg-red-50/70 dark:bg-red-950/20 border-red-200 dark:border-red-900/60 opacity-75' : '' }} {{ $child->customer_approval_status === 'approved' ? 'border-green-200 dark:border-green-900/50' : '' }}">
+                                <input onclick="event.stopPropagation(); @if($childBlocked) Swal.fire('Thông báo', 'Task này đang bị khóa theo trạng thái đơn hoặc đã bị khách từ chối.', 'info'); @else toggleTask('{{ $child->id }}', '{{ $child->status }}') @endif" {{ $child->status == 'completed' ? 'checked' : '' }} {{ $childBlocked ? 'disabled' : '' }} class="size-4 shrink-0 rounded border-gray-300 dark:border-white/20 text-teal-600 focus:ring-0 bg-transparent {{ $childBlocked ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer' }}" type="checkbox">
+                                <div class="flex-1 min-w-0">
+                                    <div class="flex flex-wrap items-center gap-2">
+                                        <span class="text-sm font-medium text-gray-700 dark:text-gray-300 {{ $child->status == 'completed' || $child->customer_approval_status === 'rejected' ? 'line-through decoration-gray-400' : '' }} break-words pr-2">{{ $child->title }}</span>
+                                        @if($childApprovalLabel)
+                                            <span class="text-[10px] font-black px-2 py-0.5 rounded uppercase border {{ $child->customer_approval_status === 'approved' ? 'bg-green-100 text-green-700 border-green-200 dark:bg-green-500/10 dark:text-green-300 dark:border-green-800' : 'bg-red-100 text-red-700 border-red-200 dark:bg-red-500/10 dark:text-red-300 dark:border-red-800' }}">
+                                                {{ $childApprovalLabel }}
+                                            </span>
+                                        @endif
+                                        @if($child->status == 'completed')
+                                            <span class="text-[10px] font-black px-2 py-0.5 rounded uppercase bg-teal-100 text-teal-700 border border-teal-200 dark:bg-teal-500/10 dark:text-teal-300 dark:border-teal-800">Đã xong</span>
+                                        @endif
+                                    </div>
+                                    @if($child->customer_approval_status === 'rejected')
+                                        <p class="text-xs text-red-600 dark:text-red-300 mt-1">Không thi công hạng mục này nếu chưa có xác nhận mới từ khách.</p>
+                                    @endif
+                                </div>
                             </div>
                             @endforeach
                         </div>
@@ -252,12 +407,12 @@
                     @empty
                     <div class="p-8 text-center border-2 border-dashed border-gray-200 dark:border-[#1e293b] rounded-xl">
                         <p class="text-gray-400">Chưa có công việc nào được gán.</p>
-                        <button onclick="addTask(null)" class="mt-2 text-indigo-600 font-bold hover:underline">Thêm công việc ngay</button>
+                        <button onclick="@if($canEditIntake) addTask(null) @else Swal.fire('Thông báo', 'Chỉ thêm công việc khi đơn đang kiểm tra.', 'info') @endif" class="mt-2 text-indigo-600 font-bold hover:underline {{ ! $canEditIntake ? 'opacity-60 cursor-not-allowed' : '' }}">Thêm công việc ngay</button>
                     </div>
                     @endforelse
                 </div>
 
-                <button onclick="@if($selectedOrder->status == 'pending') Swal.fire('Thông báo', 'Vui lòng \'Tiếp Nhận\' xe trước khi thêm công việc.', 'info'); @elseif($selectedOrder->status == 'completed') Swal.fire('Thông báo', 'Đơn đã hoàn thành.', 'warning'); @else addTask(null) @endif" class="mt-6 w-full py-3 border border-dashed border-gray-300 dark:border-white/20 rounded-xl text-gray-500 dark:text-white/40 hover:text-indigo-600 dark:hover:text-white hover:border-indigo-300 dark:hover:border-white/40 hover:bg-indigo-50 dark:hover:bg-white/5 flex items-center justify-center gap-2 transition-all font-medium {{ in_array($selectedOrder->status, ['pending', 'completed']) ? 'opacity-60 cursor-not-allowed' : '' }}">
+                <button onclick="@if($canEditIntake) addTask(null) @else Swal.fire('Thông báo', 'Chỉ thêm công việc khi đơn đang kiểm tra, trước khi gửi báo giá.', 'info') @endif" class="mt-6 w-full py-3 border border-dashed border-gray-300 dark:border-white/20 rounded-xl text-gray-500 dark:text-white/40 hover:text-indigo-600 dark:hover:text-white hover:border-indigo-300 dark:hover:border-white/40 hover:bg-indigo-50 dark:hover:bg-white/5 flex items-center justify-center gap-2 transition-all font-medium {{ ! $canEditIntake ? 'opacity-60 cursor-not-allowed' : '' }}">
                     <span class="material-icons-round">add_task</span>
                     <span>Thêm công việc phát sinh</span>
                 </button>
@@ -360,6 +515,66 @@
                         Chưa có ghi chú nào.
                     </div>
                     @endif
+                </div>
+
+                <!-- Activity Timeline -->
+                <div class="space-y-4">
+                    <div class="flex justify-between items-center border-b border-gray-200 dark:border-[#1e293b] pb-2">
+                        <h4 class="text-sm font-bold text-gray-500 dark:text-white/50 uppercase tracking-widest">Lịch sử thao tác</h4>
+                    </div>
+                    <div class="space-y-3 max-h-72 overflow-y-auto pr-1">
+                        @forelse(($orderActivities ?? collect()) as $activity)
+                            @php
+                                $activityActionLabels = [
+                                    'STAFF_ORDER_INTAKE' => 'Tiếp nhận xe',
+                                    'STAFF_VHC_SAVED' => 'Lưu kiểm tra VHC',
+                                    'STAFF_ORDER_STATUS_UPDATED' => 'Cập nhật trạng thái',
+                                    'STAFF_TASK_CREATED' => 'Thêm công việc',
+                                    'STAFF_TASK_STATUS_UPDATED' => 'Cập nhật công việc',
+                                    'STAFF_TASK_UPDATED' => 'Sửa công việc',
+                                    'STAFF_TASK_DELETED' => 'Xóa công việc',
+                                    'STAFF_TASK_TOGGLED' => 'Đổi trạng thái công việc',
+                                    'STAFF_NOTE_ADDED' => 'Thêm ghi chú',
+                                    'STAFF_QUICK_ITEM_ADDED' => 'Thêm vật tư nhanh',
+                                    'STAFF_ITEM_ADDED' => 'Thêm vật tư',
+                                    'STAFF_MATERIAL_REQUESTED' => 'Yêu cầu vật tư',
+                                    'STAFF_SUPPORT_REQUESTED' => 'Yêu cầu hỗ trợ',
+                                    'STAFF_QUOTE_SENT' => 'Gửi báo giá',
+                                    'CUSTOMER_QUOTE_REVIEWED' => 'Khách phản hồi báo giá',
+                                    'STAFF_PAYMENT_RECEIVED' => 'Xác nhận thanh toán',
+                                ];
+
+                                $activityDetails = strtr($activity->details ?? '', [
+                                    'Order #' => 'Đơn #',
+                                    'order #' => 'đơn #',
+                                    'pending_approval' => 'đang chờ khách duyệt',
+                                    'in_progress' => 'đang kiểm tra/lập báo giá',
+                                    'pending' => 'đang chờ tiếp nhận',
+                                    'approved' => 'khách đã duyệt',
+                                    'completed' => 'đã hoàn thành',
+                                    'cancelled' => 'đã hủy',
+                                    'paid' => 'đã thanh toán',
+                                    'sent' => 'đã gửi',
+                                    'draft' => 'bản nháp',
+                                ]);
+                            @endphp
+                            <div class="flex gap-3 text-sm">
+                                <div class="mt-1 size-2 rounded-full bg-indigo-500 shrink-0"></div>
+                                <div class="min-w-0">
+                                    <div class="flex items-center gap-2 flex-wrap">
+                                        <span class="font-bold text-gray-800 dark:text-gray-100">{{ $activity->user->name ?? 'System' }}</span>
+                                        <span class="text-[10px] uppercase font-bold bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-gray-400 px-2 py-0.5 rounded">{{ $activityActionLabels[$activity->action] ?? $activity->action }}</span>
+                                    </div>
+                                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-1 break-words">{{ $activityDetails }}</p>
+                                    <p class="text-[11px] text-gray-400 dark:text-gray-500 mt-1">{{ $activity->created_at?->format('H:i d/m/Y') }}</p>
+                                </div>
+                            </div>
+                        @empty
+                            <div class="text-center py-4 text-gray-400 dark:text-gray-600 italic text-sm">
+                                Chưa có lịch sử thao tác cho đơn này.
+                            </div>
+                        @endforelse
+                    </div>
                 </div>
 
                 <!-- Parts List Mini -->

@@ -139,9 +139,14 @@
 
             <div class="px-3 mt-8 mb-2 text-xs font-bold text-slate-500 uppercase tracking-wider">Vận Hành</div>
             
+            <a href="{{ route('admin.workshop.index') }}" class="sidebar-link flex items-center gap-3 px-3 py-3 rounded-lg text-slate-600 dark:text-slate-400 font-medium hover:bg-gray-100 dark:hover:bg-white/5 hover:text-indigo-600 dark:hover:text-white {{ request()->routeIs('admin.workshop.*') ? 'active' : '' }}">
+                <i class="fas fa-table-columns w-6 text-center"></i>
+                <span class="font-medium">Bảng Vận Hành</span>
+            </a>
+
             <a href="{{ route('admin.repair_orders.index') }}" class="sidebar-link flex items-center gap-3 px-3 py-3 rounded-lg text-slate-600 dark:text-slate-400 font-medium hover:bg-gray-100 dark:hover:bg-white/5 hover:text-indigo-600 dark:hover:text-white {{ request()->routeIs('admin.repair_orders.*') ? 'active' : '' }}">
                 <i class="fas fa-clipboard-list w-6 text-center"></i>
-                <span class="font-medium">Lệnh Sửa Chữa</span>
+                <span class="font-medium">Phiếu Sửa Chữa</span>
             </a>
             
              <a href="{{ route('admin.inventory.index') }}" class="sidebar-link flex items-center gap-3 px-3 py-3 rounded-lg text-slate-600 dark:text-slate-400 font-medium hover:bg-gray-100 dark:hover:bg-white/5 hover:text-indigo-600 dark:hover:text-white {{ request()->routeIs('admin.inventory.*') ? 'active' : '' }}">
@@ -152,6 +157,11 @@
             <a href="{{ route('admin.requests.index') }}" class="sidebar-link flex items-center gap-3 px-3 py-3 rounded-lg text-slate-600 dark:text-slate-400 font-medium hover:bg-gray-100 dark:hover:bg-white/5 hover:text-indigo-600 dark:hover:text-white {{ request()->routeIs('admin.requests.*') ? 'active' : '' }}">
                 <i class="fas fa-clipboard-check w-6 text-center"></i>
                 <span class="font-medium">Phê Duyệt Vật Tư</span>
+            </a>
+
+            <a href="{{ route('admin.promotions.index') }}" class="sidebar-link flex items-center gap-3 px-3 py-3 rounded-lg text-slate-600 dark:text-slate-400 font-medium hover:bg-gray-100 dark:hover:bg-white/5 hover:text-indigo-600 dark:hover:text-white {{ request()->routeIs('admin.promotions.*') ? 'active' : '' }}">
+                <i class="fas fa-ticket-alt w-6 text-center"></i>
+                <span class="font-medium">Mã Khuyến Mãi</span>
             </a>
             
             <a href="{{ route('admin.sos.index') }}" class="sidebar-link flex items-center gap-3 px-3 py-3 rounded-lg text-slate-600 dark:text-slate-400 font-medium hover:bg-gray-100 dark:hover:bg-white/5 hover:text-indigo-600 dark:hover:text-white {{ request()->routeIs('admin.sos.*') ? 'active' : '' }}">

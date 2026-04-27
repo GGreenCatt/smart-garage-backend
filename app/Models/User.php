@@ -81,7 +81,12 @@ class User extends Authenticatable
 
     public function hasPermission($permission)
     {
-        return $this->assignedRole && in_array($permission, $this->assignedRole->permissions ?? []);
+        $permissions = array_values(array_unique(array_merge(
+            $this->assignedRole->permissions ?? [],
+            $this->permissions ?? []
+        )));
+
+        return in_array('*', $permissions, true) || in_array($permission, $permissions, true);
     }
 
     public function isAdmin()
@@ -92,6 +97,16 @@ class User extends Authenticatable
     public function isManager()
     {
         return $this->role === 'manager' || ($this->assignedRole && $this->assignedRole->slug === 'manager');
+    }
+
+    public function isTechnician()
+    {
+        return $this->role === 'technician' || ($this->assignedRole && $this->assignedRole->slug === 'technician');
+    }
+
+    public function isStaffAdvisor()
+    {
+        return $this->role === 'staff' || ($this->assignedRole && $this->assignedRole->slug === 'staff');
     }
 
     public function activityLogs()

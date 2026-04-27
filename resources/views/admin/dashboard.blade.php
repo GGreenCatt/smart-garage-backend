@@ -1,195 +1,221 @@
 @extends('layouts.admin')
 
-@section('title', 'Dashboard')
+@section('title', 'Tổng Quan')
 
 @section('content')
+@php
+    $money = fn ($value) => number_format((float) $value, 0, ',', '.') . 'đ';
+    $statusLabels = [
+        'pending' => 'Chờ tiếp nhận',
+        'in_progress' => 'Đang kiểm tra',
+        'pending_approval' => 'Chờ khách duyệt',
+        'approved' => 'Khách đã duyệt',
+        'completed' => 'Hoàn thành',
+        'cancelled' => 'Đã hủy',
+    ];
+    $statusColors = ['#f59e0b', '#3b82f6', '#a855f7', '#22c55e', '#64748b', '#ef4444'];
+    $statusData = collect(array_keys($statusLabels))->map(fn ($status) => (int) ($statusCounts[$status] ?? 0))->values();
+@endphp
+
 <div class="space-y-8">
     @if(auth()->user()->isAdmin() && session('admin_view_mode') != 'manager')
-    <!-- Admin View: System Overivew -->
-    <div class="glass-panel p-8 rounded-2xl border border-slate-800 text-center">
-        <div class="w-20 h-20 mx-auto bg-indigo-500/20 text-indigo-400 rounded-full flex items-center justify-center mb-4">
-            <i class="fas fa-shield-alt text-3xl"></i>
-        </div>
-        <h2 class="text-2xl font-bold text-white mb-2">Xin chào, Quản trị viên hệ thống!</h2>
-        <p class="text-slate-400 max-w-lg mx-auto mb-6">Bạn đang truy cập với quyền hạn cao nhất. Tại đây, bạn có thể thiết lập các cấu hình cốt lõi của hệ thống và quản lý phân quyền.</p>
-        <div class="flex justify-center gap-4">
-            <a href="{{ route('admin.settings.index') }}" class="px-6 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-medium transition">Cấu Hình Cốt Lõi</a>
-            <a href="{{ route('admin.roles.index') }}" class="px-6 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg font-medium transition">Quản Lý Phân Quyền</a>
-        </div>
-    </div>
+        <section class="rounded-2xl border border-slate-800 bg-slate-900/70 p-8 text-center shadow-xl shadow-slate-950/20">
+            <div class="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-2xl bg-indigo-500/10 text-indigo-300">
+                <i class="fas fa-shield-alt text-3xl"></i>
+            </div>
+            <h2 class="text-2xl font-black text-white">Xin chào, quản trị viên hệ thống</h2>
+            <p class="mx-auto mt-2 max-w-2xl text-sm text-slate-400">Bạn đang ở chế độ cấu hình hệ thống. Có thể chuyển sang chế độ quản lý vận hành để xem dữ liệu garage theo thời gian thực.</p>
+            <div class="mt-6 flex flex-wrap justify-center gap-3">
+                <a href="{{ route('admin.settings.index') }}" class="rounded-xl bg-indigo-600 px-5 py-3 text-sm font-black text-white transition hover:bg-indigo-500">Cấu hình hệ thống</a>
+                <a href="{{ route('admin.roles.index') }}" class="rounded-xl border border-slate-700 bg-slate-800 px-5 py-3 text-sm font-black text-slate-100 transition hover:bg-slate-700">Phân quyền & chức vụ</a>
+                <form action="{{ route('admin.toggle-view-mode') }}" method="POST">
+                    @csrf
+                    <button type="submit" class="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-5 py-3 text-sm font-black text-emerald-300 transition hover:bg-emerald-500/20">
+                        Xem tổng quan vận hành
+                    </button>
+                </form>
+            </div>
+        </section>
     @endif
 
     @if(auth()->user()->isManager() || (auth()->user()->isAdmin() && session('admin_view_mode') == 'manager'))
-    
-    <!-- KPI Cards -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <!-- Revenue -->
-        <div class="glass-panel p-6 rounded-2xl relative overflow-hidden group">
-            <div class="absolute -right-4 -top-4 w-24 h-24 bg-indigo-500/10 rounded-full blur-2xl group-hover:bg-indigo-500/20 transition"></div>
-            <div class="flex justify-between items-start mb-4">
-                <div>
-                    <p class="text-slate-400 text-xs font-bold uppercase tracking-wider">Doanh Thu Tháng</p>
-                    <h3 class="text-2xl font-heading font-bold text-white mt-1">{{ number_format($stats['monthly_revenue'] / 1000000, 1) }}M <span class="text-sm text-slate-500">VND</span></h3>
+        <section class="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+            <div class="rounded-2xl border border-slate-800 bg-slate-900/70 p-6 shadow-sm">
+                <div class="flex items-start justify-between gap-4">
+                    <div>
+                        <p class="text-xs font-black uppercase tracking-wider text-slate-500">Doanh thu tháng</p>
+                        <h3 class="mt-2 text-2xl font-black text-white">{{ $money($stats['monthly_revenue']) }}</h3>
+                    </div>
+                    <div class="flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-500/10 text-indigo-300"><i class="fas fa-wallet"></i></div>
                 </div>
-                <div class="w-10 h-10 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center"><i class="fas fa-wallet"></i></div>
-            </div>
-            <div class="flex items-center gap-2 text-xs">
-                <span class="bg-green-500/20 text-green-400 px-1.5 py-0.5 rounded font-bold">+12.5%</span>
-                <span class="text-slate-500">so với tháng trước</span>
-            </div>
-        </div>
-
-        <!-- Orders -->
-        <div class="glass-panel p-6 rounded-2xl relative overflow-hidden group">
-             <div class="absolute -right-4 -top-4 w-24 h-24 bg-blue-500/10 rounded-full blur-2xl group-hover:bg-blue-500/20 transition"></div>
-            <div class="flex justify-between items-start mb-4">
-                <div>
-                    <p class="text-slate-400 text-xs font-bold uppercase tracking-wider">Đơn Sửa Chữa</p>
-                    <h3 class="text-2xl font-heading font-bold text-white mt-1">{{ $stats['active_orders'] }} <span class="text-sm text-slate-500">Active</span></h3>
+                <div class="mt-4 text-xs font-bold">
+                    @if($stats['revenue_change_percent'] === null)
+                        <span class="text-slate-500">Chưa có dữ liệu tháng trước</span>
+                    @else
+                        <span class="{{ $stats['revenue_change_percent'] >= 0 ? 'text-emerald-300' : 'text-red-300' }}">
+                            {{ $stats['revenue_change_percent'] >= 0 ? '+' : '' }}{{ $stats['revenue_change_percent'] }}%
+                        </span>
+                        <span class="ml-1 text-slate-500">so với tháng trước</span>
+                    @endif
                 </div>
-                <div class="w-10 h-10 rounded-lg bg-blue-500/20 text-blue-400 flex items-center justify-center"><i class="fas fa-tools"></i></div>
             </div>
-            <div class="flex items-center gap-2 text-xs">
-                <span class="bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded font-bold">5 Chờ duyệt</span>
-                <span class="text-slate-500">cần xử lý ngay</span>
-            </div>
-        </div>
 
-        <!-- Customers -->
-        <div class="glass-panel p-6 rounded-2xl relative overflow-hidden group">
-             <div class="absolute -right-4 -top-4 w-24 h-24 bg-purple-500/10 rounded-full blur-2xl group-hover:bg-purple-500/20 transition"></div>
-            <div class="flex justify-between items-start mb-4">
-                <div>
-                    <p class="text-slate-400 text-xs font-bold uppercase tracking-wider">Khách Hàng Mới</p>
-                    <h3 class="text-2xl font-heading font-bold text-white mt-1">+{{ $stats['total_customers'] }}</h3>
+            <div class="rounded-2xl border border-slate-800 bg-slate-900/70 p-6 shadow-sm">
+                <div class="flex items-start justify-between gap-4">
+                    <div>
+                        <p class="text-xs font-black uppercase tracking-wider text-slate-500">Đơn đang xử lý</p>
+                        <h3 class="mt-2 text-2xl font-black text-white">{{ $stats['active_orders'] }}</h3>
+                    </div>
+                    <div class="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-500/10 text-blue-300"><i class="fas fa-tools"></i></div>
                 </div>
-                <div class="w-10 h-10 rounded-lg bg-purple-500/20 text-purple-400 flex items-center justify-center"><i class="fas fa-users"></i></div>
-            </div>
-             <div class="flex items-center gap-2 text-xs">
-                <span class="text-slate-400">Tổng cộng: 1,240 khách hàng</span>
-            </div>
-        </div>
-        
-        <!-- Vehicles -->
-         <div class="glass-panel p-6 rounded-2xl relative overflow-hidden group">
-             <div class="absolute -right-4 -top-4 w-24 h-24 bg-orange-500/10 rounded-full blur-2xl group-hover:bg-orange-500/20 transition"></div>
-            <div class="flex justify-between items-start mb-4">
-                <div>
-                    <p class="text-slate-400 text-xs font-bold uppercase tracking-wider">Xe Đã Tiếp Nhận</p>
-                    <h3 class="text-2xl font-heading font-bold text-white mt-1">{{ $stats['total_vehicles'] }}</h3>
+                <div class="mt-4 text-xs font-bold text-slate-500">
+                    <span class="text-amber-300">{{ $stats['pending_approval_orders'] }}</span> chờ khách duyệt
+                    <span class="mx-1">•</span>
+                    <span class="text-emerald-300">{{ $stats['completed_unpaid_orders'] }}</span> chờ thanh toán
                 </div>
-                <div class="w-10 h-10 rounded-lg bg-orange-500/20 text-orange-400 flex items-center justify-center"><i class="fas fa-car"></i></div>
             </div>
-             <div class="flex items-center gap-2 text-xs">
-                <span class="text-slate-400">Hiệu suất xưởng: 85%</span>
-            </div>
-        </div>
-    </div>
 
-    <!-- Charts Section -->
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <!-- Revenue Chart -->
-        <div class="lg:col-span-2 glass-panel p-6 rounded-2xl border border-slate-800">
-            <h3 class="text-lg font-bold text-white mb-4">Doanh Thu 7 Ngày Qua</h3>
-            <div class="h-64">
-                <canvas id="revenueChart"></canvas>
+            <div class="rounded-2xl border border-slate-800 bg-slate-900/70 p-6 shadow-sm">
+                <div class="flex items-start justify-between gap-4">
+                    <div>
+                        <p class="text-xs font-black uppercase tracking-wider text-slate-500">Khách hàng</p>
+                        <h3 class="mt-2 text-2xl font-black text-white">{{ $stats['total_customers'] }}</h3>
+                    </div>
+                    <div class="flex h-11 w-11 items-center justify-center rounded-xl bg-violet-500/10 text-violet-300"><i class="fas fa-users"></i></div>
+                </div>
+                <div class="mt-4 text-xs font-bold text-slate-500">
+                    <span class="text-violet-300">+{{ $stats['new_customers_this_month'] }}</span> khách mới trong tháng
+                </div>
             </div>
-        </div>
 
-        <!-- Order Status -->
-        <div class="glass-panel p-6 rounded-2xl border border-slate-800">
-            <h3 class="text-lg font-bold text-white mb-4">Trạng Thái Đơn Hàng</h3>
-            <div class="h-64 flex items-center justify-center">
-                <canvas id="statusChart"></canvas>
+            <div class="rounded-2xl border border-slate-800 bg-slate-900/70 p-6 shadow-sm">
+                <div class="flex items-start justify-between gap-4">
+                    <div>
+                        <p class="text-xs font-black uppercase tracking-wider text-slate-500">Lịch hẹn hôm nay</p>
+                        <h3 class="mt-2 text-2xl font-black text-white">{{ $stats['appointments_today'] }}</h3>
+                    </div>
+                    <div class="flex h-11 w-11 items-center justify-center rounded-xl bg-cyan-500/10 text-cyan-300"><i class="fas fa-calendar-check"></i></div>
+                </div>
+                <div class="mt-4 text-xs font-bold text-slate-500">
+                    <span class="text-cyan-300">{{ $stats['pending_appointments'] }}</span> lịch chờ xác nhận
+                    <span class="mx-1">•</span>
+                    <span>{{ $stats['total_vehicles'] }} xe đã lưu</span>
+                </div>
             </div>
-        </div>
-    </div>
-    
-    <!-- Recent Activity Table (Placeholder for Audit Log) -->
-    <div class="glass-panel rounded-2xl border border-slate-800 overflow-hidden">
-        <div class="p-6 border-b border-slate-800 flex justify-between items-center">
-            <h3 class="text-lg font-bold text-white">Hoạt Động Gần Đây</h3>
-            <button class="text-xs font-bold text-indigo-400 hover:text-indigo-300">Xem tất cả</button>
-        </div>
-        <table class="w-full text-left text-sm text-slate-400">
-            <thead class="bg-slate-900/50 text-xs uppercase font-bold text-slate-500">
-                <tr>
-                    <th class="px-6 py-4">Nhân Viên</th>
-                    <th class="px-6 py-4">Hành Động</th>
-                    <th class="px-6 py-4">Thời Gian</th>
-                    <th class="px-6 py-4">Trạng Thái</th>
-                </tr>
-            </thead>
-            <tbody class="divide-y divide-slate-800">
-                <tr class="hover:bg-slate-800/30 transition">
-                    <td class="px-6 py-4 flex items-center gap-3">
-                        <div class="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold text-white">K</div>
-                        <span class="text-white font-medium">Khoa Kỹ Thuật</span>
-                    </td>
-                    <td class="px-6 py-4">Đã cập nhật trạng thái đơn <span class="text-indigo-400 font-mono">#LSC-123</span></td>
-                    <td class="px-6 py-4">2 phút trước</td>
-                    <td class="px-6 py-4"><span class="px-2 py-1 rounded text-[10px] font-bold bg-green-500/10 text-green-400">Success</span></td>
-                </tr>
-                 <tr class="hover:bg-slate-800/30 transition">
-                    <td class="px-6 py-4 flex items-center gap-3">
-                        <div class="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold text-white">T</div>
-                        <span class="text-white font-medium">Thu Ngân 01</span>
-                    </td>
-                    <td class="px-6 py-4">Đã tạo báo giá cho xe <span class="text-indigo-400 font-mono">30A-999.99</span></td>
-                    <td class="px-6 py-4">15 phút trước</td>
-                    <td class="px-6 py-4"><span class="px-2 py-1 rounded text-[10px] font-bold bg-blue-500/10 text-blue-400">Pending</span></td>
-                </tr>
-            </tbody>
-        </table>
-    </div>
+        </section>
+
+        <section class="grid gap-6 xl:grid-cols-3">
+            <div class="rounded-2xl border border-slate-800 bg-slate-900/70 p-6 shadow-sm xl:col-span-2">
+                <div class="mb-5 flex items-center justify-between">
+                    <h3 class="text-lg font-black text-white">Doanh thu 7 ngày gần nhất</h3>
+                    <span class="text-xs font-bold text-slate-500">Đơn đã thanh toán</span>
+                </div>
+                <div class="h-72">
+                    <canvas id="revenueChart"></canvas>
+                </div>
+            </div>
+
+            <div class="rounded-2xl border border-slate-800 bg-slate-900/70 p-6 shadow-sm">
+                <div class="mb-5">
+                    <h3 class="text-lg font-black text-white">Trạng thái lệnh sửa chữa</h3>
+                    <p class="mt-1 text-sm text-slate-500">Tính theo toàn bộ dữ liệu hiện có.</p>
+                </div>
+                <div class="h-72">
+                    <canvas id="statusChart"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <section class="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/70 shadow-sm">
+            <div class="flex items-center justify-between border-b border-slate-800 p-6">
+                <div>
+                    <h3 class="text-lg font-black text-white">Hoạt động gần đây</h3>
+                    <p class="mt-1 text-sm text-slate-500">Lấy từ nhật ký thao tác thực tế của hệ thống.</p>
+                </div>
+                <a href="{{ route('admin.staff.logs') }}" class="text-sm font-black text-indigo-300 transition hover:text-indigo-200">Xem nhật ký</a>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-sm">
+                    <thead class="border-b border-slate-800 bg-slate-950/50 text-xs font-black uppercase tracking-wider text-slate-500">
+                        <tr>
+                            <th class="px-6 py-4">Người thao tác</th>
+                            <th class="px-6 py-4">Hành động</th>
+                            <th class="px-6 py-4">Chi tiết</th>
+                            <th class="px-6 py-4">Thời gian</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-800">
+                        @forelse($recentActivities as $activity)
+                            <tr class="transition hover:bg-slate-800/40">
+                                <td class="px-6 py-4">
+                                    <div class="flex items-center gap-3">
+                                        <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-800 text-xs font-black text-white">
+                                            {{ mb_substr($activity->user->name ?? 'H', 0, 1) }}
+                                        </div>
+                                        <div>
+                                            <div class="font-bold text-white">{{ $activity->user->name ?? 'Hệ thống' }}</div>
+                                            <div class="text-xs text-slate-500">{{ $activity->ip_address ?? 'Không rõ IP' }}</div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="px-6 py-4">
+                                    <span class="rounded-lg bg-indigo-500/10 px-2.5 py-1 text-xs font-black text-indigo-300">{{ $activity->action }}</span>
+                                </td>
+                                <td class="max-w-xl px-6 py-4 text-slate-400">{{ $activity->details }}</td>
+                                <td class="px-6 py-4 text-slate-500">{{ $activity->created_at?->diffForHumans() }}</td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="4" class="px-6 py-12 text-center text-slate-500">Chưa có hoạt động nào.</td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </section>
     @endif
 </div>
 
 @push('scripts')
+@if(auth()->user()->isManager() || (auth()->user()->isAdmin() && session('admin_view_mode') == 'manager'))
 <script>
-    // Config Defaults
     Chart.defaults.color = '#94a3b8';
     Chart.defaults.borderColor = '#1e293b';
 
-    // Revenue Chart
-    const ctx = document.getElementById('revenueChart').getContext('2d');
-    new Chart(ctx, {
+    new Chart(document.getElementById('revenueChart').getContext('2d'), {
         type: 'line',
         data: {
-            labels: ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'],
+            labels: @json($revenueChart->pluck('label')),
             datasets: [{
-                label: 'Doanh Thu (Triệu VND)',
-                data: [12, 19, 15, 25, 22, 30, 28],
+                label: 'Doanh thu (triệu đồng)',
+                data: @json($revenueChart->pluck('value')),
                 borderColor: '#6366f1',
-                backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                backgroundColor: 'rgba(99, 102, 241, 0.12)',
                 borderWidth: 3,
-                tension: 0.4,
+                tension: 0.35,
                 fill: true,
-                pointBackgroundColor: '#6366f1'
+                pointBackgroundColor: '#818cf8'
             }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            plugins: {
-                legend: { display: false }
-            },
+            plugins: { legend: { display: false } },
             scales: {
-                y: { grid: { borderDash: [4, 4] } },
+                y: { beginAtZero: true, grid: { borderDash: [4, 4] } },
                 x: { grid: { display: false } }
             }
         }
     });
 
-    // Status Chart
-    const ctx2 = document.getElementById('statusChart').getContext('2d');
-    new Chart(ctx2, {
+    new Chart(document.getElementById('statusChart').getContext('2d'), {
         type: 'doughnut',
         data: {
-            labels: ['Đang Sửa', 'Chờ Duyệt', 'Hoàn Thành'],
+            labels: @json(array_values($statusLabels)),
             datasets: [{
-                data: [{{ $stats['active_orders'] }}, 5, 12],
-                backgroundColor: ['#3b82f6', '#f59e0b', '#22c55e'],
+                data: @json($statusData),
+                backgroundColor: @json($statusColors),
                 borderWidth: 0,
                 hoverOffset: 4
             }]
@@ -197,12 +223,11 @@
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            plugins: {
-                legend: { position: 'right' }
-            },
-            cutout: '70%'
+            plugins: { legend: { position: 'bottom' } },
+            cutout: '68%'
         }
     });
 </script>
+@endif
 @endpush
 @endsection

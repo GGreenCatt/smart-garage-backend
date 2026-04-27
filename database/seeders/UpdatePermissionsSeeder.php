@@ -16,8 +16,8 @@ class UpdatePermissionsSeeder extends Seeder
         $manager = Role::where('slug', 'manager')->first();
         if ($manager) {
             $new = [
-                'view_dashboard', 'manage_settings', 'view_reports',
-                'view_staff', 'manage_staff', 'access_chat',
+                'view_dashboard', 'manage_settings', 'manage_roles', 'view_reports',
+                'view_staff', 'manage_staff', 'access_chat', 'customer_support_chat',
                 'manage_customers', 'view_own_vehicles', 'manage_vehicles', 'delete_vehicles', 'view_3d', 'edit_3d',
                 'view_inventory', 'manage_inventory', 'manage_suppliers',
                 'view_services', 'manage_services', 'manage_appointments', 'manage_promotions', 'manage_sos',
@@ -32,7 +32,7 @@ class UpdatePermissionsSeeder extends Seeder
         if ($staff) {
             $new = [
                 'view_dashboard', 'view_reports',
-                'view_staff', 'access_chat',
+                'view_staff', 'access_chat', 'customer_support_chat',
                 'manage_customers', 'view_own_vehicles', 'manage_vehicles', 'view_3d',
                 'view_inventory', 'manage_inventory',
                 'view_services', 'manage_appointments', 'manage_sos',

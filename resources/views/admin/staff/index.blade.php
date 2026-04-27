@@ -1,71 +1,99 @@
 @extends('layouts.admin')
 
-@section('title', 'Manage Staff')
+@section('title', 'Quản Lý Nhân Sự')
 
 @section('content')
+@php
+    $statusLabels = [
+        'active' => ['label' => 'Đang hoạt động', 'class' => 'bg-emerald-500/10 text-emerald-300 border-emerald-500/20'],
+        'inactive' => ['label' => 'Ngừng hoạt động', 'class' => 'bg-slate-500/10 text-slate-300 border-slate-500/20'],
+        'banned' => ['label' => 'Đã khóa', 'class' => 'bg-red-500/10 text-red-300 border-red-500/20'],
+    ];
+@endphp
+
 <div class="space-y-6">
-    <!-- Header -->
-    <div class="flex justify-between items-center">
+    <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
             <h2 class="text-2xl font-bold text-white">Đội Ngũ Nhân Sự</h2>
-            <p class="text-sm text-slate-400">Quản lý quyền truy cập và vai trò của nhân viên</p>
+            <p class="text-sm text-slate-400">Quản lý tài khoản nhân viên, chức vụ và trạng thái sử dụng hệ thống.</p>
         </div>
         @can('manage_staff')
-        <a href="{{ route('admin.staff.create') }}" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-lg transition shadow-lg shadow-indigo-500/20 flex items-center gap-2">
-            <i class="fas fa-plus"></i> Thêm Nhân Viên
-        </a>
+            <a href="{{ route('admin.staff.create') }}" class="inline-flex items-center justify-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 font-bold text-white shadow-lg shadow-indigo-500/20 transition hover:bg-indigo-500">
+                <i class="fas fa-plus"></i>
+                Thêm nhân viên
+            </a>
         @endcan
     </div>
 
-    <!-- Staff Grid -->
-    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-        @foreach($staff as $user)
-        <div class="glass-panel p-6 rounded-2xl border border-slate-700/50 hover:border-indigo-500/50 transition group">
-            <div class="flex items-start justify-between mb-4">
-                <div class="flex items-center gap-4">
-                    <img src="https://ui-avatars.com/api/?name={{ $user->name }}&background={{ $user->role == 'admin' ? '6366f1' : '14b8a6' }}&color=fff" class="w-12 h-12 rounded-xl shadow-lg">
-                    <div>
-                        <h3 class="font-bold text-white text-lg group-hover:text-indigo-400 transition">
-                            <a href="{{ route('admin.staff.show', $user) }}" class="hover:underline">
+    @if(session('success') || session('warning') || session('error'))
+        <div class="space-y-2">
+            @foreach(['success' => 'emerald', 'warning' => 'amber', 'error' => 'red'] as $type => $color)
+                @if(session($type))
+                    <div class="rounded-xl border border-{{ $color }}-500/20 bg-{{ $color }}-500/10 px-4 py-3 text-sm font-semibold text-{{ $color }}-200">
+                        {{ session($type) }}
+                    </div>
+                @endif
+            @endforeach
+        </div>
+    @endif
+
+    <div class="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
+        @forelse($staff as $user)
+            @php
+                $status = $statusLabels[$user->status ?? 'active'] ?? $statusLabels['inactive'];
+                $roleName = $user->assignedRole?->name ?? ucfirst($user->role ?? 'staff');
+            @endphp
+            <div class="glass-panel rounded-2xl border border-slate-700/50 p-6 transition hover:border-indigo-500/50">
+                <div class="mb-4 flex items-start justify-between gap-4">
+                    <div class="flex min-w-0 items-center gap-4">
+                        <img src="https://ui-avatars.com/api/?name={{ urlencode($user->name) }}&background=14b8a6&color=fff" class="h-12 w-12 rounded-xl shadow-lg" alt="{{ $user->name }}">
+                        <div class="min-w-0">
+                            <a href="{{ route('admin.staff.show', $user) }}" class="block truncate text-lg font-bold text-white transition hover:text-indigo-300">
                                 {{ $user->name }}
                             </a>
-                        </h3>
-                        <div class="flex items-center gap-2">
-                            <span class="text-xs uppercase tracking-wider font-bold {{ ($user->assignedRole && $user->assignedRole->slug == 'admin') || $user->role == 'admin' ? 'text-indigo-400' : 'text-teal-400' }}">
-                                {{ $user->assignedRole ? $user->assignedRole->name : ucfirst($user->role) }}
-                            </span>
-                            <span class="w-1 h-1 bg-slate-600 rounded-full"></span>
-                            <span class="text-xs text-slate-500">ID: #{{ $user->id }}</span>
+                            <div class="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                                <span class="font-bold uppercase tracking-wider text-teal-300">{{ $roleName }}</span>
+                                <span>ID #{{ $user->id }}</span>
+                            </div>
                         </div>
                     </div>
+                    @can('manage_staff')
+                        <a href="{{ route('admin.staff.edit', $user) }}" class="rounded-lg p-2 text-slate-500 transition hover:bg-slate-800 hover:text-indigo-300" title="Chỉnh sửa">
+                            <i class="fas fa-pen"></i>
+                        </a>
+                    @endcan
                 </div>
-                <a href="{{ route('admin.staff.edit', $user) }}" class="text-slate-500 hover:text-indigo-400 transition transform hover:scale-110"><i class="fas fa-edit"></i></a>
-            </div>
 
-            <div class="space-y-3 mb-6">
                 @if($user->tags && is_array($user->tags) && count($user->tags) > 0)
-                <div class="flex flex-wrap gap-1 mb-2">
-                    @foreach($user->tags as $tag)
-                        <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">{{ $tag }}</span>
-                    @endforeach
-                </div>
+                    <div class="mb-4 flex flex-wrap gap-2">
+                        @foreach($user->tags as $tag)
+                            <span class="rounded border border-indigo-500/20 bg-indigo-500/10 px-2 py-1 text-[11px] font-bold text-indigo-300">{{ $tag }}</span>
+                        @endforeach
+                    </div>
                 @endif
-                <div class="flex items-center gap-3 text-sm text-slate-400">
-                    <i class="fas fa-envelope w-5 text-center"></i>
-                    <span>{{ $user->email }}</span>
-                </div>
-                 <div class="flex items-center gap-3 text-sm text-slate-400">
-                    <i class="fas fa-phone w-5 text-center"></i>
-                    <span>{{ $user->phone ?? 'No Phone' }}</span>
-                </div>
-            </div>
 
-            <div class="pt-4 border-t border-slate-700/50 flex justify-between items-center text-xs font-bold">
-                <span class="px-2 py-1 rounded bg-green-500/10 text-green-400 border border-green-500/20">Active</span>
-                <span class="text-slate-500">Last active: Recently</span>
+                <div class="space-y-3 text-sm text-slate-400">
+                    <div class="flex items-center gap-3">
+                        <i class="fas fa-envelope w-5 text-center text-slate-500"></i>
+                        <span class="truncate">{{ $user->email }}</span>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <i class="fas fa-phone w-5 text-center text-slate-500"></i>
+                        <span>{{ $user->phone ?: 'Chưa có số điện thoại' }}</span>
+                    </div>
+                </div>
+
+                <div class="mt-5 flex items-center justify-between border-t border-slate-700/50 pt-4 text-xs">
+                    <span class="rounded border px-2 py-1 font-bold {{ $status['class'] }}">{{ $status['label'] }}</span>
+                    <span class="text-slate-500">Tạo: {{ optional($user->created_at)->format('d/m/Y') }}</span>
+                </div>
             </div>
-        </div>
-        @endforeach
+        @empty
+            <div class="glass-panel col-span-full rounded-2xl border border-slate-700/50 p-10 text-center">
+                <p class="font-semibold text-white">Chưa có nhân viên nào.</p>
+                <p class="mt-1 text-sm text-slate-400">Hãy tạo tài khoản nhân viên đầu tiên để phân quyền vận hành.</p>
+            </div>
+        @endforelse
     </div>
 </div>
 @endsection

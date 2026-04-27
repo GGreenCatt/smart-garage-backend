@@ -1,32 +1,58 @@
 @extends('layouts.customer')
 
-@section('title', 'Tài Khoản')
+@section('title', 'Tài khoản')
 
 @section('content')
-<main class="pt-24 min-h-screen">
-    <div class="max-w-4xl mx-auto px-4 py-6">
-        <h1 class="text-3xl font-bold text-white mb-6">Cài Đặt Tài Khoản</h1>
-        <div class="glass-panel p-8 rounded-2xl bg-[#1e293b] border border-[#334155]">
-            <form class="space-y-6">
-                <div class="grid md:grid-cols-2 gap-6">
-                    <div>
-                        <label class="block text-slate-400 text-xs uppercase font-bold mb-2">Họ Tên</label>
-                        <input type="text" value="{{ $user->name }}" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:border-cyan-500 outline-none transition">
-                    </div>
-                    <div>
-                        <label class="block text-slate-400 text-xs uppercase font-bold mb-2">Số Điện Thoại</label>
-                        <input type="text" value="{{ $user->phone ?? $user->email }}" disabled class="w-full bg-slate-900/50 border border-slate-800 rounded-lg px-4 py-3 text-slate-500 cursor-not-allowed">
-                        <p class="text-[10px] text-slate-500 mt-1">* Định danh không thể thay đổi</p>
-                    </div>
-                </div>
-                <!-- Add more fields (Password, Address) later if needed -->
-                
-                <div class="pt-4">
-                    <button type="button" class="bg-cyan-600 hover:bg-cyan-500 text-white px-6 py-3 rounded-lg font-bold shadow-lg shadow-cyan-900/20 transition opacity-50 cursor-not-allowed" title="Tính năng đang cập nhật">Lưu Thay Đổi</button>
-                    <span class="text-xs text-slate-500 ml-3">Chức năng cập nhật đang bảo trì</span>
-                </div>
-            </form>
+<main class="pt-24 min-h-screen bg-[#0b1120]">
+    <div class="max-w-4xl mx-auto px-4 py-6 space-y-6">
+        <div>
+            <a href="{{ route('customer.dashboard') }}" class="inline-flex items-center gap-2 text-sm text-slate-400 hover:text-white mb-3">
+                <i class="fas fa-arrow-left"></i> Về tổng quan
+            </a>
+            <h1 class="text-3xl font-black text-white">Tài khoản</h1>
+            <p class="text-slate-400 mt-2">Thông tin định danh dùng để đồng bộ xe, lịch hẹn và lịch sử sửa chữa.</p>
         </div>
+
+        <section class="bg-slate-900/70 border border-slate-800 rounded-2xl overflow-hidden">
+            <div class="p-6 border-b border-slate-800 flex items-center gap-4">
+                <img src="https://ui-avatars.com/api/?name={{ urlencode($user->name) }}&background=0891b2&color=fff" class="w-16 h-16 rounded-2xl" alt="">
+                <div>
+                    <h2 class="text-xl font-black text-white">{{ $user->name }}</h2>
+                    <p class="text-sm text-slate-400">{{ $user->phone ?: $user->email ?: 'Chưa có thông tin liên hệ' }}</p>
+                </div>
+            </div>
+
+            <div class="p-6 grid md:grid-cols-2 gap-5">
+                <div>
+                    <label class="block text-slate-500 text-xs uppercase font-black mb-2">Họ tên</label>
+                    <div class="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3 text-white">{{ $user->name }}</div>
+                </div>
+                <div>
+                    <label class="block text-slate-500 text-xs uppercase font-black mb-2">Số điện thoại</label>
+                    <div class="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3 text-white">{{ $user->phone ?: 'Chưa cập nhật' }}</div>
+                </div>
+                <div>
+                    <label class="block text-slate-500 text-xs uppercase font-black mb-2">Email</label>
+                    <div class="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3 text-white">{{ $user->email ?: 'Chưa cập nhật' }}</div>
+                </div>
+                <div>
+                    <label class="block text-slate-500 text-xs uppercase font-black mb-2">Địa chỉ</label>
+                    <div class="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3 text-white">{{ $user->address ?: 'Chưa cập nhật' }}</div>
+                </div>
+            </div>
+        </section>
+
+        <section class="bg-cyan-500/10 border border-cyan-500/20 rounded-2xl p-5 text-cyan-100">
+            <div class="flex gap-3">
+                <i class="fas fa-circle-info text-cyan-300 mt-0.5"></i>
+                <div>
+                    <h3 class="font-bold text-white">Cập nhật thông tin tại quầy</h3>
+                    <p class="text-sm mt-1 text-cyan-100/80">
+                        Nếu số điện thoại, email hoặc thông tin xe chưa đúng, vui lòng báo nhân viên garage để cập nhật. Số điện thoại là thông tin chính để đồng bộ lịch sử sửa chữa.
+                    </p>
+                </div>
+            </div>
+        </section>
     </div>
 </main>
 @endsection

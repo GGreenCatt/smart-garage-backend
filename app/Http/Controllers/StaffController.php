@@ -25,23 +25,53 @@ class StaffController extends Controller
         // Kanban Board Data: Fetch Orders instead of Tasks
         // We need 'waiting' (pending), 'inProgress', 'ready' (completed)
         
-        $orders = \App\Models\RepairOrder::with(['vehicle', 'vehicle.user', 'advisor', 'items']) // Changed tasks to items if tasks model is not linked effectively or use available relation
-            ->withCount('items') // assuming items are tasks? No, 'items' are parts/services.
-            // Let's check if 'tasks' relationship exists in RepairOrder. It wasn't in the file I read.
-            // Wait, RepairTask has 'repairOrder' belongTo, but RepairOrder didn't show 'tasks' hasMany.
-            // I need to add 'tasks' relationship to RepairOrder first if it's missing.
-            // For now, I will fetch tasks separately or add the relation. 
-            // Actually, let's look at lines 34: $allTasks = ... whereIn repair_order_id.
-            // So I can map them manually.
-            ->latest()
+        $ordersQuery = RepairOrder::with(['vehicle', 'vehicle.user', 'advisor', 'items'])
+            ->withCount('items');
+
+        if ($search = trim((string) request('q'))) {
+            $ordersQuery->where(function ($query) use ($search) {
+                $query->where('track_id', 'like', "%{$search}%")
+                    ->orWhereHas('vehicle', function ($vehicleQuery) use ($search) {
+                        $vehicleQuery->where('license_plate', 'like', "%{$search}%")
+                            ->orWhere('model', 'like', "%{$search}%")
+                            ->orWhere('owner_phone', 'like', "%{$search}%")
+                            ->orWhere('owner_name', 'like', "%{$search}%");
+                    })
+                    ->orWhereHas('customer', function ($customerQuery) use ($search) {
+                        $customerQuery->where('name', 'like', "%{$search}%")
+                            ->orWhere('phone', 'like', "%{$search}%");
+                    });
+            });
+        }
+
+        if ($status = request('status')) {
+            $ordersQuery->where('status', $status);
+        }
+
+        if ($advisorId = request('advisor_id')) {
+            $ordersQuery->where('advisor_id', $advisorId);
+        }
+
+        if ($dateFrom = request('date_from')) {
+            $ordersQuery->whereDate('created_at', '>=', $dateFrom);
+        }
+
+        if ($dateTo = request('date_to')) {
+            $ordersQuery->whereDate('created_at', '<=', $dateTo);
+        }
+
+        $orders = $ordersQuery->latest()->get();
+        $advisors = User::whereIn('role', ['staff', 'technician', 'manager'])
+            ->orderBy('name')
             ->get();
 
         // Fetch tasks separately to calculate progress manually
-        $allTasks = \App\Models\RepairTask::with(['children', 'mechanic'])->whereIn('repair_order_id', $orders->pluck('id'))->get();
+        $allTasks = \App\Models\RepairTask::with(['children.items', 'items', 'mechanic'])->whereIn('repair_order_id', $orders->pluck('id'))->get();
 
         // Manual mapping for progress since relationship might be missing in model file read earlier
         $orders->transform(function ($order) use ($allTasks) {
-            $orderTasks = $allTasks->where('repair_order_id', $order->id);
+            $allOrderTasks = $allTasks->where('repair_order_id', $order->id);
+            $orderTasks = $allOrderTasks->reject(fn ($task) => $task->customer_approval_status === 'rejected');
             $total = $orderTasks->count();
             $completed = $orderTasks->where('status', 'completed')->count();
             
@@ -49,20 +79,34 @@ class StaffController extends Controller
             
             // Collect unique mechanic names
             $mechanicNames = $orderTasks->pluck('mechanic.name')->filter()->unique()->values()->all();
-            $order->mechanics_display = !empty($mechanicNames) ? implode(', ', $mechanicNames) : 'Chưa phân công';
+            $order->mechanics_display = !empty($mechanicNames) ? implode(', ', $mechanicNames) : 'ChÆ°a phÃ¢n cÃ´ng';
 
             // Status Label
-            if ($order->status == 'pending') $order->status_label = 'Chờ xử lý';
-            elseif (in_array($order->status, ['in_progress', 'pending_approval', 'approved'])) $order->status_label = 'Đang xử lý';
-            elseif ($order->status == 'completed') $order->status_label = 'Sẵn sàng';
-            else $order->status_label = $order->status === 'cancelled' ? 'Đã hủy' : ucfirst($order->status);
+            if ($order->status == 'pending') $order->status_label = 'Chá» xá»­ lÃ½';
+            elseif (in_array($order->status, ['in_progress', 'pending_approval', 'approved'])) $order->status_label = 'Äang xá»­ lÃ½';
+            elseif ($order->status == 'completed') $order->status_label = 'Sáºµn sÃ ng';
+            else $order->status_label = $order->status === 'cancelled' ? 'ÄÃ£ há»§y' : ucfirst($order->status);
+
+            $order->has_rejected_tasks = $allOrderTasks->where('customer_approval_status', 'rejected')->isNotEmpty();
+            $order->approved_tasks_count = $orderTasks->where('customer_approval_status', 'approved')->count();
+            $order->status_label = match ($order->status) {
+                RepairOrder::STATUS_PENDING => 'Chá» tiáº¿p nháº­n',
+                RepairOrder::STATUS_IN_PROGRESS => 'Äang kiá»ƒm tra',
+                RepairOrder::STATUS_PENDING_APPROVAL => 'Chá» khÃ¡ch duyá»‡t',
+                RepairOrder::STATUS_APPROVED => 'KhÃ¡ch Ä‘Ã£ duyá»‡t',
+                RepairOrder::STATUS_COMPLETED => $order->payment_status === 'paid' ? 'ÄÃ£ thanh toÃ¡n' : 'Chá» thanh toÃ¡n',
+                RepairOrder::STATUS_CANCELLED => 'ÄÃ£ há»§y',
+                default => ucfirst((string) $order->status),
+            };
 
             return $order;
         });
 
-        $waiting = $orders->where('status', 'pending');
-        $inProgress = $orders->whereIn('status', ['in_progress', 'pending_approval', 'approved']);
-        $ready = $orders->where('status', 'completed');
+        $waiting = $orders->where('status', RepairOrder::STATUS_PENDING);
+        $inProgress = $orders->where('status', RepairOrder::STATUS_IN_PROGRESS);
+        $pendingApproval = $orders->where('status', RepairOrder::STATUS_PENDING_APPROVAL);
+        $approved = $orders->where('status', RepairOrder::STATUS_APPROVED);
+        $ready = $orders->where('status', RepairOrder::STATUS_COMPLETED);
         
         $allVehicles = \App\Models\Vehicle::all();
         
@@ -73,18 +117,20 @@ class StaffController extends Controller
             $selectedOrder = $orders->firstWhere('id', $selectedId);
         }
         if (!$selectedOrder) {
-            $selectedOrder = $inProgress->first() ?? $waiting->first() ?? $ready->first();
+            $selectedOrder = $approved->first() ?? $pendingApproval->first() ?? $inProgress->first() ?? $waiting->first() ?? $ready->first();
         }
         
         $pendingTasks = $allTasks->where('status', 'pending');
         $progressTasks = $allTasks->whereIn('status', ['in_progress', 'completed']);
+        $orderActivities = $selectedOrder ? $this->orderActivities($selectedOrder) : collect();
 
         if (request()->ajax()) {
-            $currentTasks = $allTasks->where('repair_order_id', $selectedOrder->id);
-            return view('staff.partials.order_details', compact('selectedOrder', 'currentTasks'));
+            $currentTasks = $selectedOrder ? $allTasks->where('repair_order_id', $selectedOrder->id) : collect();
+            $orderActivities = $selectedOrder ? $this->orderActivities($selectedOrder) : collect();
+            return view('staff.partials.order_details', compact('selectedOrder', 'currentTasks', 'orderActivities'));
         }
 
-        return view('staff.dashboard', compact('waiting', 'inProgress', 'ready', 'allVehicles', 'allTasks', 'pendingTasks', 'progressTasks', 'selectedOrder'));
+        return view('staff.dashboard', compact('waiting', 'inProgress', 'pendingApproval', 'approved', 'ready', 'allVehicles', 'allTasks', 'pendingTasks', 'progressTasks', 'advisors', 'selectedOrder', 'orderActivities'));
     }
 
     // Helper for customer vehicles
@@ -114,6 +160,10 @@ class StaffController extends Controller
     
     public function storeVehicle(\Illuminate\Http\Request $request)
     {
+        if (! $this->canManageStaffOrderFlow()) {
+            return response()->json(['success' => false, 'message' => 'Ká»¹ thuáº­t viÃªn khÃ´ng cÃ³ quyá»n tiáº¿p nháº­n xe má»›i.'], 403);
+        }
+
         // Validation (Simulated for speed, add proper rules later)
         $validated = $request->validate([
             'license_plate' => 'required|string|max:20',
@@ -128,6 +178,7 @@ class StaffController extends Controller
 
         // 2. Create Repair Order (Intake)
         $order = \App\Models\RepairOrder::create([
+            'customer_id' => $vehicle->user_id,
             'vehicle_id' => $vehicle->id,
             'service_type' => 'Full Service (Intake)',
             'status' => 'pending',
@@ -140,7 +191,7 @@ class StaffController extends Controller
         $inspectionOptions = $request->input('inspection_options', []);
         
         if (!empty($inspectionOptions['general'])) {
-            $title = !empty($inspectionOptions['use_3d']) ? 'Kiểm tra tổng quát (3D)' : 'Kiểm tra tổng quát';
+            $title = !empty($inspectionOptions['use_3d']) ? 'Kiá»ƒm tra tá»•ng quÃ¡t (3D)' : 'Kiá»ƒm tra tá»•ng quÃ¡t';
             \App\Models\RepairTask::create([
                 'repair_order_id' => $order->id,
                 'title' => $title,
@@ -152,7 +203,7 @@ class StaffController extends Controller
         if (!empty($inspectionOptions['cabin'])) {
             \App\Models\RepairTask::create([
                 'repair_order_id' => $order->id,
-                'title' => 'Kiểm tra bên trong khoang lái',
+                'title' => 'Kiá»ƒm tra bÃªn trong khoang lÃ¡i',
                 'type' => 'general',
                 'status' => 'pending',
             ]);
@@ -161,11 +212,13 @@ class StaffController extends Controller
         if (!empty($inspectionOptions['engine'])) {
             \App\Models\RepairTask::create([
                 'repair_order_id' => $order->id,
-                'title' => 'Kiểm tra động cơ',
+                'title' => 'Kiá»ƒm tra Ä‘á»™ng cÆ¡',
                 'type' => 'general',
                 'status' => 'pending',
             ]);
         }
+
+        $this->logOrderActivity($order, 'STAFF_ORDER_INTAKE', 'Tiáº¿p nháº­n xe vÃ  táº¡o order ban Ä‘áº§u.');
 
         return response()->json([
             'success' => true,
@@ -223,6 +276,13 @@ class StaffController extends Controller
                         ->firstOrFail();
         }
 
+        if ($order->isLockedForStaffChanges() || in_array($order->status, ['pending_approval', 'approved'], true)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'KhÃ´ng thá»ƒ chá»‰nh sá»­a VHC sau khi bÃ¡o giÃ¡ Ä‘Ã£ Ä‘Æ°á»£c gá»­i hoáº·c Ä‘Æ¡n Ä‘Ã£ khÃ³a.'
+            ], 409);
+        }
+
         $report = \App\Models\VhcReport::firstOrCreate(['repair_order_id' => $order->id]);
         
         // Update Status
@@ -230,30 +290,14 @@ class StaffController extends Controller
         $report->status = $status;
         $report->save();
 
-        // Simple Sync Strategy: Delete all and re-create (MVP)
-        $report->defects()->delete();
-
-        foreach ($request->input('defects', []) as $d) {
-            $report->defects()->create([
-                'title' => $d['part'] ?? 'Unknown',
-                'description' => $d['description'] ?? '',
-                'type' => 'general',
-                'severity' => $d['severity'] ?? 'medium',
-                'pos_x' => $d['pos']['x'],
-                'pos_y' => $d['pos']['y'],
-                'pos_z' => $d['pos']['z'],
-                'images' => [] 
-            ]);
-        }
-
         // 1. Find or Create UNIQUE Parent VHC Task (Reuse existing if available)
         // Improved Logic: Search by Title OR Type to catch existing tasks created without type
-        // ALSO: Check for "Kiểm tra tổng quát (VHC)" which seems to be an alternative title in the system
+        // ALSO: Check for "Kiá»ƒm tra tá»•ng quÃ¡t (VHC)" which seems to be an alternative title in the system
         $parentTask = \App\Models\RepairTask::where('repair_order_id', $order->id)
             ->where(function ($query) {
                 $query->where('type', 'vhc')
-                      ->orWhere('title', 'Kiểm tra tổng quát (3D)')
-                      ->orWhere('title', 'Kiểm tra tổng quát (VHC)');
+                      ->orWhere('title', 'Kiá»ƒm tra tá»•ng quÃ¡t (3D)')
+                      ->orWhere('title', 'Kiá»ƒm tra tá»•ng quÃ¡t (VHC)');
             })
             ->first();
 
@@ -261,7 +305,7 @@ class StaffController extends Controller
             $parentTask = \App\Models\RepairTask::create([
                 'repair_order_id' => $order->id,
                 'type' => 'vhc',
-                'title' => 'Kiểm tra tổng quát (3D)', // Standardized Title
+                'title' => 'Kiá»ƒm tra tá»•ng quÃ¡t (3D)', // Standardized Title
                 'status' => 'pending'
             ]);
         }
@@ -271,20 +315,38 @@ class StaffController extends Controller
             $parentTask->update(['type' => 'vhc']);
         }
 
-        // 2. Auto-generate Repair Task from Defect (Child)
+        // Sync VHC defects and their pre-quote child tasks together.
+        $report->defects()->delete();
+        $parentTask->children()->where('type', 'defect')->delete();
+
         foreach ($request->input('defects', []) as $d) {
-            \App\Models\RepairTask::firstOrCreate(
-                [
+            $title = $d['part'] ?? 'Unknown';
+            $description = $d['description'] ?? '';
+            $severity = $d['severity'] ?? 'medium';
+
+            $report->defects()->create([
+                'title' => $title,
+                'description' => $description,
+                'type' => 'general',
+                'severity' => $severity,
+                'pos_x' => $d['pos']['x'],
+                'pos_y' => $d['pos']['y'],
+                'pos_z' => $d['pos']['z'],
+                'images' => []
+            ]);
+
+            \App\Models\RepairTask::create([
                     'repair_order_id' => $order->id,
-                    'title' => ($d['part'] ?? 'Unknown'),
-                    'parent_id' => $parentTask->id
-                ],
-                [
+                    'title' => $title,
+                    'description' => $description,
+                    'severity' => $severity,
+                    'parent_id' => $parentTask->id,
                     'status' => 'pending',
-                    'type' => 'defect'
-                ]
-            );
+                    'type' => 'defect',
+            ]);
         }
+
+        $this->logOrderActivity($order, 'STAFF_VHC_SAVED', 'LÆ°u VHC ' . $status . ' vá»›i ' . count($request->input('defects', [])) . ' defect.');
 
         return response()->json(['success' => true]);
     }
@@ -329,23 +391,74 @@ class StaffController extends Controller
 
     public function updateOrderStatus(Request $request, $id)
     {
-        $order = \App\Models\RepairOrder::findOrFail($id);
+        if (! $this->canManageStaffOrderFlow()) {
+            return response()->json(['success' => false, 'message' => 'Ká»¹ thuáº­t viÃªn khÃ´ng cÃ³ quyá»n cáº­p nháº­t tráº¡ng thÃ¡i Ä‘Æ¡n.'], 403);
+        }
+
+        $order = \App\Models\RepairOrder::with(['items', 'tasks.items', 'promotion'])->findOrFail($id);
         
         $validated = $request->validate([
             'status' => 'required|in:pending,in_progress,completed,cancelled'
         ]);
 
-        $order->update([
-            'status' => $validated['status'],
-            'estimated_end_time' => $request->input('estimated_end_time') // Optional update
-        ]);
+        if ($order->payment_status === 'paid' && $validated['status'] !== 'completed') {
+            return response()->json([
+                'success' => false,
+                'message' => 'ÄÆ¡n Ä‘Ã£ thanh toÃ¡n, khÃ´ng thá»ƒ má»Ÿ láº¡i tráº¡ng thÃ¡i.'
+            ], 409);
+        }
 
-        // Auto-assign unassigned tasks to the current staff when starting repair
+        if (in_array($order->status, ['completed', 'cancelled'], true) && $validated['status'] !== $order->status) {
+            return response()->json([
+                'success' => false,
+                'message' => 'ÄÆ¡n Ä‘Ã£ khÃ³a, khÃ´ng thá»ƒ cáº­p nháº­t tráº¡ng thÃ¡i.'
+            ], 409);
+        }
+
+        if ($validated['status'] === 'in_progress' && $order->status === 'pending_approval') {
+            return response()->json([
+                'success' => false,
+                'message' => 'ÄÆ¡n Ä‘ang chá» khÃ¡ch duyá»‡t bÃ¡o giÃ¡, chÆ°a thá»ƒ chuyá»ƒn sang thi cÃ´ng.'
+            ], 409);
+        }
+
+        if ($validated['status'] === 'completed') {
+            if (! in_array($order->status, ['approved', 'in_progress'], true)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Chá»‰ cÃ³ thá»ƒ hoÃ n thÃ nh Ä‘Æ¡n sau khi khÃ¡ch Ä‘Ã£ duyá»‡t bÃ¡o giÃ¡ vÃ  cÃ´ng viá»‡c Ä‘Ã£ Ä‘Æ°á»£c xá»­ lÃ½.'
+                ], 409);
+            }
+
+            $hasPendingTasks = $order->tasks()
+                ->where('status', '!=', 'completed')
+                ->where(function ($query) {
+                    $query->whereNull('customer_approval_status')
+                        ->orWhere('customer_approval_status', '!=', 'rejected');
+                })
+                ->exists();
+            if ($hasPendingTasks) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Vui lÃ²ng hoÃ n thÃ nh táº¥t cáº£ cÃ´ng viá»‡c trÆ°á»›c khi Ä‘Ã³ng Ä‘Æ¡n.'
+                ], 422);
+            }
+        }
+
+        $updateData = ['status' => $validated['status']];
+        if ($request->filled('estimated_end_time')) {
+            $updateData['expected_completion_date'] = $request->input('estimated_end_time');
+        }
+
+        $oldStatus = $order->status;
+        $order->update($updateData);
+        $this->logOrderActivity(
+            $order,
+            'STAFF_ORDER_STATUS_UPDATED',
+            'Äá»•i tráº¡ng thÃ¡i tá»« ' . $this->friendlyOrderStatus($oldStatus) . ' sang ' . $this->friendlyOrderStatus($validated['status']) . '.'
+        );
+
         if ($validated['status'] === 'in_progress') {
-            \App\Models\RepairTask::where('repair_order_id', $order->id)
-                ->whereNull('mechanic_id')
-                ->update(['mechanic_id' => auth()->id()]);
-
             // Create or open chat session for this job
             \App\Models\ChatSession::updateOrCreate(
                 ['repair_order_id' => $order->id],
@@ -370,15 +483,15 @@ class StaffController extends Controller
         if ($order->customer_id && in_array($validated['status'], ['in_progress', 'completed'])) {
             $customer = \App\Models\User::find($order->customer_id);
             if ($customer) {
-                $statusText = $validated['status'] === 'completed' ? 'đã hoàn thành' : 'đang được tiến hành';
+                $statusText = $validated['status'] === 'completed' ? 'Ä‘Ã£ hoÃ n thÃ nh' : 'Ä‘ang Ä‘Æ°á»£c tiáº¿n hÃ nh';
                 $iconColor = $validated['status'] === 'completed' ? 'text-green-500' : 'text-blue-500';
                 $icon = $validated['status'] === 'completed' ? 'fas fa-check-circle' : 'fas fa-tools';
                 
                 \App\Services\NotificationService::send(
                     $customer,
                     'order_status_updated',
-                    'Cập nhật trạng thái sửa chữa',
-                    "Đơn sửa chữa #{$order->id} của bạn {$statusText}.",
+                    'Cáº­p nháº­t tráº¡ng thÃ¡i sá»­a chá»¯a',
+                    "ÄÆ¡n sá»­a chá»¯a #{$order->id} cá»§a báº¡n {$statusText}.",
                     route('customer.dashboard'),
                     "{$icon} {$iconColor}"
                 );
@@ -396,13 +509,22 @@ class StaffController extends Controller
 
     public function storeTask(Request $request, $orderId)
     {
+        if (! $this->canManageStaffOrderFlow()) {
+            return response()->json(['success' => false, 'message' => 'Ká»¹ thuáº­t viÃªn khÃ´ng cÃ³ quyá»n thÃªm task bÃ¡o giÃ¡.'], 403);
+        }
+
+        $order = \App\Models\RepairOrder::findOrFail($orderId);
+        if ($order->isLockedForStaffChanges()) {
+            return response()->json(['success' => false, 'message' => 'ÄÆ¡n Ä‘Ã£ khÃ³a, khÃ´ng thá»ƒ thÃªm cÃ´ng viá»‡c.'], 409);
+        }
+
         $validated = $request->validate([
             'title' => 'required|string|max:255',
             'parent_id' => 'nullable|exists:repair_tasks,id',
             'type' => 'required|string'
         ]);
 
-        \App\Models\RepairTask::create([
+        $task = $order->tasks()->create([
             'repair_order_id' => $orderId,
             'title' => $validated['title'],
             'parent_id' => $validated['parent_id'],
@@ -410,28 +532,47 @@ class StaffController extends Controller
             'status' => 'pending'
         ]);
 
+        $this->logOrderActivity($order, 'STAFF_TASK_CREATED', "ThÃªm task {$task->title}.");
+
         return response()->json(['success' => true]);
     }
 
     public function updateTaskStatus(Request $request, $id)
     {
-        $task = \App\Models\RepairTask::with('children')->findOrFail($id);
+        $task = \App\Models\RepairTask::with(['children', 'repairOrder'])->findOrFail($id);
+        if ($task->repairOrder->isLockedForStaffChanges()) {
+            return response()->json(['success' => false, 'message' => 'ÄÆ¡n Ä‘Ã£ khÃ³a, khÃ´ng thá»ƒ cáº­p nháº­t cÃ´ng viá»‡c.'], 409);
+        }
+        if ($task->customer_approval_status === 'rejected') {
+            return response()->json(['success' => false, 'message' => 'KhÃ¡ch hÃ ng Ä‘Ã£ tá»« chá»‘i cÃ´ng viá»‡c nÃ y.'], 409);
+        }
+
         $status = $request->input('status');
 
-        // Constraint: Parent cannot be completed if children are not done
-        if ($status === 'completed' && $task->children()->where('status', '!=', 'completed')->exists()) {
+        // Constraint: Parent cannot be completed if approved/non-quoted children are not done.
+        $hasIncompleteApprovedChildren = $task->children()
+            ->where('status', '!=', 'completed')
+            ->where(function ($query) {
+                $query->whereNull('customer_approval_status')
+                    ->orWhere('customer_approval_status', '!=', 'rejected');
+            })
+            ->exists();
+
+        if ($status === 'completed' && $hasIncompleteApprovedChildren) {
              return response()->json([
                  'success' => false, 
-                 'message' => 'Vui lòng hoàn thành tất cả nhiệm vụ con trước!'
+                 'message' => 'Vui lÃ²ng hoÃ n thÃ nh táº¥t cáº£ nhiá»‡m vá»¥ con trÆ°á»›c!'
              ], 400);
         }
 
+        $oldStatus = $task->status;
         $task->update([
             'status' => $status
         ]);
         
         // Touch the order to update timestamp
         $task->repairOrder->touch();
+        $this->logOrderActivity($task->repairOrder, 'STAFF_TASK_STATUS_UPDATED', "Cáº­p nháº­t task {$task->title} tá»« {$oldStatus} sang {$status}.");
         
         return response()->json(['success' => true]);
     }
@@ -502,7 +643,7 @@ class StaffController extends Controller
     {
         $customer = User::with(['vehicles.repairOrders' => function($q) {
             $q->latest();
-        }])->findOrFail($id);
+        }])->where('role', 'customer')->findOrFail($id);
         
         $totalSpent = $customer->repairOrders()
             ->where('payment_status', 'paid')
@@ -520,44 +661,70 @@ class StaffController extends Controller
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
-            'email' => 'required|email|unique:users,email',
+            'email' => 'nullable|email|unique:users,email',
             'phone' => 'required|string|unique:users,phone',
             'address' => 'nullable|string',
         ]);
 
         $user = User::create([
             'name' => $validated['name'],
-            'email' => $validated['email'],
+            'email' => $validated['email'] ?? null,
             'phone' => $validated['phone'],
-            'address' => $validated['address'],
-            'password' => \Illuminate\Support\Facades\Hash::make('password'), // Default password
+            'address' => $validated['address'] ?? null,
+            'password' => \Illuminate\Support\Facades\Hash::make('12345678'),
             'role' => 'customer',
             'role_id' => \App\Models\Role::where('slug', 'customer')->value('id')
         ]);
 
-        return redirect()->route('staff.customers.show', $user->id)->with('success', 'Khách hàng mới đã được tạo thành công!');
+        return redirect()->route('staff.customers.show', $user->id)->with('success', 'KhÃ¡ch hÃ ng má»›i Ä‘Ã£ Ä‘Æ°á»£c táº¡o thÃ nh cÃ´ng!');
     }
 
     public function edit($id)
     {
-        $customer = User::findOrFail($id);
+        $customer = User::where('role', 'customer')->findOrFail($id);
         return view('staff.customers.edit', compact('customer'));
     }
 
     public function update(Request $request, $id)
     {
-        $customer = User::findOrFail($id);
+        $customer = User::where('role', 'customer')->findOrFail($id);
         
         $validated = $request->validate([
             'name' => 'required|string|max:255',
-            'email' => 'required|email|unique:users,email,'.$id,
+            'email' => 'nullable|email|unique:users,email,'.$id,
             'phone' => 'required|string|unique:users,phone,'.$id,
             'address' => 'nullable|string',
         ]);
 
         $customer->update($validated);
 
-        return redirect()->route('staff.customers.show', $id)->with('success', 'Thông tin khách hàng đã được cập nhật.');
+        return redirect()->route('staff.customers.show', $id)->with('success', 'ThÃ´ng tin khÃ¡ch hÃ ng Ä‘Ã£ Ä‘Æ°á»£c cáº­p nháº­t.');
+    }
+
+    public function destroy($id)
+    {
+        if (! $this->canManageStaffOrderFlow()) {
+            return back()->withErrors(['error' => 'Ká»¹ thuáº­t viÃªn khÃ´ng cÃ³ quyá»n xÃ³a khÃ¡ch hÃ ng.']);
+        }
+
+        $customer = User::where('role', 'customer')->findOrFail($id);
+
+        if ($customer->repairOrders()->exists() || $customer->vehicles()->whereHas('repairOrders')->exists()) {
+            return back()->withErrors(['error' => 'KhÃ´ng thá»ƒ xÃ³a khÃ¡ch hÃ ng Ä‘Ã£ cÃ³ xe hoáº·c lá»‹ch sá»­ sá»­a chá»¯a.']);
+        }
+
+        $customerName = $customer->name;
+        $customer->vehicles()->delete();
+        $customer->delete();
+
+        \App\Models\ActivityLog::create([
+            'user_id' => Auth::id(),
+            'action' => 'STAFF_CUSTOMER_DELETED',
+            'details' => "XÃ³a khÃ¡ch hÃ ng {$customerName}.",
+            'ip_address' => request()->ip(),
+        ]);
+
+        return redirect()->route('staff.customers.index')->with('success', 'KhÃ¡ch hÃ ng Ä‘Ã£ Ä‘Æ°á»£c xÃ³a.');
     }
 
     public function editVehicle($id)
@@ -583,13 +750,19 @@ class StaffController extends Controller
 
         // Redirect back to customer detail
         return redirect()->route('staff.customers.show', $vehicle->user_id ?? $request->input('redirect_id', 1)) // Fallback if no user linked
-                         ->with('success', 'Thông tin xe đã được cập nhật.');
+                         ->with('success', 'ThÃ´ng tin xe Ä‘Ã£ Ä‘Æ°á»£c cáº­p nháº­t.');
     }
 
     public function destroyVehicle($id)
     {
         $vehicle = \App\Models\Vehicle::findOrFail($id);
         $customerId = $vehicle->user_id; // Save needed ID before delete
+
+        if ($vehicle->repairOrders()->exists()) {
+            return redirect()
+                ->route('staff.customers.show', $customerId)
+                ->withErrors(['error' => 'KhÃ´ng thá»ƒ xÃ³a xe Ä‘Ã£ cÃ³ lá»‹ch sá»­ sá»­a chá»¯a.']);
+        }
         
         // Log Activity
         \App\Models\ActivityLog::create([
@@ -602,7 +775,7 @@ class StaffController extends Controller
         $this->vehicleService->delete($vehicle);
 
         return redirect()->route('staff.customers.show', $customerId)
-                         ->with('success', 'Xe đã được xóa thành công khỏi hệ thống.');
+                         ->with('success', 'Xe Ä‘Ã£ Ä‘Æ°á»£c xÃ³a thÃ nh cÃ´ng khá»i há»‡ thá»‘ng.');
     }
 
     public function profile()
@@ -612,72 +785,194 @@ class StaffController extends Controller
 
     public function processPayment(Request $request, $id)
     {
-        $order = \App\Models\RepairOrder::findOrFail($id);
+        if (! $this->canManageStaffOrderFlow()) {
+            return response()->json(['success' => false, 'message' => 'Ká»¹ thuáº­t viÃªn khÃ´ng cÃ³ quyá»n thanh toÃ¡n Ä‘Æ¡n.'], 403);
+        }
+
+        $order = \App\Models\RepairOrder::with(['items', 'tasks.items', 'promotion'])->findOrFail($id);
 
         if ($order->status !== 'completed') {
             return response()->json([
                 'success' => false,
-                'message' => 'Xe chưa hoàn thành, không thể thanh toán.',
+                'message' => 'Xe chÆ°a hoÃ n thÃ nh, khÃ´ng thá»ƒ thanh toÃ¡n.',
             ], 400);
         }
 
         if ($order->payment_status === 'paid') {
             return response()->json([
                 'success' => false,
-                'message' => 'Đơn sửa chữa này đã được thanh toán.',
+                'message' => 'ÄÆ¡n sá»­a chá»¯a nÃ y Ä‘Ã£ Ä‘Æ°á»£c thanh toÃ¡n.',
             ], 400);
         }
 
+        $paymentMethod = $request->input('payment_method', 'cash');
+        $couponCode = strtoupper(trim((string) $request->input('coupon_code', '')));
+        $amounts = $this->paymentAmounts($order, $couponCode);
+        if (! $amounts['success']) {
+            return response()->json([
+                'success' => false,
+                'message' => $amounts['message'],
+            ], 422);
+        }
+
         $order->update([
+            'subtotal' => $amounts['base_amount'],
+            'discount_amount' => $amounts['discount_amount'],
+            'promotion_id' => $amounts['promotion']?->id ?: $order->promotion_id,
+            'total_amount' => $amounts['total_amount'],
             'payment_status' => 'paid',
-            'payment_method' => $request->input('payment_method', 'cash'),
+            'payment_method' => $paymentMethod,
         ]);
+
+        if ($couponCode !== '' && $amounts['promotion']) {
+            $amounts['promotion']->increment('used_count');
+        }
+
+        $paymentDetails = 'XÃ¡c nháº­n thanh toÃ¡n báº±ng ' . $order->payment_method . ', tá»•ng thu ' . number_format($amounts['total_amount'], 0, ',', '.') . 'Ä‘.';
+        if ($amounts['discount_amount'] > 0 && $amounts['promotion']) {
+            $paymentDetails .= ' Ãp dá»¥ng mÃ£ giáº£m giÃ¡ ' . $amounts['promotion']->code . ', giáº£m ' . number_format($amounts['discount_amount'], 0, ',', '.') . 'Ä‘.';
+        }
+        $this->logOrderActivity($order, 'STAFF_PAYMENT_RECEIVED', $paymentDetails);
 
         return response()->json([
             'success' => true,
-            'message' => 'Thanh toán thành công',
+            'message' => 'Thanh toÃ¡n thÃ nh cÃ´ng',
+            'total_amount' => $amounts['total_amount'],
+            'discount_amount' => $amounts['discount_amount'],
         ]);
     }
 
-    public function generateQrCode($id)
+    private function paymentAmounts(\App\Models\RepairOrder $order, ?string $couponCode = null): array
     {
-        $order = \App\Models\RepairOrder::findOrFail($id);
+        $couponCode = strtoupper(trim((string) $couponCode));
+        $baseAmount = $this->paymentBaseAmount($order);
+        $discountAmount = (float) ($order->discount_amount ?? 0);
+        $promotion = $order->promotion;
+
+        if ($couponCode !== '') {
+            $promotion = \App\Models\Promotion::whereRaw('UPPER(code) = ?', [$couponCode])->first();
+
+            if (! $promotion) {
+                return ['success' => false, 'message' => 'MÃ£ giáº£m giÃ¡ khÃ´ng tá»“n táº¡i.'];
+            }
+
+            if (! $promotion->isValid()) {
+                return ['success' => false, 'message' => 'MÃ£ giáº£m giÃ¡ Ä‘Ã£ háº¿t háº¡n hoáº·c khÃ´ng kháº£ dá»¥ng.'];
+            }
+
+            if ($promotion->customer_id && (int) $promotion->customer_id !== (int) $order->customer_id) {
+                return ['success' => false, 'message' => 'MÃ£ giáº£m giÃ¡ nÃ y khÃ´ng Ã¡p dá»¥ng cho khÃ¡ch hÃ ng cá»§a Ä‘Æ¡n nÃ y.'];
+            }
+
+            if ($promotion->vehicle_id && (int) $promotion->vehicle_id !== (int) $order->vehicle_id) {
+                return ['success' => false, 'message' => 'MÃ£ giáº£m giÃ¡ nÃ y khÃ´ng Ã¡p dá»¥ng cho xe cá»§a Ä‘Æ¡n nÃ y.'];
+            }
+
+            $discountAmount = $promotion->type === 'fixed'
+                ? (float) $promotion->value
+                : $baseAmount * ((float) $promotion->value / 100);
+        }
+
+        $discountAmount = min($discountAmount, $baseAmount);
+
+        return [
+            'success' => true,
+            'base_amount' => $baseAmount,
+            'discount_amount' => $discountAmount,
+            'total_amount' => max(0, $baseAmount - $discountAmount + (float) ($order->tax_amount ?? 0)),
+            'promotion' => $promotion,
+        ];
+    }
+
+    private function paymentBaseAmount(\App\Models\RepairOrder $order): float
+    {
+        $tasks = $order->tasks->reject(fn ($task) => $task->customer_approval_status === 'rejected');
+
+        $taskTotal = $tasks->sum(function ($task) {
+            return (float) ($task->labor_cost ?? 0) + $task->items->sum('subtotal');
+        });
+
+        $taskIds = $tasks->pluck('id')->all();
+        $standaloneItemsTotal = $order->items
+            ->filter(fn ($item) => empty($item->repair_task_id) || ! in_array($item->repair_task_id, $taskIds, true))
+            ->sum('subtotal');
+
+        $baseAmount = (float) $taskTotal + (float) $standaloneItemsTotal;
+
+        if ($baseAmount <= 0) {
+            return max(0, (float) ($order->subtotal ?: $order->total_amount));
+        }
+
+        return $baseAmount;
+    }
+
+    public function generateQrCode(Request $request, $id)
+    {
+        $order = \App\Models\RepairOrder::with(['items', 'tasks.items', 'promotion'])->findOrFail($id);
 
         if ($order->status !== 'completed') {
             return response()->json([
                 'success' => false,
-                'message' => 'Xe chưa hoàn thành, không thể tạo mã QR.',
+                'message' => 'Xe chÆ°a hoÃ n thÃ nh, khÃ´ng thá»ƒ táº¡o mÃ£ QR.',
             ], 400);
         }
 
         $bankId = \App\Models\Setting::get('bank_id', 'vietinbank'); 
         $accountNo = \App\Models\Setting::get('bank_account_no', '102875143924');
         $accountName = urlencode(\App\Models\Setting::get('bank_account_name', 'NGO VAN DAN'));
+        $qrTemplate = \App\Models\Setting::get('vietqr_template', 'compact2');
         
-        $amount = round($order->total_amount); // Ensure integer
-        $addInfo = urlencode('Thanh toan hoa don ' . $order->id);
+        $couponCode = strtoupper(trim((string) $request->query('coupon_code', '')));
+        $amounts = $this->paymentAmounts($order, $couponCode);
+        if (! $amounts['success']) {
+            return response()->json([
+                'success' => false,
+                'message' => $amounts['message'],
+            ], 422);
+        }
 
-        $qrUrl = "https://img.vietqr.io/image/{$bankId}-{$accountNo}-compact2.png?amount={$amount}&addInfo={$addInfo}&accountName={$accountName}";
+        $amount = round($amounts['total_amount']); // Ensure integer
+        $contentTemplate = \App\Models\Setting::get('qr_payment_content', 'Thanh toan hoa don {order_id}');
+        $addInfo = urlencode(str_replace(
+            ['{order_id}', '{track_id}'],
+            [$order->id, $order->track_id ?? $order->id],
+            $contentTemplate
+        ));
+
+        $qrUrl = "https://img.vietqr.io/image/{$bankId}-{$accountNo}-{$qrTemplate}.png?amount={$amount}&addInfo={$addInfo}&accountName={$accountName}";
 
         return response()->json([
             'success' => true,
             'qr_url' => $qrUrl,
             'amount' => $amount,
+            'discount_amount' => $amounts['discount_amount'],
         ]);
     }
 
     public function printInvoice($id)
     {
-        $order = \App\Models\RepairOrder::with(['customer', 'vehicle', 'tasks', 'items.product'])->findOrFail($id);
+        $order = \App\Models\RepairOrder::with(['customer', 'vehicle.user', 'advisor', 'promotion', 'tasks.items', 'items'])->findOrFail($id);
+
+        if ((float) ($order->subtotal ?? 0) <= 0) {
+            $order->forceFill([
+                'subtotal' => $this->paymentBaseAmount($order),
+            ])->save();
+        }
 
         $bankId = \App\Models\Setting::get('bank_id', 'vietinbank'); 
         $accountNo = \App\Models\Setting::get('bank_account_no', '102875143924');
         $accountName = urlencode(\App\Models\Setting::get('bank_account_name', 'NGO VAN DAN'));
+        $qrTemplate = \App\Models\Setting::get('vietqr_template', 'compact2');
         
         $amount = round($order->total_amount); 
-        $addInfo = urlencode('Thanh toan hoa don ' . $order->id);
+        $contentTemplate = \App\Models\Setting::get('qr_payment_content', 'Thanh toan hoa don {order_id}');
+        $addInfo = urlencode(str_replace(
+            ['{order_id}', '{track_id}'],
+            [$order->id, $order->track_id ?? $order->id],
+            $contentTemplate
+        ));
 
-        $qrUrl = "https://img.vietqr.io/image/{$bankId}-{$accountNo}-compact2.png?amount={$amount}&addInfo={$addInfo}&accountName={$accountName}";
+        $qrUrl = "https://img.vietqr.io/image/{$bankId}-{$accountNo}-{$qrTemplate}.png?amount={$amount}&addInfo={$addInfo}&accountName={$accountName}";
 
         // Use DomPDF to render
         $pdf = Pdf::loadView('staff.invoices.template', compact('order', 'qrUrl'));
@@ -696,7 +991,7 @@ class StaffController extends Controller
 
         $user->update($validated);
 
-        return back()->with('success', 'Thông tin hồ sơ đã được cập nhật.');
+        return back()->with('success', 'ThÃ´ng tin há»“ sÆ¡ Ä‘Ã£ Ä‘Æ°á»£c cáº­p nháº­t.');
     }
 
     public function updatePassword(Request $request)
@@ -710,7 +1005,7 @@ class StaffController extends Controller
             'password' => \Illuminate\Support\Facades\Hash::make($validated['password']),
         ]);
 
-        return back()->with('success', 'Mật khẩu đã được thay đổi.');
+        return back()->with('success', 'Máº­t kháº©u Ä‘Ã£ Ä‘Æ°á»£c thay Ä‘á»•i.');
     }
 
     public function schedule(\Illuminate\Http\Request $request)
@@ -766,14 +1061,37 @@ class StaffController extends Controller
         $parts = \App\Models\Part::where('name', 'like', "%{$query}%")
             ->orWhere('sku', 'like', "%{$query}%")
             ->limit(10)
-            ->get();
+            ->get()
+            ->map(function ($part) {
+                return [
+                    'id' => $part->id,
+                    'sku' => $part->sku,
+                    'name' => $part->name,
+                    'category' => $part->category,
+                    'stock_quantity' => $part->stock_quantity,
+                    'min_stock' => $part->min_stock,
+                    'purchase_price' => (float) ($part->purchase_price ?? 0),
+                    'selling_price' => (float) ($part->selling_price ?? 0),
+                    'price' => (float) ($part->selling_price ?? 0),
+                ];
+            });
             
         return response()->json($parts);
     }
 
     public function storeItem(Request $request, $orderId)
     {
+        if (! $this->canManageStaffOrderFlow()) {
+            return response()->json(['success' => false, 'message' => 'Ká»¹ thuáº­t viÃªn khÃ´ng cÃ³ quyá»n thÃªm váº­t tÆ° vÃ o bÃ¡o giÃ¡.'], 403);
+        }
+
         $order = RepairOrder::findOrFail($orderId);
+        if ($order->isLockedForStaffChanges() || in_array($order->status, ['pending_approval', 'approved'], true)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'KhÃ´ng thá»ƒ thÃªm váº­t tÆ° sau khi bÃ¡o giÃ¡ Ä‘Ã£ gá»­i hoáº·c khÃ¡ch Ä‘Ã£ duyá»‡t.'
+            ], 409);
+        }
 
         if ($request->input('is_custom') == 'true') {
             // External / Custom Item -> Require Approval
@@ -791,14 +1109,15 @@ class StaffController extends Controller
                 'quantity' => $request->qty,
                 'cost_price' => $request->cost_price,
                 'unit_price' => $request->price,
-                'reason' => 'Vật tư mua ngoài',
+                'reason' => 'Váº­t tÆ° mua ngoÃ i',
                 'status' => 'pending'
             ]);
+            $this->logOrderActivity($order, 'STAFF_MATERIAL_REQUESTED', "YÃªu cáº§u váº­t tÆ° mua ngoÃ i {$request->name} x {$request->qty}.");
 
             return response()->json([
                 'success' => true,
                 'pending_approval' => true,
-                'message' => 'Đã gửi yêu cầu vật tư đang chờ duyệt!'
+                'message' => 'ÄÃ£ gá»­i yÃªu cáº§u váº­t tÆ° Ä‘ang chá» duyá»‡t!'
             ]);
 
         } else {
@@ -809,16 +1128,18 @@ class StaffController extends Controller
             ]);
 
             $part = \App\Models\Part::where('sku', $request->sku)->firstOrFail();
+            $unitPrice = $part->selling_price ?? $part->price ?? 0;
 
             $item = $order->items()->create([
                 'name' => $part->name, // Redundant but good for history
                 'quantity' => $request->qty,
-                'unit_price' => $part->price, // Use System Price (or allow override?)
-                'cost_price' => $part->cost_price ?? 0, // Assuming Part has cost_price
-                'subtotal' => $request->qty * $part->price,
+                'unit_price' => $unitPrice, // Use System Price (or allow override?)
+                'cost_price' => $part->purchase_price ?? $part->cost_price ?? 0,
+                'subtotal' => $request->qty * $unitPrice,
                 'itemable_type' => \App\Models\Part::class,
                 'itemable_id' => $part->id,
             ]);
+            $this->logOrderActivity($order, 'STAFF_ITEM_ADDED', "ThÃªm váº­t tÆ° {$item->name} x {$item->quantity}.");
 
             // Deduct Stock
             // $part->decrement('quantity', $request->qty);
@@ -853,7 +1174,10 @@ class StaffController extends Controller
 
     public function updateTaskDetails(Request $request, $id)
     {
-        $task = \App\Models\RepairTask::findOrFail($id);
+        $task = \App\Models\RepairTask::with('repairOrder')->findOrFail($id);
+        if ($task->repairOrder->isLockedForStaffChanges()) {
+            return response()->json(['success' => false, 'message' => 'ÄÆ¡n Ä‘Ã£ khÃ³a, khÃ´ng thá»ƒ cáº­p nháº­t cÃ´ng viá»‡c.'], 409);
+        }
         
         // Authorization check (optional: only assigned mechanic or admin?)
         // For now, allow staff to edit.
@@ -864,17 +1188,21 @@ class StaffController extends Controller
         ]);
 
         $task->update($validated);
+        $this->logOrderActivity($task->repairOrder, 'STAFF_TASK_UPDATED', "Cáº­p nháº­t chi tiáº¿t task {$task->title}.");
 
         return response()->json(['success' => true]);
     }
 
     public function deleteTask($id)
     {
-        $task = \App\Models\RepairTask::findOrFail($id);
+        $task = \App\Models\RepairTask::with('repairOrder')->findOrFail($id);
+        if ($task->repairOrder->isLockedForStaffChanges()) {
+            return response()->json(['success' => false, 'message' => 'ÄÆ¡n Ä‘Ã£ khÃ³a, khÃ´ng thá»ƒ xÃ³a cÃ´ng viá»‡c.'], 409);
+        }
         
         // Prevent deleting if completed or has specific logic?
         if ($task->status == 'completed') {
-             return response()->json(['success' => false, 'message' => 'Không thể xóa nhiệm vụ đã hoàn thành!'], 400);
+             return response()->json(['success' => false, 'message' => 'KhÃ´ng thá»ƒ xÃ³a nhiá»‡m vá»¥ Ä‘Ã£ hoÃ n thÃ nh!'], 400);
         }
 
         // Explicitly delete associated parts to prevent orphans (due to nullOnDelete constraint)
@@ -886,7 +1214,10 @@ class StaffController extends Controller
         }
         $task->children()->delete();
 
+        $title = $task->title;
+        $order = $task->repairOrder;
         $task->delete();
+        $this->logOrderActivity($order, 'STAFF_TASK_DELETED', "XÃ³a task {$title}.");
 
         return response()->json(['success' => true]);
     }
@@ -918,7 +1249,7 @@ class StaffController extends Controller
     public function getNotifications()
     {
         if (\App\Models\Setting::get('enable_notifications', '1') == '0') {
-            return redirect()->route('staff.dashboard')->with('info', 'Thông báo hiện đang bị tắt bởi quản trị viên.');
+            return redirect()->route('staff.dashboard')->with('info', 'ThÃ´ng bÃ¡o hiá»‡n Ä‘ang bá»‹ táº¯t bá»Ÿi quáº£n trá»‹ viÃªn.');
         }
 
         $notifications = Auth::user()->notifications()->latest()->paginate(20);
@@ -929,7 +1260,7 @@ class StaffController extends Controller
     public function markAllNotificationsRead()
     {
         Auth::user()->unreadNotifications->markAsRead();
-        return back()->with('success', 'Đã đánh dấu tất cả là đã đọc.');
+        return back()->with('success', 'ÄÃ£ Ä‘Ã¡nh dáº¥u táº¥t cáº£ lÃ  Ä‘Ã£ Ä‘á»c.');
     }
 
     public function markNotificationAsRead($id)
@@ -953,8 +1284,8 @@ class StaffController extends Controller
                 \App\Services\NotificationService::send(
                     $customer,
                     'quote_sent',
-                    'Báo giá mới',
-                    "Gara đã gửi báo giá cho đơn sửa chữa #{$order->id} của bạn.",
+                    'BÃ¡o giÃ¡ má»›i',
+                    "Gara Ä‘Ã£ gá»­i bÃ¡o giÃ¡ cho Ä‘Æ¡n sá»­a chá»¯a #{$order->id} cá»§a báº¡n.",
                     route('customer.dashboard'),
                     'fas fa-file-invoice-dollar text-amber-500'
                 );
@@ -965,14 +1296,26 @@ class StaffController extends Controller
     }
     public function toggleTask($id)
     {
-        $task = \App\Models\RepairTask::with('children')->find($id); // Eager load children
+        $task = \App\Models\RepairTask::with(['children', 'repairOrder'])->find($id); // Eager load children
         if ($task) {
+            if ($task->repairOrder->isLockedForStaffChanges()) {
+                return response()->json(['success' => false, 'message' => 'ÄÆ¡n Ä‘Ã£ khÃ³a, khÃ´ng thá»ƒ cáº­p nháº­t cÃ´ng viá»‡c.'], 409);
+            }
+            if ($task->customer_approval_status === 'rejected') {
+                return response()->json(['success' => false, 'message' => 'KhÃ¡ch hÃ ng Ä‘Ã£ tá»« chá»‘i cÃ´ng viá»‡c nÃ y.'], 409);
+            }
+
             // Rule: Cannot complete Parent if Children are pending
             if ($task->status != 'completed') { // Attempting to Complete
-                if ($task->children->where('status', '!=', 'completed')->count() > 0) {
+                $hasIncompleteApprovedChildren = $task->children
+                    ->where('status', '!=', 'completed')
+                    ->reject(fn ($child) => $child->customer_approval_status === 'rejected')
+                    ->count() > 0;
+
+                if ($hasIncompleteApprovedChildren) {
                      return response()->json([
                          'success' => false, 
-                         'message' => 'Vui lòng hoàn thành tất cả nhiệm vụ con trước khi hoàn thành nhiệm vụ chính này!'
+                         'message' => 'Vui lÃ²ng hoÃ n thÃ nh táº¥t cáº£ nhiá»‡m vá»¥ con trÆ°á»›c khi hoÃ n thÃ nh nhiá»‡m vá»¥ chÃ­nh nÃ y!'
                      ]);
                 }
             }
@@ -982,6 +1325,7 @@ class StaffController extends Controller
             
             // Touch order to update timestamp
             $task->repairOrder->touch();
+            $this->logOrderActivity($task->repairOrder, 'STAFF_TASK_TOGGLED', "Chuyá»ƒn task {$task->title} sang {$task->status}.");
             return response()->json(['success' => true, 'status' => $task->status]);
         }
         return response()->json(['success' => false], 404);
@@ -992,10 +1336,14 @@ class StaffController extends Controller
     {
         $order = \App\Models\RepairOrder::find($id);
         if ($order) {
+            if ($order->isLockedForStaffChanges()) {
+                return response()->json(['success' => false, 'message' => 'ÄÆ¡n Ä‘Ã£ khÃ³a, khÃ´ng thá»ƒ thÃªm ghi chÃº.'], 409);
+            }
+
             $note = $request->input('note');
             $timestamp = now()->format('H:i d/m');
             // Append format: "Content [Time]"
-            $newEntry = "$note (Ghi bởi: Tư vấn viên • $timestamp)";
+            $newEntry = "$note (Ghi bá»Ÿi: TÆ° váº¥n viÃªn â€¢ $timestamp)";
             
             if ($order->notes) {
                 // If notes already exists, append new line
@@ -1005,6 +1353,7 @@ class StaffController extends Controller
             }
             
             $order->save();
+            $this->logOrderActivity($order, 'STAFF_NOTE_ADDED', 'ThÃªm ghi chÃº ná»™i bá»™.');
             return response()->json(['success' => true]);
         }
         return response()->json(['success' => false], 404);
@@ -1015,8 +1364,16 @@ class StaffController extends Controller
     {
         $order = \App\Models\RepairOrder::find($id);
         if ($order) {
-            $name = $request->input('name');
-            $qty = $request->input('quantity', 1);
+            if ($order->isLockedForStaffChanges() || in_array($order->status, ['pending_approval', 'approved'], true)) {
+                return response()->json(['success' => false, 'message' => 'KhÃ´ng thá»ƒ thÃªm váº­t tÆ° nhanh sau khi bÃ¡o giÃ¡ Ä‘Ã£ gá»­i hoáº·c khÃ¡ch Ä‘Ã£ duyá»‡t.'], 409);
+            }
+
+            $validated = $request->validate([
+                'name' => 'required|string|max:255',
+                'quantity' => 'required|integer|min:1',
+            ]);
+            $name = $validated['name'];
+            $qty = $validated['quantity'];
             
             $order->items()->create([
                 'name' => $name,
@@ -1026,6 +1383,7 @@ class StaffController extends Controller
             ]);
             
             $order->touch();
+            $this->logOrderActivity($order, 'STAFF_QUICK_ITEM_ADDED', "ThÃªm váº­t tÆ° nhanh {$name} x {$qty}.");
             return response()->json(['success' => true]);
         }
         return response()->json(['success' => false], 404);
@@ -1036,20 +1394,25 @@ class StaffController extends Controller
     {
         $order = \App\Models\RepairOrder::find($id);
         if ($order) {
-            $content = $request->input('content') ?? 'Không rõ lý do';
+            if ($order->isLockedForStaffChanges()) {
+                return response()->json(['success' => false, 'message' => 'ÄÆ¡n Ä‘Ã£ khÃ³a, khÃ´ng thá»ƒ yÃªu cáº§u há»— trá»£.'], 409);
+            }
+
+            $content = $request->input('content') ?? 'KhÃ´ng rÃµ lÃ½ do';
             
             $order->tasks()->create([
-                'title' => "Yêu cầu hỗ trợ: $content",
+                'title' => "YÃªu cáº§u há»— trá»£: $content",
                 'type' => 'support',
                 'status' => 'pending'
             ]);
             
             $order->touch();
+            $this->logOrderActivity($order, 'STAFF_SUPPORT_REQUESTED', "YÃªu cáº§u há»— trá»£: {$content}.");
 
             \App\Services\NotificationService::notifyAllStaff(
                 'support_requested',
-                'Yêu cầu hỗ trợ',
-                "Kỹ thuật viên đang chờ hỗ trợ cho đơn '#{$order->id}'.",
+                'YÃªu cáº§u há»— trá»£',
+                "Ká»¹ thuáº­t viÃªn Ä‘ang chá» há»— trá»£ cho Ä‘Æ¡n '#{$order->id}'.",
                 route('staff.order.show', $order->id),
                 'fas fa-life-ring'
             );
@@ -1065,7 +1428,7 @@ class StaffController extends Controller
         $task = \App\Models\RepairTask::find($id);
         if ($task) {
             if ($task->mechanic_id && $task->mechanic_id != Auth::id()) {
-                return response()->json(['success' => false, 'message' => 'Nhiệm vụ này đã được nhận bởi người khác!']);
+                return response()->json(['success' => false, 'message' => 'Nhiá»‡m vá»¥ nÃ y Ä‘Ã£ Ä‘Æ°á»£c nháº­n bá»Ÿi ngÆ°á»i khÃ¡c!']);
             }
             
             $task->mechanic_id = Auth::id();
@@ -1081,7 +1444,7 @@ class StaffController extends Controller
         $task = \App\Models\RepairTask::find($id);
         if ($task) {
             if ($task->mechanic_id != Auth::id()) {
-                 return response()->json(['success' => false, 'message' => 'Bạn không phải người nhận nhiệm vụ này!']);
+                 return response()->json(['success' => false, 'message' => 'Báº¡n khÃ´ng pháº£i ngÆ°á»i nháº­n nhiá»‡m vá»¥ nÃ y!']);
             }
             
             $task->mechanic_id = null;
@@ -1094,16 +1457,20 @@ class StaffController extends Controller
 
     public function deleteOrder($id)
     {
+        if (! $this->canManageStaffOrderFlow()) {
+            return response()->json(['success' => false, 'message' => 'Ká»¹ thuáº­t viÃªn khÃ´ng cÃ³ quyá»n xÃ³a Ä‘Æ¡n.'], 403);
+        }
+
         $order = \App\Models\RepairOrder::find($id);
         if (!$order) {
-            return response()->json(['success' => false, 'message' => 'Không tìm thấy đơn sửa chữa.'], 404);
+            return response()->json(['success' => false, 'message' => 'KhÃ´ng tÃ¬m tháº¥y Ä‘Æ¡n sá»­a chá»¯a.'], 404);
         }
 
         // Protect from deleting orders that have started work
         if ($order->status !== 'pending' && $order->status !== 'cancelled') {
             return response()->json([
                 'success' => false,
-                'message' => 'Xe này đã được tiếp nhận và xử lý, không thể xóa trực tiếp!'
+                'message' => 'Xe nÃ y Ä‘Ã£ Ä‘Æ°á»£c tiáº¿p nháº­n vÃ  xá»­ lÃ½, khÃ´ng thá»ƒ xÃ³a trá»±c tiáº¿p!'
             ], 403);
         }
 
@@ -1128,12 +1495,57 @@ class StaffController extends Controller
 
             return response()->json(['success' => true]);
         } catch (\Exception $e) {
-            \Log::error('Lỗi khi xóa đơn sửa chữa: ' . $e->getMessage());
+            \Log::error('Lá»—i khi xÃ³a Ä‘Æ¡n sá»­a chá»¯a: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
-                'message' => 'Lỗi hệ thống khi xóa đơn.'
+                'message' => 'Lá»—i há»‡ thá»‘ng khi xÃ³a Ä‘Æ¡n.'
             ], 500);
         }
     }
 
+    private function logOrderActivity(RepairOrder $order, string $action, string $details): void
+    {
+        \App\Models\ActivityLog::create([
+            'user_id' => Auth::id(),
+            'action' => $action,
+            'details' => "Order #{$order->id}: {$details}",
+            'ip_address' => request()->ip(),
+        ]);
+    }
+
+    private function friendlyOrderStatus(?string $status): string
+    {
+        return match ($status) {
+            RepairOrder::STATUS_PENDING => 'Ä‘ang chá» tiáº¿p nháº­n',
+            RepairOrder::STATUS_IN_PROGRESS => 'Ä‘ang kiá»ƒm tra/láº­p bÃ¡o giÃ¡',
+            RepairOrder::STATUS_PENDING_APPROVAL => 'Ä‘ang chá» khÃ¡ch duyá»‡t',
+            RepairOrder::STATUS_APPROVED => 'khÃ¡ch Ä‘Ã£ duyá»‡t',
+            RepairOrder::STATUS_COMPLETED => 'Ä‘Ã£ hoÃ n thÃ nh',
+            RepairOrder::STATUS_CANCELLED => 'Ä‘Ã£ há»§y',
+            default => $status ?: 'khÃ´ng rÃµ',
+        };
+    }
+
+    private function canManageStaffOrderFlow(): bool
+    {
+        $user = Auth::user();
+
+        return ! $user || ! $user->isTechnician() || $user->isAdmin() || $user->isManager();
+    }
+
+    private function orderActivities(RepairOrder $order)
+    {
+        return \App\Models\ActivityLog::with('user')
+            ->where(function ($query) use ($order) {
+                $query->where('details', 'like', "%Order #{$order->id}:%")
+                    ->orWhere('details', 'like', "%order #{$order->id}:%")
+                    ->orWhere('details', 'like', "%don #{$order->id}%")
+                    ->orWhere('details', 'like', "%#{$order->id}%");
+            })
+            ->latest()
+            ->limit(12)
+            ->get();
+    }
+
 }
+

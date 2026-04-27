@@ -4,9 +4,42 @@
 
 @section('main_class', 'flex flex-col h-full p-0 overflow-hidden relative')
 
+@push('styles')
+<style>
+    @media (max-width: 767px) {
+        .staff-dashboard-workspace {
+            min-height: calc(100vh - 4rem);
+            padding-bottom: 5rem;
+        }
+        #leftPanel {
+            width: 100% !important;
+            max-height: 58vh;
+            border-right: 0 !important;
+            border-bottom: 1px solid rgba(148, 163, 184, .24);
+        }
+        #leftPanel.w-0 {
+            max-height: 0 !important;
+        }
+        #staffDashboardCollapse {
+            display: none !important;
+        }
+        #order-details-container {
+            min-height: 70vh;
+            overflow: visible !important;
+        }
+        .order-item {
+            min-height: 72px;
+        }
+        .order-item .opacity-0 {
+            opacity: 1 !important;
+        }
+    }
+</style>
+@endpush
+
 @section('full-width-content')
 <!-- Main Workspace -->
-<div class="flex flex-1 overflow-hidden h-full">
+<div class="staff-dashboard-workspace flex flex-1 flex-col overflow-y-auto md:h-full md:flex-row md:overflow-hidden">
     <!-- Left Panel: Master List -->
     <aside id="leftPanel" class="w-[400px] flex flex-col border-r border-gray-200 dark:border-[#1e293b] bg-white dark:bg-[#0B1120] z-10 transition-all duration-300 relative">
         <!-- Quick Add & Search Dock -->
@@ -15,7 +48,7 @@
                 <div class="relative flex-1">
                     <input id="quickInput" class="w-full bg-white dark:bg-[#1e293b] border border-gray-300 dark:border-[#1e293b] rounded h-10 px-3 text-sm text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 font-mono uppercase transition-all" placeholder="Nhập VIN/Biển số..." type="text">
                 </div>
-                <button onclick="openAddVehicleModal()" class="h-10 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded text-sm flex items-center gap-1 transition-colors">
+                <button onclick="openAddVehicleModal()" class="h-10 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded text-sm flex items-center gap-1 transition-colors {{ auth()->user()?->isTechnician() && !auth()->user()?->isAdmin() && !auth()->user()?->isManager() ? 'hidden' : '' }}">
                     <span class="material-icons-round !text-[18px]">add</span>
                     <span>Thêm</span>
                 </button>
@@ -24,6 +57,25 @@
                 <span class="material-icons-round absolute left-3 top-2.5 text-gray-400 !text-[20px]">search</span>
                 <input class="w-full bg-white dark:bg-[#1e293b] border border-gray-300 dark:border-transparent rounded h-10 pl-10 pr-3 text-sm text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-transparent" placeholder="Tìm kiếm biển số, SĐT, Tên KH..." type="text">
             </div>
+            <form id="staffOrderFilter" method="GET" action="{{ route('staff.dashboard') }}" class="grid grid-cols-2 gap-2">
+                <input name="q" value="{{ request('q') }}" class="col-span-2 bg-white dark:bg-[#1e293b] border border-gray-300 dark:border-transparent rounded h-9 px-2 text-xs text-gray-700 dark:text-white" placeholder="Tìm biển số, SĐT, tên KH">
+                <select name="status" class="bg-white dark:bg-[#1e293b] border border-gray-300 dark:border-transparent rounded h-9 px-2 text-xs text-gray-700 dark:text-white">
+                    <option value="">Tất cả trạng thái</option>
+                    @foreach(['pending' => 'Chờ tiếp nhận', 'in_progress' => 'Đang kiểm tra', 'pending_approval' => 'Chờ khách duyệt', 'approved' => 'Khách đã duyệt', 'completed' => 'Hoàn thành'] as $value => $label)
+                        <option value="{{ $value }}" @selected(request('status') === $value)>{{ $label }}</option>
+                    @endforeach
+                </select>
+                <select name="advisor_id" class="bg-white dark:bg-[#1e293b] border border-gray-300 dark:border-transparent rounded h-9 px-2 text-xs text-gray-700 dark:text-white">
+                    <option value="">Tất cả advisor</option>
+                    @foreach($advisors as $advisor)
+                        <option value="{{ $advisor->id }}" @selected((string) request('advisor_id') === (string) $advisor->id)>{{ $advisor->name }}</option>
+                    @endforeach
+                </select>
+                <input type="date" name="date_from" value="{{ request('date_from') }}" class="bg-white dark:bg-[#1e293b] border border-gray-300 dark:border-transparent rounded h-9 px-2 text-xs text-gray-700 dark:text-white">
+                <input type="date" name="date_to" value="{{ request('date_to') }}" class="bg-white dark:bg-[#1e293b] border border-gray-300 dark:border-transparent rounded h-9 px-2 text-xs text-gray-700 dark:text-white">
+                <button class="h-8 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-xs font-bold" type="submit">Lọc</button>
+                <a href="{{ route('staff.dashboard') }}" class="h-8 bg-gray-100 dark:bg-[#1e293b] text-gray-600 dark:text-gray-300 rounded text-xs font-bold flex items-center justify-center">Xóa</a>
+            </form>
         </div>
 
         <!-- Scrollable List -->
@@ -114,6 +166,65 @@
             </div>
         </div>
 
+            <!-- Section: Waiting Customer Approval -->
+            <div onclick="toggleSection('pending-approval')" class="sticky top-0 z-10 bg-gray-100/95 dark:bg-[#0B1120]/95 backdrop-blur-sm px-4 py-2 border-y border-gray-200 dark:border-[#1e293b] flex justify-between items-center mt-2 cursor-pointer select-none">
+                <h3 class="text-xs font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider flex items-center gap-2">
+                    <span id="icon-pending-approval" class="material-icons-round !text-[16px] transition-transform duration-300">expand_more</span>
+                    <span class="material-icons-round !text-[14px]">hourglass_top</span>
+                    Chờ khách duyệt
+                </h3>
+                <span class="text-xs font-mono text-gray-500 dark:text-gray-400">{{ $pendingApproval->count() }}</span>
+            </div>
+            <div id="list-pending-approval" class="divide-y divide-gray-200 dark:divide-[#1e293b]/50 transition-all duration-300 origin-top">
+                @forelse($pendingApproval as $order)
+                <div onclick="loadOrder({{ $order->id }}, this, 'pending-approval')" class="order-item p-4 {{ isset($selectedOrder) && $selectedOrder->id == $order->id ? 'bg-amber-50 dark:bg-amber-500/10 border-amber-500' : 'hover:bg-gray-100 dark:hover:bg-white/5 border-transparent' }} border-l-4 cursor-pointer relative overflow-hidden transition-colors">
+                    <div class="flex justify-between items-start mb-1">
+                        <span class="font-bold text-gray-900 dark:text-white text-lg leading-none">{{ $order->vehicle->model ?? 'Khong ro' }}</span>
+                        <span class="font-mono text-xs text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-500/20 px-1.5 py-0.5 rounded font-bold">{{ $order->vehicle->license_plate ?? 'N/A' }}</span>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-2 mt-2">
+                        <span class="text-[10px] font-bold uppercase bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300 px-2 py-0.5 rounded">{{ $order->status_label }}</span>
+                        <span class="text-xs text-gray-500 dark:text-gray-400">{{ $order->progress_percent ?? 0 }}%</span>
+                    </div>
+                </div>
+                @empty
+                <div class="p-4 text-center text-sm text-gray-400 italic">Không có báo giá đang chờ duyệt</div>
+                @endforelse
+            </div>
+
+            <!-- Section: Customer Approved -->
+            <div onclick="toggleSection('approved')" class="sticky top-0 z-10 bg-gray-100/95 dark:bg-[#0B1120]/95 backdrop-blur-sm px-4 py-2 border-y border-gray-200 dark:border-[#1e293b] flex justify-between items-center mt-2 cursor-pointer select-none">
+                <h3 class="text-xs font-bold text-green-600 dark:text-green-400 uppercase tracking-wider flex items-center gap-2">
+                    <span id="icon-approved" class="material-icons-round !text-[16px] transition-transform duration-300">expand_more</span>
+                    <span class="material-icons-round !text-[14px]">verified</span>
+                    Khách đã duyệt
+                </h3>
+                <span class="text-xs font-mono text-gray-500 dark:text-gray-400">{{ $approved->count() }}</span>
+            </div>
+            <div id="list-approved" class="divide-y divide-gray-200 dark:divide-[#1e293b]/50 transition-all duration-300 origin-top">
+                @forelse($approved as $order)
+                <div onclick="loadOrder({{ $order->id }}, this, 'approved')" class="order-item p-4 {{ isset($selectedOrder) && $selectedOrder->id == $order->id ? 'bg-green-50 dark:bg-green-500/10 border-green-500' : 'hover:bg-gray-100 dark:hover:bg-white/5 border-transparent' }} border-l-4 cursor-pointer relative overflow-hidden transition-colors">
+                    <div class="flex justify-between items-start mb-1">
+                        <span class="font-bold text-gray-900 dark:text-white text-lg leading-none">{{ $order->vehicle->model ?? 'Khong ro' }}</span>
+                        <span class="font-mono text-xs text-green-700 dark:text-green-300 bg-green-100 dark:bg-green-500/20 px-1.5 py-0.5 rounded font-bold">{{ $order->vehicle->license_plate ?? 'N/A' }}</span>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-2 mt-2">
+                        <span class="text-[10px] font-bold uppercase bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300 px-2 py-0.5 rounded">{{ $order->status_label }}</span>
+                        @if($order->has_rejected_tasks)
+                            <span class="text-[10px] font-bold uppercase bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300 px-2 py-0.5 rounded">Có task bị từ chối</span>
+                        @endif
+                    </div>
+                    <div class="mt-2">
+                        <div class="h-1.5 bg-gray-200 dark:bg-[#1e293b] rounded-full overflow-hidden">
+                            <div class="h-full bg-green-600 rounded-full" style="width: {{ $order->progress_percent ?? 5 }}%"></div>
+                        </div>
+                    </div>
+                </div>
+                @empty
+                <div class="p-4 text-center text-sm text-gray-400 italic">Không có xe đã duyệt để thi công</div>
+                @endforelse
+            </div>
+
         <!-- Completed Tab -->
         <div class="border-b border-gray-200 dark:border-[#1e293b] bg-gray-50 dark:bg-[#020617]/50">
             <div class="px-4 py-3 flex justify-between items-center cursor-pointer hover:bg-gray-100 dark:hover:bg-white/5 transition-colors" onclick="toggleSection('list-ready', this)">
@@ -146,7 +257,7 @@
     </aside>
 
     <!-- Collapse Button (Mid-left) -->
-    <div class="relative z-20 h-full w-0">
+    <div id="staffDashboardCollapse" class="relative z-20 h-full w-0">
         <button onclick="toggleLeftPanel()" class="absolute -left-3 top-[30%] w-6 h-12 bg-white dark:bg-[#0B1120] border border-gray-200 dark:border-[#1e293b] rounded-r-lg flex items-center justify-center cursor-pointer shadow-md hover:text-indigo-600 dark:hover:text-indigo-400 text-gray-400 dark:text-gray-500 transition-all group">
             <span id="leftPanelIcon" class="material-icons-round !text-[16px] transition-transform duration-300 group-hover:scale-110">chevron_left</span>
         </button>
@@ -155,14 +266,15 @@
     <main id="order-details-container" class="flex-1 flex flex-col bg-white dark:bg-[#020617] relative overflow-y-auto">
         @php
             if(!isset($selectedOrder)) {
-                 $selectedOrder = $inProgress->first() ?? $waiting->first() ?? $ready->first();
+                 $selectedOrder = $approved->first() ?? $pendingApproval->first() ?? $inProgress->first() ?? $waiting->first() ?? $ready->first();
             }
             if(isset($selectedOrder)) {
                  $currentTasks = $allTasks->where('repair_order_id', $selectedOrder->id);
+                 $orderActivities = $orderActivities ?? collect();
             }
         @endphp
 
-        @include('staff.partials.order_details', ['selectedOrder' => $selectedOrder, 'currentTasks' => $currentTasks ?? collect([])])
+        @include('staff.partials.order_details', ['selectedOrder' => $selectedOrder, 'currentTasks' => $currentTasks ?? collect([]), 'orderActivities' => $orderActivities ?? collect([])])
     </main>
 </div>
 @endsection
@@ -274,6 +386,9 @@
             });
             const html = await response.text();
             document.getElementById('order-details-container').innerHTML = html;
+            if (window.matchMedia('(max-width: 767px)').matches) {
+                document.getElementById('order-details-container').scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
         } catch (error) {
             console.error('Error loading order:', error);
         }
@@ -1006,7 +1121,7 @@
                                     <h4 class="text-xs font-bold text-gray-400 dark:text-slate-500 uppercase">Việc cần làm</h4>
                                     <p class="text-[10px] text-gray-400 dark:text-slate-500">Tiến độ chi tiết</p>
                                 </div>
-                                <button onclick="addTask(${task.id}); Swal.close();" class="text-xs flex items-center gap-1 font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/20 px-2 py-1 rounded-lg hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition-colors">
+                                <button onclick="addTask(${task.id}, ${task.id})" class="text-xs flex items-center gap-1 font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/20 px-2 py-1 rounded-lg hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition-colors">
                                     <span class="material-icons-round text-sm">add</span> Thêm việc
                                 </button>
                             </div>
@@ -1189,7 +1304,7 @@
         });
     }
 
-    function addTask(parentId) {
+    function addTask(parentId, reopenTaskId = null) {
         const orderId = getCurrentOrderId();
         if(!orderId) return;
 
@@ -1237,8 +1352,14 @@
                     icon: 'success',
                     timer: 1500,
                     showConfirmButton: false
+                }).then(() => {
+                    loadOrder(orderId);
+                    if (reopenTaskId) {
+                        setTimeout(() => openTaskDetails(reopenTaskId), 250);
+                    }
                 });
-                loadOrder(orderId);
+            } else if (reopenTaskId && result.dismiss) {
+                setTimeout(() => openTaskDetails(reopenTaskId), 150);
             }
         })
     }

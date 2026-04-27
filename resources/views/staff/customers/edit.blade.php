@@ -29,7 +29,7 @@
                     </div>
                     <div>
                         <label class="block text-slate-400 text-sm font-bold mb-2">Email</label>
-                        <input type="email" name="email" value="{{ $customer->email }}" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-cyan-500" required>
+                        <input type="email" name="email" value="{{ $customer->email }}" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-cyan-500">
                     </div>
                 </div>
 

@@ -71,13 +71,16 @@ class AuthController extends Controller
 
     public function register(Request $request)
     {
-        try {
-            $validated = $request->validate([
-                'name' => ['required', 'string', 'max:255'],
-                'phone' => ['required', 'string', 'unique:users,phone'],
-                'password' => ['required', 'string', 'min:6'],
-            ]);
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'phone' => ['required', 'string', 'unique:users,phone'],
+            'password' => ['required', 'string', 'min:6'],
+        ], [
+            'phone.unique' => 'Số điện thoại này đã có tài khoản. Vui lòng đăng nhập bằng số điện thoại đó.',
+            'password.min' => 'Mật khẩu phải có ít nhất 6 ký tự.',
+        ]);
 
+        try {
             // Email is optional/nullable now. We DO NOT generate fake emails.
             
             // Safer role retrieval

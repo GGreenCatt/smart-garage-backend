@@ -93,7 +93,7 @@
                         <option value="">-- Chưa xác định / Tư vấn thêm --</option>
                         @foreach($services as $service)
                             <option value="{{ $service->id }}" {{ (old('service_id', $appointment->service_id) == $service->id) ? 'selected' : '' }}>
-                                {{ $service->name }} ({{ number_format($service->price) }}đ)
+                                {{ $service->name }} ({{ number_format($service->base_price ?? 0) }}đ)
                             </option>
                         @endforeach
                     </select>

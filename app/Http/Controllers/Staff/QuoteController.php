@@ -12,11 +12,15 @@ class QuoteController extends Controller
      */
     public function create($id)
     {
+        if (auth()->user()?->isTechnician() && ! auth()->user()?->isAdmin() && ! auth()->user()?->isManager()) {
+            abort(403, 'Kỹ thuật viên không có quyền tạo báo giá.');
+        }
+
         $order = \App\Models\RepairOrder::with([
             'vehicle.user', 
             'advisor',
             'tasks.items', // if tasks have items
-            'tasks.children', // eager load child tasks (proposed fixes)
+            'tasks.children.items', // eager load child tasks (proposed fixes)
             'items', // generic items on order
             'vhcReport.defects'
         ])->findOrFail($id);
@@ -24,7 +28,9 @@ class QuoteController extends Controller
         $services = \App\Models\Service::orderBy('name')->get();
         $parts = \App\Models\Part::orderBy('name')->get();
 
-        return view('staff.quote.create', compact('order', 'services', 'parts'));
+        $quoteWarnings = $this->quoteWarnings($order);
+
+        return view('staff.quote.create', compact('order', 'services', 'parts', 'quoteWarnings'));
     }
 
     /**
@@ -32,6 +38,20 @@ class QuoteController extends Controller
      */
     public function sendQuote(Request $request, \App\Models\RepairOrder $repairOrder)
     {
+        if (auth()->user()?->isTechnician() && ! auth()->user()?->isAdmin() && ! auth()->user()?->isManager()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Kỹ thuật viên không có quyền gửi báo giá.',
+            ], 403);
+        }
+
+        if ($repairOrder->isLockedForStaffChanges()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Đơn đã khóa, không thể gửi báo giá.',
+            ], 409);
+        }
+
         \Log::info("Quote Payload:", $request->all());
         // The frontend will send a 'tasks' array.
         // For existing tasks, it will send an array of 'proposed_fixes' inside.
@@ -131,10 +151,32 @@ class QuoteController extends Controller
             ], 400);
         }
 
+        $repairOrder->loadMissing('vehicle');
+        $customerId = $repairOrder->customer_id ?: optional($repairOrder->vehicle)->user_id;
+        $criticalWarnings = collect($this->quoteWarnings($repairOrder))
+            ->where('level', 'critical')
+            ->pluck('message')
+            ->values();
+
+        if ($criticalWarnings->isNotEmpty()) {
+            return response()->json([
+                'success' => false,
+                'message' => $criticalWarnings->implode(' '),
+                'warnings' => $criticalWarnings,
+            ], 422);
+        }
+
+        if ($customerId && !$repairOrder->customer_id) {
+            $repairOrder->forceFill(['customer_id' => $customerId])->save();
+        }
+
+        $totalAmount = $repairOrder->tasks()->sum('labor_cost') + $repairOrder->items()->sum('subtotal');
+
         // Change the status of the repair order to indicate it's waiting for customer approval
         $repairOrder->update([
             'status' => 'pending_approval',
-            'include_vhc' => $request->input('include_vhc', true)
+            'include_vhc' => $request->boolean('include_vhc', true),
+            'total_amount' => $totalAmount,
         ]);
         
         // Also update any repair tasks that have a null customer_approval_status to 'pending'
@@ -143,11 +185,11 @@ class QuoteController extends Controller
             ->update(['customer_approval_status' => 'pending']);
 
         // Create a notification for the customer if one exists
-        if ($repairOrder->customer_id) {
+        if ($customerId) {
             \App\Models\Notification::create([
                 'id' => \Illuminate\Support\Str::uuid(),
                 'notifiable_type' => \App\Models\User::class,
-                'notifiable_id' => $repairOrder->customer_id,
+                'notifiable_id' => $customerId,
                 'type' => 'quote_ready',
                 'data' => [
                     'title' => 'Báo giá dịch vụ mới',
@@ -171,6 +213,14 @@ class QuoteController extends Controller
             'status' => 'pending_approval',
             'quote_status' => 'sent',
             'quote_sent_at' => now(),
+            'total_amount' => $totalAmount,
+        ]);
+
+        \App\Models\ActivityLog::create([
+            'user_id' => auth()->id(),
+            'action' => 'STAFF_QUOTE_SENT',
+            'details' => "Order #{$repairOrder->id}: Gửi báo giá cho khách, tổng tiền {$totalAmount}.",
+            'ip_address' => request()->ip(),
         ]);
 
         return response()->json([
@@ -193,5 +243,46 @@ class QuoteController extends Controller
         ])->findOrFail($id);
 
         return view('staff.quote.show', compact('order'));
+    }
+
+    private function quoteWarnings(\App\Models\RepairOrder $order): array
+    {
+        $order->loadMissing(['vehicle.user', 'customer', 'items', 'tasks.items', 'tasks.children', 'vhcReport.defects']);
+
+        $warnings = [];
+        if (! $order->customer_id && ! optional($order->vehicle)->user_id) {
+            $warnings[] = ['level' => 'critical', 'message' => 'Đơn chưa gắn khách hàng, không thể gửi báo giá.'];
+        }
+
+        if (! $order->vehicle_id || ! $order->vehicle) {
+            $warnings[] = ['level' => 'critical', 'message' => 'Đơn chưa gắn xe, không thể gửi báo giá.'];
+        }
+
+        if ($order->tasks->isEmpty() && ! $order->vhcReport) {
+            $warnings[] = ['level' => 'critical', 'message' => 'Đơn chưa có hạng mục kiểm tra hoặc dữ liệu VHC.'];
+        }
+
+        $tasksMissingPrice = $order->tasks
+            ->whereNull('parent_id')
+            ->filter(fn ($task) => (float) ($task->labor_cost ?? 0) <= 0 && $task->children->isEmpty())
+            ->count();
+
+        if ($tasksMissingPrice > 0) {
+            $warnings[] = [
+                'level' => 'warning',
+                'code' => 'missing_task_quote',
+                'message' => "{$tasksMissingPrice} hạng mục kiểm tra chưa có đề xuất sửa chữa hoặc chi phí.",
+            ];
+        }
+
+        if ($order->items->contains(fn ($item) => (float) ($item->unit_price ?? 0) <= 0)) {
+            $warnings[] = ['level' => 'warning', 'message' => 'Có vật tư chưa có giá bán.'];
+        }
+
+        if (! $order->vhcReport && $order->tasks->contains(fn ($task) => $task->type === 'vhc')) {
+            $warnings[] = ['level' => 'warning', 'message' => 'Có hạng mục kiểm tra 3D/VHC nhưng chưa có dữ liệu VHC.'];
+        }
+
+        return $warnings;
     }
 }

@@ -91,6 +91,15 @@
         </div>
 
         <div>
+            <label for="paymentCouponCode" class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Mã giảm giá</label>
+            <div class="relative">
+                <input type="text" id="paymentCouponCode" class="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 pr-10 text-slate-800 dark:text-slate-100 uppercase tracking-wider font-bold focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none" placeholder="Nhập mã nếu có">
+                <i class="fas fa-ticket-alt absolute right-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
+            </div>
+            <p class="text-xs text-slate-500 dark:text-slate-400 mt-2">Mã sẽ được kiểm tra và trừ trực tiếp khi xác nhận thanh toán.</p>
+        </div>
+
+        <div>
             <label class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Phương thức thanh toán</label>
             <div class="grid grid-cols-2 gap-3">
                 <button type="button" onclick="selectPaymentMethod('cash')" id="btnPmtCash" class="py-3 px-4 rounded-xl border-2 border-teal-500 bg-teal-50 dark:bg-teal-900/20 text-teal-700 dark:text-teal-400 font-bold transition flex items-center justify-center gap-2">
@@ -281,6 +290,7 @@
         document.getElementById('paymentModalTotal').innerText = new Intl.NumberFormat('vi-VN').format(totalAmount) + 'đ';
         document.getElementById('btnConfirmPayment').innerHTML = `<i class="fas fa-check-circle"></i> Xác Nhận Đã Thu Khách ${new Intl.NumberFormat('vi-VN').format(totalAmount)}đ`;
         document.getElementById('paymentModal').dataset.total = totalAmount; // Store for select method
+        document.getElementById('paymentCouponCode').value = '';
         
         // Reset to cash payment method
         selectPaymentMethod('cash');
@@ -327,15 +337,18 @@
             
             // Fetch QR Code
             if(orderId) {
-                fetch(`{{ route('staff.order.qr', ':id') }}`.replace(':id', orderId))
+                const couponCode = document.getElementById('paymentCouponCode').value.trim();
+                const qrUrl = `{{ route('staff.order.qr', ':id') }}`.replace(':id', orderId) + (couponCode ? `?coupon_code=${encodeURIComponent(couponCode)}` : '');
+                fetch(qrUrl)
                     .then(r => r.json())
                     .then(d => {
                         if(d.success) {
                             qrImage.src = d.qr_url;
                             qrLoading.classList.add('hidden');
                             qrImage.classList.remove('hidden');
+                            btnConfirm.innerHTML = `<i class="fas fa-check-circle"></i> Xác Nhận Đã Nhận Chuyển Khoản ${new Intl.NumberFormat('vi-VN').format(d.amount)}đ`;
                         } else {
-                            qrLoading.innerHTML = '<span class="text-red-500"><i class="fas fa-exclamation-triangle"></i> Lỗi tạo QR</span>';
+                            qrLoading.innerHTML = `<span class="text-red-500"><i class="fas fa-exclamation-triangle"></i> ${d.message || 'Lỗi tạo QR'}</span>`;
                         }
                     })
                     .catch(() => {
@@ -345,11 +358,18 @@
         }
     }
 
+    document.getElementById('paymentCouponCode').addEventListener('input', function () {
+        if (document.getElementById('paymentMethodInput').value === 'transfer') {
+            selectPaymentMethod('transfer');
+        }
+    });
+
     function confirmPayment() {
         const orderId = getCurrentOrderId();
         if(!orderId) return;
 
         const method = document.getElementById('paymentMethodInput').value;
+        const couponCode = document.getElementById('paymentCouponCode').value.trim();
         const btn = document.getElementById('btnConfirmPayment');
         const originalText = btn.innerHTML;
         btn.disabled = true;
@@ -358,7 +378,7 @@
         fetch(`{{ route('staff.order.pay', ':id') }}`.replace(':id', orderId), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
-            body: JSON.stringify({ payment_method: method })
+            body: JSON.stringify({ payment_method: method, coupon_code: couponCode })
         })
         .then(r => r.json())
         .then(d => {

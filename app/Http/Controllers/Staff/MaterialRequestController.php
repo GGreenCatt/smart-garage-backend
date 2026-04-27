@@ -32,7 +32,7 @@ class MaterialRequestController extends Controller
             'staff_id' => Auth::id(),
             'part_name' => $validated['part_name'],
             'quantity' => $validated['quantity'],
-            'reason' => $validated['reason']
+            'reason' => $validated['reason'] ?? null,
         ]);
 
         return back()->with('success', 'Đã gửi yêu cầu vật tư');
