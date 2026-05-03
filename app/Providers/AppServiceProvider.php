@@ -4,6 +4,8 @@ namespace App\Providers;
 
 use App\Models\Role;
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Support\Facades\URL;
+use Illuminate\Support\Facades\Gate;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -20,21 +22,29 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Ép sử dụng HTTPS khi chạy trên môi trường production (Railway)
+        if (config('app.env') === 'production' || env('FORCE_HTTPS', false)) {
+            URL::forceScheme('https');
+        }
+
         // Register Observers
         \App\Models\Appointment::observe(\App\Observers\NotificationObserver::class);
         \App\Models\MaterialRequest::observe(\App\Observers\NotificationObserver::class);
 
         // Admin Super Power
-        \Illuminate\Support\Facades\Gate::before(function ($user, $ability) {
+        Gate::before(function ($user, $ability) {
             if ($user->isAdmin()) {
                 return true;
             }
         });
 
-        foreach (Role::permissions() as $permission) {
-            \Illuminate\Support\Facades\Gate::define($permission, function ($user) use ($permission) {
-                return $user->hasPermission($permission);
-            });
+        // Chỉ chạy foreach nếu table roles đã tồn tại (tránh lỗi khi migrate lần đầu)
+        if (!app()->runningInConsole() || \Schema::hasTable('roles')) {
+            foreach (Role::permissions() as $permission) {
+                Gate::define($permission, function ($user) use ($permission) {
+                    return $user->hasPermission($permission);
+                });
+            }
         }
     }
 }
