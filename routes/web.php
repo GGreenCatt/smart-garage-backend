@@ -109,6 +109,7 @@ Route::middleware(['auth', 'verified', 'staff'])->prefix('staff')->name('staff.'
     Route::post('/order/{id}/quick-item', [StaffController::class, 'storeQuickItem'])->name('order.quick-item');
     Route::post('/order/{id}/request-support', [StaffController::class, 'requestSupport'])->name('order.request-support');
     Route::post('/order/{id}/delete', [StaffController::class, 'deleteOrder'])->name('order.delete');
+    Route::post('/order/{id}/handover', [StaffController::class, 'handoverOrder'])->name('order.handover');
     
     Route::post('/task/{id}/update', [StaffController::class, 'updateTaskStatus'])->name('task.update');
     Route::post('/task/{id}/toggle', [StaffController::class, 'toggleTask'])->name('task.toggle');

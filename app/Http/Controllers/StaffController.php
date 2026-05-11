@@ -515,7 +515,17 @@ class StaffController extends Controller
             }
         }
 
-        return response()->json(['success' => true]);
+        $cleanStatusMessages = [
+            'pending' => 'Đã đưa đơn về trạng thái chờ tiếp nhận.',
+            'in_progress' => 'Đã tiếp nhận xe và bắt đầu xử lý.',
+            'completed' => 'Đã hoàn thành sửa chữa. Vui lòng thanh toán trước khi bàn giao xe.',
+            'cancelled' => 'Đã hủy đơn.',
+        ];
+
+        return response()->json([
+            'success' => true,
+            'message' => $cleanStatusMessages[$validated['status']] ?? 'Đã cập nhật trạng thái đơn.',
+        ]);
     }
 
     public function storeTask(Request $request, $orderId)
@@ -850,6 +860,48 @@ class StaffController extends Controller
             'message' => 'Thanh toÃ¡n thÃ nh cÃ´ng',
             'total_amount' => $amounts['total_amount'],
             'discount_amount' => $amounts['discount_amount'],
+        ]);
+    }
+
+    public function handoverOrder(Request $request, $id)
+    {
+        if (! $this->canManageStaffOrderFlow()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Bạn không có quyền bàn giao xe.',
+            ], 403);
+        }
+
+        $order = \App\Models\RepairOrder::findOrFail($id);
+
+        if ($order->status !== RepairOrder::STATUS_COMPLETED) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Chỉ có thể bàn giao sau khi đơn đã hoàn thành.',
+            ], 409);
+        }
+
+        if ($order->payment_status !== 'paid') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Vui lòng thu tiền trước khi bàn giao xe.',
+            ], 409);
+        }
+
+        if ($order->delivered_at) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Xe đã được bàn giao trước đó.',
+            ], 409);
+        }
+
+        $order->update(['delivered_at' => now()]);
+        $this->logOrderActivity($order, 'STAFF_ORDER_DELIVERED', 'Đã bàn giao xe cho khách.');
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Đã bàn giao xe cho khách.',
+            'delivered_at' => $order->delivered_at?->toDateTimeString(),
         ]);
     }
 

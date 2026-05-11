@@ -52,6 +52,16 @@
     $quoteApprovedTotal = $quoteApprovedTasks->sum(fn ($task) => (float) ($task->labor_cost ?? 0) + $task->items->sum('subtotal'));
     $quoteTotal = $quoteReviewTasks->sum(fn ($task) => (float) ($task->labor_cost ?? 0) + $task->items->sum('subtotal'));
 @endphp
+@php
+    $statusLabels = [
+        'pending' => 'Chờ tiếp nhận',
+        'in_progress' => 'Đang kiểm tra',
+        'pending_approval' => 'Chờ khách duyệt',
+        'approved' => 'Khách đã duyệt',
+        'completed' => $selectedOrder->delivered_at ? 'Đã bàn giao' : ($selectedOrder->payment_status === 'paid' ? 'Đã thanh toán' : 'Chờ thanh toán'),
+        'cancelled' => 'Đã hủy',
+    ];
+@endphp
 <!-- Hero Header -->
 <div class="p-8 pb-4">
     <div class="flex flex-col md:flex-row justify-between items-start gap-4">
@@ -131,12 +141,15 @@
     }
 @endphp
 
+@if($selectedOrder->delivered_at)
+    @php($currentStage = 6)
+@endif
 <!-- Progress Stepper -->
 <div class="px-8 py-6 bg-gray-50 dark:bg-[#0f172a]/50 border-y border-gray-200 dark:border-[#1e293b]">
     <div class="relative flex items-center justify-between w-full max-w-4xl mx-auto md:mx-0">
         <!-- Connecting Line -->
         <div class="absolute left-0 top-1/2 -translate-y-1/2 w-full h-0.5 bg-gray-200 dark:bg-[#1e293b] -z-0"></div>
-        <div class="absolute left-0 top-1/2 -translate-y-1/2 h-0.5 bg-teal-500 transition-all duration-1000 -z-0" style="width: {{ ($currentStage - 1) * 25 }}%"></div>
+        <div class="absolute left-0 top-1/2 -translate-y-1/2 h-0.5 bg-teal-500 transition-all duration-1000 -z-0" style="width: {{ min(100, ($currentStage - 1) * 20) }}%"></div>
         
         <!-- Step 1: Receieved -->
         <div class="relative z-10 flex flex-col items-center gap-2 group cursor-pointer">
@@ -203,6 +216,16 @@
             </div>
             <span class="text-{{ $currentStage == 5 ? 'sm' : 'xs' }} font-bold {{ $currentStage == 5 ? 'text-green-600 dark:text-green-400' : 'text-gray-400' }} uppercase tracking-wider hidden md:block">Hoàn Thành</span>
         </div>
+        <div class="relative z-10 flex flex-col items-center gap-2 group cursor-pointer">
+            <div class="size-{{ $currentStage == 6 ? '10' : '8' }} rounded-full {{ $currentStage == 6 ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/40 ring-4 ring-emerald-100 dark:ring-emerald-500/20 scale-110 border-none' : 'bg-gray-200 dark:bg-[#1e293b] border-2 border-gray-300 dark:border-[#334155] text-gray-400' }} flex items-center justify-center transition-all">
+                @if($currentStage == 6)
+                    <span class="material-icons-round !text-[20px]">verified</span>
+                @else
+                    <span class="text-xs font-mono">06</span>
+                @endif
+            </div>
+            <span class="text-{{ $currentStage == 6 ? 'sm' : 'xs' }} font-bold {{ $currentStage == 6 ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-400' }} uppercase tracking-wider hidden md:block">Bàn Giao</span>
+        </div>
     </div>
 </div>
 
@@ -250,6 +273,7 @@
                 Xem chi tiết
             </a>
         </div>
+
     </div>
 </div>
 @endif
@@ -314,6 +338,16 @@
                             <span class="material-icons-round !text-[16px]">print</span>
                             In hóa đơn
                         </a>
+                        @if(!$selectedOrder->delivered_at)
+                            <button onclick="handoverOrder()" class="text-sm whitespace-nowrap shrink-0 w-max bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-1.5 px-3 rounded-lg shadow-md flex items-center justify-center gap-1.5 transition-all">
+                                <span class="material-icons-round !text-[16px]">verified</span>
+                                Bàn giao xe
+                            </button>
+                        @else
+                            <span class="text-xs shrink-0 w-max text-emerald-700 dark:text-emerald-300 font-bold bg-emerald-50 dark:bg-emerald-500/10 px-2 py-1.5 rounded-lg border border-emerald-200 dark:border-emerald-500/20">
+                                Đã bàn giao {{ $selectedOrder->delivered_at->format('H:i d/m/Y') }}
+                            </span>
+                        @endif
                     @endif
                 @endif
             </div>
@@ -703,5 +737,44 @@
         } catch (err) {
             alert('Không thể sao chép tự động. Bạn vui lòng copy thủ công nhé.');
         }
+    }
+
+    function handoverOrder() {
+        Swal.fire({
+            title: 'Bàn giao xe?',
+            text: 'Xác nhận xe đã thanh toán và bàn giao cho khách.',
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#059669',
+            cancelButtonColor: '#64748b',
+            confirmButtonText: 'Xác nhận bàn giao',
+            cancelButtonText: 'Hủy'
+        }).then((result) => {
+            if (!result.isConfirmed) return;
+
+            fetch('{{ route("staff.order.handover", $selectedOrder->id) }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                }
+            })
+            .then(response => response.json().then(data => ({ ok: response.ok, data })))
+            .then(({ ok, data }) => {
+                if (!ok || !data.success) {
+                    Swal.fire('Không thể bàn giao', data.message || 'Vui lòng thử lại.', 'error');
+                    return;
+                }
+
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Đã bàn giao xe',
+                    text: data.message,
+                    timer: 1500,
+                    showConfirmButton: false
+                }).then(() => location.reload());
+            })
+            .catch(() => Swal.fire('Lỗi', 'Không thể kết nối máy chủ.', 'error'));
+        });
     }
 </script>

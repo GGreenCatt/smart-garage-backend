@@ -26,6 +26,7 @@ class RepairOrder extends Model
         'include_vhc',
         'payment_status',
         'payment_method',
+        'delivered_at',
         'service_type',
         'start_time',
         'notes',
@@ -38,6 +39,7 @@ class RepairOrder extends Model
         'expected_completion_date' => 'datetime',
         'quote_sent_at' => 'datetime',
         'start_time' => 'datetime',
+        'delivered_at' => 'datetime',
     ];
 
     public const STATUS_PENDING = 'pending';

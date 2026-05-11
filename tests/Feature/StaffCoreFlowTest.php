@@ -248,6 +248,46 @@ class StaffCoreFlowTest extends TestCase
         $this->assertSame(1, $promotion->fresh()->used_count);
     }
 
+    public function test_staff_can_handover_paid_completed_order_once(): void
+    {
+        $staff = User::factory()->create(['role' => 'staff', 'role_id' => Role::where('slug', 'staff')->value('id')]);
+        $vehicle = Vehicle::create([
+            'license_plate' => '59A-77777',
+            'model' => 'Altis',
+            'type' => 'sedan',
+            'year' => 2021,
+            'color' => 'White',
+            'owner_name' => 'Guest',
+            'owner_phone' => '0909777777',
+        ]);
+        $order = RepairOrder::create([
+            'track_id' => 'RO-HANDOVER-001',
+            'vehicle_id' => $vehicle->id,
+            'advisor_id' => $staff->id,
+            'status' => 'completed',
+            'payment_status' => 'unpaid',
+        ]);
+
+        $this->actingAs($staff)
+            ->postJson(route('staff.order.handover', $order->id))
+            ->assertStatus(409)
+            ->assertJsonPath('success', false);
+
+        $order->update(['payment_status' => 'paid']);
+
+        $this->actingAs($staff)
+            ->postJson(route('staff.order.handover', $order->id))
+            ->assertOk()
+            ->assertJsonPath('success', true);
+
+        $this->assertNotNull($order->fresh()->delivered_at);
+
+        $this->actingAs($staff)
+            ->postJson(route('staff.order.handover', $order->id))
+            ->assertStatus(409)
+            ->assertJsonPath('success', false);
+    }
+
     public function test_staff_can_convert_appointment_without_vehicle_into_repair_order(): void
     {
         $staff = User::factory()->create(['role' => 'staff', 'role_id' => Role::where('slug', 'staff')->value('id')]);
