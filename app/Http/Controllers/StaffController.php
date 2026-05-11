@@ -87,6 +87,7 @@ class StaffController extends Controller
             elseif ($order->status == 'completed') $order->status_label = 'Sáºµn sÃ ng';
             else $order->status_label = $order->status === 'cancelled' ? 'ÄÃ£ há»§y' : ucfirst($order->status);
 
+            $order->mechanics_display = !empty($mechanicNames) ? implode(', ', $mechanicNames) : 'Chưa phân công';
             $order->has_rejected_tasks = $allOrderTasks->where('customer_approval_status', 'rejected')->isNotEmpty();
             $order->approved_tasks_count = $orderTasks->where('customer_approval_status', 'approved')->count();
             $order->status_label = match ($order->status) {
@@ -96,6 +97,16 @@ class StaffController extends Controller
                 RepairOrder::STATUS_APPROVED => 'KhÃ¡ch Ä‘Ã£ duyá»‡t',
                 RepairOrder::STATUS_COMPLETED => $order->payment_status === 'paid' ? 'ÄÃ£ thanh toÃ¡n' : 'Chá» thanh toÃ¡n',
                 RepairOrder::STATUS_CANCELLED => 'ÄÃ£ há»§y',
+                default => ucfirst((string) $order->status),
+            };
+
+            $order->status_label = match ($order->status) {
+                RepairOrder::STATUS_PENDING => 'Chờ tiếp nhận',
+                RepairOrder::STATUS_IN_PROGRESS => 'Đang kiểm tra',
+                RepairOrder::STATUS_PENDING_APPROVAL => 'Chờ khách duyệt',
+                RepairOrder::STATUS_APPROVED => 'Khách đã duyệt',
+                RepairOrder::STATUS_COMPLETED => $order->payment_status === 'paid' ? 'Đã thanh toán' : 'Chờ thanh toán',
+                RepairOrder::STATUS_CANCELLED => 'Đã hủy',
                 default => ucfirst((string) $order->status),
             };
 

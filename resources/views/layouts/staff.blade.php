@@ -84,10 +84,10 @@
     </style>
     @stack('styles')
 </head>
-<body class="min-h-screen flex font-sans antialiased selection:bg-indigo-500 selection:text-white bg-gray-50 text-slate-900 dark:bg-[#020617] dark:text-slate-200 transition-colors duration-300">
+<body class="min-h-screen overflow-x-hidden flex font-sans antialiased selection:bg-indigo-500 selection:text-white bg-gray-50 text-slate-900 dark:bg-[#020617] dark:text-slate-200 transition-colors duration-300">
     <div id="sidebarBackdrop" class="fixed inset-0 z-40 hidden bg-slate-950/60 backdrop-blur-sm md:hidden"></div>
 
-    <aside id="sidebar" class="fixed inset-y-0 z-50 flex w-[18rem] max-w-[86vw] -translate-x-full flex-col border-r border-gray-200 bg-white transition-transform duration-300 md:w-64 md:max-w-none md:translate-x-0 dark:border-[#1e293b] dark:bg-[#0B1120]">
+    <aside id="sidebar" class="fixed inset-y-0 z-50 flex w-[18rem] max-w-[86vw] -translate-x-full flex-col border-r border-gray-200 bg-white transition-transform duration-300 md:w-64 md:max-w-none dark:border-[#1e293b] dark:bg-[#0B1120]">
         <div class="h-16 md:h-20 flex items-center px-5 md:px-6 border-b border-gray-200 dark:border-[#1e293b] bg-white dark:bg-[#0B1120]">
             <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-700 flex items-center justify-center text-white font-black text-xl shadow-lg shadow-indigo-500/20 mr-3">
                 SG
@@ -161,7 +161,7 @@
         </div>
     </aside>
 
-    <main id="mainContent" class="flex-1 md:ml-64 min-h-screen bg-gray-50 dark:bg-[#020617] relative flex flex-col transition-all duration-300">
+    <main id="mainContent" class="min-w-0 flex-1 md:ml-64 min-h-screen bg-gray-50 dark:bg-[#020617] relative flex flex-col overflow-x-hidden transition-all duration-300">
         @unless(View::hasSection('no_header'))
         <header class="h-16 md:h-20 flex items-center justify-between gap-3 px-4 md:px-8 border-b border-gray-200 dark:border-[#1e293b] bg-white/90 dark:bg-[#0B1120]/90 backdrop-blur-md sticky top-0 z-40 transition-colors duration-300">
             <div class="flex min-w-0 items-center gap-3 md:gap-4">
@@ -204,7 +204,7 @@
         @hasSection('full-width-content')
             @yield('full-width-content')
         @else
-            <div class="flex-1 overflow-y-auto p-4 pb-24 md:p-8 md:pb-8 staff-mobile-scroll">
+            <div class="min-w-0 flex-1 overflow-y-auto p-4 pb-24 md:p-8 md:pb-8 staff-mobile-scroll">
                 @yield('content')
             </div>
         @endif
@@ -373,41 +373,52 @@
             return window.matchMedia('(max-width: 767px)').matches;
         }
 
-        function setSidebarState(isOpen) {
+        function setSidebarState(isOpen, options = {}) {
+            if (!sidebar) return;
+            const persist = options.persist ?? !isMobileViewport();
+
             if (isOpen) {
                 sidebar.classList.remove('-translate-x-full');
-                sidebarBackdrop.classList.toggle('hidden', !isMobileViewport());
+                sidebar.setAttribute('aria-hidden', 'false');
+                if (sidebarBackdrop) sidebarBackdrop.classList.toggle('hidden', !isMobileViewport());
                 if (!isMobileViewport() && mainContent) mainContent.classList.add('md:ml-64');
+                document.body.dataset.sidebar = 'open';
                 document.body.classList.toggle('overflow-hidden', isMobileViewport());
             } else {
                 sidebar.classList.add('-translate-x-full');
-                sidebarBackdrop.classList.add('hidden');
+                sidebar.setAttribute('aria-hidden', 'true');
+                if (sidebarBackdrop) sidebarBackdrop.classList.add('hidden');
                 if (mainContent) mainContent.classList.remove('md:ml-64');
+                document.body.dataset.sidebar = 'closed';
                 document.body.classList.remove('overflow-hidden');
             }
 
-            if (!isMobileViewport()) {
+            if (persist) {
                 localStorage.setItem('sidebarOpen', isOpen ? 'true' : 'false');
             }
         }
 
+        window.setSidebarState = setSidebarState;
+
         const initialSidebarOpen = isMobileViewport() ? false : localStorage.getItem('sidebarOpen') !== 'false';
-        setSidebarState(initialSidebarOpen);
+        setSidebarState(initialSidebarOpen, { persist: false });
 
         if (sidebarToggle) {
-            sidebarToggle.addEventListener('click', () => setSidebarState(sidebar.classList.contains('-translate-x-full')));
+            sidebarToggle.addEventListener('click', () => setSidebarState(sidebar.classList.contains('-translate-x-full'), { persist: true }));
         }
         if (sidebarBackdrop) {
             sidebarBackdrop.addEventListener('click', () => setSidebarState(false));
         }
-        sidebar.querySelectorAll('a').forEach(link => {
-            link.addEventListener('click', () => {
-                if (isMobileViewport()) setSidebarState(false);
+        if (sidebar) {
+            sidebar.querySelectorAll('a').forEach(link => {
+                link.addEventListener('click', () => {
+                    if (isMobileViewport()) setSidebarState(false);
+                });
             });
-        });
+        }
         window.addEventListener('resize', () => {
             if (isMobileViewport()) setSidebarState(false);
-            else setSidebarState(localStorage.getItem('sidebarOpen') !== 'false');
+            else setSidebarState(localStorage.getItem('sidebarOpen') !== 'false', { persist: false });
         });
     </script>
 </body>

@@ -1695,7 +1695,7 @@
     document.addEventListener('DOMContentLoaded', () => {
         // Tự động ẩn Sidebar khi vào Bảng công việc để tối ưu diện tích
         if (typeof setSidebarState === 'function') {
-            setSidebarState(false);
+            setSidebarState(false, { persist: false });
         }
     });
 </script>
