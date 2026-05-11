@@ -2,16 +2,32 @@
 @once
 <style>
     @media (max-width: 767px) {
+        #order-details-container {
+            min-width: 0;
+        }
         #order-details-container > div,
         #order-details-container .p-8 {
             padding: 1rem !important;
         }
+        #order-details-container .px-8 {
+            padding-left: 1rem !important;
+            padding-right: 1rem !important;
+        }
+        #order-details-container .py-6,
+        #order-details-container .py-5 {
+            padding-top: 1rem !important;
+            padding-bottom: 1rem !important;
+        }
         #order-details-container h1 {
-            font-size: 1.75rem !important;
-            line-height: 2.1rem !important;
+            font-size: 1.5rem !important;
+            line-height: 1.9rem !important;
+            overflow-wrap: anywhere;
         }
         #order-details-container .flex {
             min-width: 0;
+        }
+        #order-details-container .min-w-0 {
+            min-width: 0 !important;
         }
         #order-details-container table {
             min-width: 680px;
@@ -22,6 +38,92 @@
         #order-details-container button,
         #order-details-container a {
             min-height: 40px;
+        }
+        .staff-order-hero-row,
+        .staff-order-title-row,
+        .staff-order-actions,
+        .staff-task-card-main,
+        .staff-task-card-header,
+        .staff-subtask-row,
+        .staff-detail-row {
+            align-items: stretch !important;
+            flex-direction: column !important;
+        }
+        .staff-order-actions {
+            width: 100%;
+            display: grid !important;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: .5rem !important;
+        }
+        .staff-order-actions > * {
+            width: 100% !important;
+            max-width: none !important;
+            white-space: normal !important;
+        }
+        .staff-mobile-full {
+            width: 100% !important;
+        }
+        .staff-progress-scroll {
+            margin-left: -1rem;
+            margin-right: -1rem;
+            overflow-x: auto;
+            padding-left: 1rem;
+            padding-right: 1rem;
+            -webkit-overflow-scrolling: touch;
+        }
+        .staff-progress-track {
+            min-width: 28rem;
+        }
+        .staff-progress-scroll {
+            display: none !important;
+        }
+        .staff-mobile-progress {
+            display: block !important;
+        }
+        .staff-task-card-header > div:last-child {
+            width: 100%;
+            flex-wrap: wrap;
+            justify-content: flex-start;
+        }
+        .staff-subtasks {
+            margin-left: .25rem !important;
+            padding-left: .75rem !important;
+        }
+        .staff-info-panel {
+            border-left: 0 !important;
+            border-top: 1px solid rgba(148, 163, 184, .24);
+        }
+        .staff-side-card {
+            padding: .875rem !important;
+        }
+        .staff-mobile-section-toggle {
+            display: flex !important;
+        }
+        .staff-mobile-action-panel,
+        .staff-mobile-info-panel {
+            display: none !important;
+        }
+        .staff-mobile-action-panel.is-open,
+        .staff-mobile-info-panel.is-open {
+            display: grid !important;
+        }
+        .staff-mobile-info-panel.is-open {
+            display: flex !important;
+        }
+        .staff-detail-row .staff-order-actions:not(.is-open) {
+            display: none !important;
+        }
+        .staff-mobile-collapsible:not(.is-open) {
+            display: none !important;
+        }
+        .staff-info-panel > :not(.staff-mobile-info-toggle) {
+            display: none !important;
+        }
+        .staff-info-panel.is-open > :not(.staff-mobile-info-toggle) {
+            display: block !important;
+        }
+        .staff-mobile-section-toggle.is-open .staff-mobile-section-chevron {
+            transform: rotate(180deg);
         }
     }
 </style>
@@ -64,23 +166,23 @@
 @endphp
 <!-- Hero Header -->
 <div class="p-8 pb-4">
-    <div class="flex flex-col md:flex-row justify-between items-start gap-4">
-        <div>
-            <div class="flex items-center gap-3 mb-2">
+    <div class="staff-order-hero-row flex flex-col md:flex-row justify-between items-start gap-4">
+        <div class="min-w-0 staff-mobile-full">
+            <div class="staff-order-title-row flex items-center gap-3 mb-2">
                 <h1 class="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white tracking-tight">{{ $selectedOrder->vehicle->model ?? 'Xe không rõ' }}</h1>
                 @if($selectedOrder->status == 'pending')
-                    <div class="flex items-center gap-2 block md:flex">
-                        <button onclick="startRepair()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold rounded-lg shadow-lg shadow-indigo-500/30 flex items-center gap-2 transition-all animate-pulse">
+                    <div class="staff-order-actions flex items-center gap-2 block md:flex">
+                        <button onclick="startRepair()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold rounded-lg shadow-lg shadow-indigo-500/30 flex items-center justify-center gap-2 transition-all animate-pulse">
                             <span class="material-icons-round">build_circle</span>
                             TIẾP NHẬN XE
                         </button>
-                        <button onclick="abandonOrder()" class="px-4 py-2 bg-red-100 hover:bg-red-200 dark:bg-red-900/30 dark:hover:bg-red-900/50 text-red-600 dark:text-red-400 text-sm font-bold rounded-lg shadow-sm border border-red-200 dark:border-red-800 flex items-center gap-2 transition-all">
+                        <button onclick="abandonOrder()" class="px-4 py-2 bg-red-100 hover:bg-red-200 dark:bg-red-900/30 dark:hover:bg-red-900/50 text-red-600 dark:text-red-400 text-sm font-bold rounded-lg shadow-sm border border-red-200 dark:border-red-800 flex items-center justify-center gap-2 transition-all">
                             <span class="material-icons-round">delete_forever</span>
                             BỎ XE
                         </button>
                     </div>
                 @else
-                    <div class="flex items-center gap-2">
+                    <div class="staff-order-actions flex items-center gap-2 flex-wrap">
                         <span class="px-3 py-1 rounded-lg text-sm font-bold 
                             {{ $selectedOrder->status == 'completed' ? 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-400' : 
                                (in_array($selectedOrder->status, ['in_progress', 'pending_approval', 'approved']) ? 'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400' : 'bg-gray-100 text-gray-700') }}">
@@ -90,7 +192,7 @@
                             {{ $statusLabels[$selectedOrder->status] ?? ucfirst($selectedOrder->status) }}
                         </span>
                         @if($selectedOrder->status === 'in_progress')
-                            <button onclick="cancelRepair()" class="px-3 py-1.5 bg-amber-100 hover:bg-amber-200 dark:bg-amber-900/30 dark:hover:bg-amber-900/50 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800 text-sm font-bold rounded-lg shadow-sm flex items-center gap-1 transition-all">
+                            <button onclick="cancelRepair()" class="px-3 py-1.5 bg-amber-100 hover:bg-amber-200 dark:bg-amber-900/30 dark:hover:bg-amber-900/50 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800 text-sm font-bold rounded-lg shadow-sm flex items-center justify-center gap-1 transition-all">
                                 <span class="material-icons-round !text-[16px]">undo</span>
                                 Hủy nhận sửa
                             </button>
@@ -142,11 +244,56 @@
 @endphp
 
 @if($selectedOrder->delivered_at)
-    @php($currentStage = 6)
+    @php
+        $currentStage = 6;
+    @endphp
 @endif
+@php
+    $mobileProgressSteps = [
+        1 => ['label' => 'Tiếp nhận', 'icon' => 'garage'],
+        2 => ['label' => 'Kiểm tra', 'icon' => 'settings_suggest'],
+        3 => ['label' => 'Sửa chữa', 'icon' => 'build_circle'],
+        4 => ['label' => 'KCS / QC', 'icon' => 'fact_check'],
+        5 => ['label' => 'Hoàn thành', 'icon' => 'flag'],
+        6 => ['label' => 'Bàn giao', 'icon' => 'verified'],
+    ];
+    $currentProgressStep = $mobileProgressSteps[$currentStage] ?? $mobileProgressSteps[1];
+    $progressPercent = min(100, max(0, (int) round(($currentStage / count($mobileProgressSteps)) * 100)));
+@endphp
+<div class="staff-mobile-progress hidden border-y border-gray-200 bg-gray-50 px-4 py-4 dark:border-[#1e293b] dark:bg-[#0f172a]/50">
+    <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900/80">
+        <div class="flex items-center justify-between gap-3">
+            <div class="min-w-0">
+                <div class="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Tiến độ hiện tại</div>
+                <div class="mt-1 flex items-center gap-2">
+                    <span class="flex size-9 shrink-0 items-center justify-center rounded-lg bg-indigo-600 text-white shadow-lg shadow-indigo-600/20">
+                        <span class="material-icons-round !text-[20px]">{{ $currentProgressStep['icon'] }}</span>
+                    </span>
+                    <div class="min-w-0">
+                        <div class="truncate text-base font-black text-slate-900 dark:text-white">{{ $currentProgressStep['label'] }}</div>
+                        <div class="text-xs font-bold text-indigo-600 dark:text-indigo-300">Bước {{ $currentStage }}/{{ count($mobileProgressSteps) }}</div>
+                    </div>
+                </div>
+            </div>
+            <div class="shrink-0 rounded-lg bg-slate-100 px-3 py-2 text-sm font-black text-slate-700 dark:bg-slate-800 dark:text-slate-200">{{ $progressPercent }}%</div>
+        </div>
+        <div class="mt-4 h-2 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-800">
+            <div class="h-full rounded-full bg-indigo-600 transition-all" style="width: {{ $progressPercent }}%"></div>
+        </div>
+        <div class="mt-4 grid grid-cols-6 gap-1.5">
+            @foreach($mobileProgressSteps as $stepNumber => $step)
+                <div class="h-1.5 rounded-full {{ $stepNumber <= $currentStage ? 'bg-indigo-600' : 'bg-slate-200 dark:bg-slate-700' }}"></div>
+            @endforeach
+        </div>
+        <div class="mt-3 flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+            <span>Tiếp nhận</span>
+            <span>Bàn giao</span>
+        </div>
+    </div>
+</div>
 <!-- Progress Stepper -->
-<div class="px-8 py-6 bg-gray-50 dark:bg-[#0f172a]/50 border-y border-gray-200 dark:border-[#1e293b]">
-    <div class="relative flex items-center justify-between w-full max-w-4xl mx-auto md:mx-0">
+<div class="staff-progress-scroll px-8 py-6 bg-gray-50 dark:bg-[#0f172a]/50 border-y border-gray-200 dark:border-[#1e293b]">
+    <div class="staff-progress-track relative flex items-center justify-between w-full max-w-4xl mx-auto md:mx-0">
         <!-- Connecting Line -->
         <div class="absolute left-0 top-1/2 -translate-y-1/2 w-full h-0.5 bg-gray-200 dark:bg-[#1e293b] -z-0"></div>
         <div class="absolute left-0 top-1/2 -translate-y-1/2 h-0.5 bg-teal-500 transition-all duration-1000 -z-0" style="width: {{ min(100, ($currentStage - 1) * 20) }}%"></div>
@@ -279,15 +426,22 @@
 @endif
 
 <!-- Content Split -->
-<div class="flex-1 flex flex-col xl:flex-row">
+<div class="flex-1 flex flex-col xl:flex-row min-w-0">
     <!-- Tasks List -->
-    <div class="flex-1 p-8 border-b xl:border-b-0 xl:border-r border-gray-200 dark:border-[#1e293b] bg-gray-50 dark:bg-[#111827]">
-        <div class="flex items-center justify-between mb-6">
+    <div class="flex-1 min-w-0 p-8 border-b xl:border-b-0 xl:border-r border-gray-200 dark:border-[#1e293b] bg-gray-50 dark:bg-[#111827]">
+        <div class="staff-detail-row flex items-center justify-between mb-6 gap-3">
             <h3 class="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
                 <span class="material-icons-round text-indigo-600">list_alt</span>
                 Danh sách công việc
             </h3>
-            <div class="flex items-center gap-2 flex-wrap sm:flex-nowrap justify-end">
+            <button type="button" onclick="toggleStaffMobileSection('staffTaskActions', this)" class="staff-mobile-section-toggle hidden w-full items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-black text-slate-800 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100">
+                <span class="flex items-center gap-2">
+                    <span class="material-icons-round !text-[18px] text-indigo-500">bolt</span>
+                    Thao tác nhanh
+                </span>
+                <span class="staff-mobile-section-chevron material-icons-round !text-[18px] transition-transform">expand_more</span>
+            </button>
+            <div id="staffTaskActions" class="staff-order-actions flex items-center gap-2 flex-wrap sm:flex-nowrap justify-end">
                 @if($canCreateQuote || $canViewQuote)
                     @if($canCreateQuote)
                         <button onclick="window.location.href='{{ route('staff.quote.create', $selectedOrder->id) }}'" class="text-sm whitespace-nowrap shrink-0 w-max bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-bold py-1.5 px-3 rounded-lg shadow-md hover:shadow-lg flex items-center justify-center gap-1.5 transition-all transform hover:-translate-y-0.5" title="Tạo Báo Giá gửi Khách Hàng">
@@ -368,12 +522,12 @@
                     @endphp
                     <!-- Parent Task -->
                     <div onclick="@if($selectedOrder->status == 'pending') Swal.fire('Thông báo', 'Vui lòng \'Tiếp Nhận\' xe để xem và chỉnh sửa.', 'info'); @elseif($task->customer_approval_status === 'rejected') Swal.fire('Thông báo', 'Khách hàng đã từ chối mục này.', 'warning'); @else openTaskDetails('{{ $task->id }}') @endif" class="group bg-white dark:bg-[#1e293b] rounded-xl p-4 transition-all hover:bg-gray-50 dark:hover:bg-[#334155]/20 border border-dash border-gray-100 dark:border-[#334155] hover:border-indigo-200 dark:hover:border-indigo-500/50 cursor-pointer {{ $task->customer_approval_status === 'rejected' ? 'opacity-60 bg-red-50/50' : '' }} {{ $parentBlockedByChildren ? 'opacity-75' : '' }}">
-                        <div class="flex items-start gap-3">
+                        <div class="staff-task-card-main flex items-start gap-3">
                             <div class="pt-1">
                                 <input type="checkbox" onclick="event.stopPropagation(); @if($taskBlocked) Swal.fire('Thông báo', '{{ $taskBlockedMessage }}', 'info'); @else toggleTask('{{ $task->id }}', '{{ $task->status }}') @endif" {{ $task->status == 'completed' ? 'checked' : '' }} {{ $taskBlocked ? 'disabled' : '' }} title="{{ $parentBlockedByChildren ? $taskBlockedMessage : '' }}" class="w-5 h-5 rounded border-gray-300 dark:border-white/20 text-indigo-600 focus:ring-0 bg-transparent {{ $taskBlocked ? 'opacity-40 cursor-not-allowed grayscale' : 'cursor-pointer' }} transition-colors">
                             </div>
-                            <div class="flex-1">
-                                <div class="flex justify-between items-start">
+                            <div class="flex-1 min-w-0">
+                                <div class="staff-task-card-header flex justify-between items-start gap-3">
                                     <h4 class="font-bold text-gray-800 dark:text-gray-200 {{ $task->status == 'completed' || $task->customer_approval_status === 'rejected' ? 'line-through text-gray-400' : '' }}">{{ str_replace(' (VHC)', '', $task->title) }}</h4>
                                     
                                     <div class="flex items-center gap-2" onclick="event.stopPropagation()">
@@ -405,7 +559,14 @@
 
                         <!-- Subtasks -->
                         @if($task->children->count() > 0)
-                        <div class="ml-8 pl-4 border-l-2 border-gray-100 dark:border-[#1e293b] mt-2 space-y-2">
+                        <button type="button" onclick="event.stopPropagation(); toggleStaffMobileSection('staffSubtasks{{ $task->id }}', this)" class="staff-mobile-section-toggle hidden mt-3 w-full items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-black text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">
+                            <span class="flex items-center gap-2">
+                                <span class="material-icons-round !text-[16px] text-indigo-500">account_tree</span>
+                                {{ $task->children->count() }} việc con
+                            </span>
+                            <span class="staff-mobile-section-chevron material-icons-round !text-[18px] transition-transform">expand_more</span>
+                        </button>
+                        <div id="staffSubtasks{{ $task->id }}" class="staff-subtasks staff-mobile-collapsible ml-8 pl-4 border-l-2 border-gray-100 dark:border-[#1e293b] mt-2 space-y-2">
                             @foreach($task->children as $child)
                             @php
                                 $childBlocked = ! $canWorkTasks || $child->customer_approval_status === 'rejected';
@@ -415,7 +576,7 @@
                                     default => null,
                                 };
                             @endphp
-                            <div class="flex items-center gap-3 p-3 rounded-lg {{ $child->status == 'completed' ? 'bg-gray-50 dark:bg-[#1f2937]/30 opacity-75' : 'bg-white dark:bg-[#1f2937]/20 border border-gray-100 dark:border-[#374151]' }} {{ $child->customer_approval_status === 'rejected' ? 'bg-red-50/70 dark:bg-red-950/20 border-red-200 dark:border-red-900/60 opacity-75' : '' }} {{ $child->customer_approval_status === 'approved' ? 'border-green-200 dark:border-green-900/50' : '' }}">
+                            <div class="staff-subtask-row flex items-center gap-3 p-3 rounded-lg {{ $child->status == 'completed' ? 'bg-gray-50 dark:bg-[#1f2937]/30 opacity-75' : 'bg-white dark:bg-[#1f2937]/20 border border-gray-100 dark:border-[#374151]' }} {{ $child->customer_approval_status === 'rejected' ? 'bg-red-50/70 dark:bg-red-950/20 border-red-200 dark:border-red-900/60 opacity-75' : '' }} {{ $child->customer_approval_status === 'approved' ? 'border-green-200 dark:border-green-900/50' : '' }}">
                                 <input onclick="event.stopPropagation(); @if($childBlocked) Swal.fire('Thông báo', 'Task này đang bị khóa theo trạng thái đơn hoặc đã bị khách từ chối.', 'info'); @else toggleTask('{{ $child->id }}', '{{ $child->status }}') @endif" {{ $child->status == 'completed' ? 'checked' : '' }} {{ $childBlocked ? 'disabled' : '' }} class="size-4 shrink-0 rounded border-gray-300 dark:border-white/20 text-teal-600 focus:ring-0 bg-transparent {{ $childBlocked ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer' }}" type="checkbox">
                                 <div class="flex-1 min-w-0">
                                     <div class="flex flex-wrap items-center gap-2">
@@ -453,9 +614,16 @@
             </div>
 
             <!-- Visualizer & Info Panel -->
-            <div class="w-full xl:w-[400px] p-8 bg-gray-50 dark:bg-[#0f172a] flex flex-col gap-6 border-l border-gray-200 dark:border-transparent">
+            <div class="staff-info-panel w-full xl:w-[400px] p-8 bg-gray-50 dark:bg-[#0f172a] flex flex-col gap-6 border-l border-gray-200 dark:border-transparent">
+                <button type="button" onclick="toggleStaffInfoPanel(this)" class="staff-mobile-info-toggle staff-mobile-section-toggle hidden w-full items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-black text-slate-800 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100">
+                    <span class="flex items-center gap-2">
+                        <span class="material-icons-round !text-[18px] text-indigo-500">dashboard_customize</span>
+                        Thông tin thêm
+                    </span>
+                    <span class="staff-mobile-section-chevron material-icons-round !text-[18px] transition-transform">expand_more</span>
+                </button>
                 <!-- Customer Quick View -->
-                <div class="bg-white dark:bg-[#1e293b] rounded-xl p-4 shadow-sm border border-gray-200 dark:border-[#334155]">
+                <div class="staff-side-card bg-white dark:bg-[#1e293b] rounded-xl p-4 shadow-sm border border-gray-200 dark:border-[#334155]">
                     <div class="flex items-center gap-3 mb-3 border-b border-gray-100 dark:border-gray-700 pb-2">
                         <div class="bg-indigo-100 dark:bg-indigo-900/30 p-2 rounded-full text-indigo-600 dark:text-indigo-400">
                             <span class="material-icons-round !text-[20px]">person</span>
@@ -488,7 +656,7 @@
                     $orderMechanics = isset($currentTasks) ? $currentTasks->pluck('mechanic')->filter()->unique('id') : collect([]);
                 @endphp
                 @if($orderMechanics->isNotEmpty())
-                <div class="bg-indigo-50 dark:bg-indigo-900/20 rounded-xl p-4 shadow-sm border border-indigo-100 dark:border-indigo-800/30">
+                <div class="staff-side-card bg-indigo-50 dark:bg-indigo-900/20 rounded-xl p-4 shadow-sm border border-indigo-100 dark:border-indigo-800/30">
                     <h4 class="text-xs font-bold text-indigo-800 dark:text-indigo-300 uppercase tracking-widest mb-3 flex items-center gap-2">
                         <span class="material-icons-round !text-[16px]">engineering</span>
                         Nhân viên sửa chữa
@@ -559,6 +727,28 @@
                     <div class="space-y-3 max-h-72 overflow-y-auto pr-1">
                         @forelse(($orderActivities ?? collect()) as $activity)
                             @php
+                                $decodeLegacyVietnameseText = function (?string $text): string {
+                                    $text = (string) $text;
+                                    $text = preg_replace('/\bChuy\S+\s+task/u', 'Chuyển task', $text) ?? $text;
+
+                                    for ($i = 0; $i < 3 && preg_match('/(?:Ã|Â|Æ|Ä|á»|áº|â€|â€¢)/u', $text); $i++) {
+                                        $decoded = @mb_convert_encoding($text, 'Windows-1252', 'UTF-8');
+
+                                        if (
+                                            ! is_string($decoded)
+                                            || $decoded === ''
+                                            || $decoded === $text
+                                            || substr_count($decoded, '?') > substr_count($text, '?')
+                                        ) {
+                                            break;
+                                        }
+
+                                        $text = $decoded;
+                                    }
+
+                                    return $text;
+                                };
+
                                 $activityActionLabels = [
                                     'STAFF_ORDER_INTAKE' => 'Tiếp nhận xe',
                                     'STAFF_VHC_SAVED' => 'Lưu kiểm tra VHC',
@@ -578,7 +768,7 @@
                                     'STAFF_PAYMENT_RECEIVED' => 'Xác nhận thanh toán',
                                 ];
 
-                                $activityDetails = strtr($activity->details ?? '', [
+                                $activityDetails = strtr($decodeLegacyVietnameseText($activity->details ?? ''), [
                                     'Order #' => 'Đơn #',
                                     'order #' => 'đơn #',
                                     'pending_approval' => 'đang chờ khách duyệt',
@@ -597,7 +787,7 @@
                                 <div class="min-w-0">
                                     <div class="flex items-center gap-2 flex-wrap">
                                         <span class="font-bold text-gray-800 dark:text-gray-100">{{ $activity->user->name ?? 'System' }}</span>
-                                        <span class="text-[10px] uppercase font-bold bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-gray-400 px-2 py-0.5 rounded">{{ $activityActionLabels[$activity->action] ?? $activity->action }}</span>
+                                        <span class="text-[10px] uppercase font-bold bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-gray-400 px-2 py-0.5 rounded">{{ $decodeLegacyVietnameseText($activityActionLabels[$activity->action] ?? $activity->action) }}</span>
                                     </div>
                                     <p class="text-xs text-gray-500 dark:text-gray-400 mt-1 break-words">{{ $activityDetails }}</p>
                                     <p class="text-[11px] text-gray-400 dark:text-gray-500 mt-1">{{ $activity->created_at?->format('H:i d/m/Y') }}</p>

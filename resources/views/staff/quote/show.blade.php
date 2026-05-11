@@ -69,7 +69,7 @@
                     </a>
                 </div>
                 <!-- Embedded Viewer -->
-                <div class="h-[450px] w-full relative">
+                <div class="h-[320px] md:h-[450px] w-full relative">
                     <iframe src="{!! $threeDUrl !!}" class="w-full h-full border-0 relative z-0"></iframe>
                 </div>
             </div>

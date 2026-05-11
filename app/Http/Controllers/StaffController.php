@@ -334,6 +334,7 @@ class StaffController extends Controller
             $title = $d['part'] ?? 'Unknown';
             $description = $d['description'] ?? '';
             $severity = $d['severity'] ?? 'medium';
+            $images = array_values(array_filter($d['images'] ?? [], fn ($image) => is_string($image) && $image !== ''));
 
             $report->defects()->create([
                 'title' => $title,
@@ -343,7 +344,7 @@ class StaffController extends Controller
                 'pos_x' => $d['pos']['x'],
                 'pos_y' => $d['pos']['y'],
                 'pos_z' => $d['pos']['z'],
-                'images' => []
+                'images' => $images
             ]);
 
             \App\Models\RepairTask::create([
@@ -1568,6 +1569,8 @@ class StaffController extends Controller
 
     private function logOrderActivity(RepairOrder $order, string $action, string $details): void
     {
+        $details = $this->decodeLegacyVietnameseText($details);
+
         \App\Models\ActivityLog::create([
             'user_id' => Auth::id(),
             'action' => $action,
@@ -1578,15 +1581,38 @@ class StaffController extends Controller
 
     private function friendlyOrderStatus(?string $status): string
     {
-        return match ($status) {
-            RepairOrder::STATUS_PENDING => 'Ä‘ang chá» tiáº¿p nháº­n',
-            RepairOrder::STATUS_IN_PROGRESS => 'Ä‘ang kiá»ƒm tra/láº­p bÃ¡o giÃ¡',
-            RepairOrder::STATUS_PENDING_APPROVAL => 'Ä‘ang chá» khÃ¡ch duyá»‡t',
-            RepairOrder::STATUS_APPROVED => 'khÃ¡ch Ä‘Ã£ duyá»‡t',
-            RepairOrder::STATUS_COMPLETED => 'Ä‘Ã£ hoÃ n thÃ nh',
-            RepairOrder::STATUS_CANCELLED => 'Ä‘Ã£ há»§y',
-            default => $status ?: 'khÃ´ng rÃµ',
-        };
+        $labels = [
+            RepairOrder::STATUS_PENDING => 'đang chờ tiếp nhận',
+            RepairOrder::STATUS_IN_PROGRESS => 'đang kiểm tra/lập báo giá',
+            RepairOrder::STATUS_PENDING_APPROVAL => 'đang chờ khách duyệt',
+            RepairOrder::STATUS_APPROVED => 'khách đã duyệt',
+            RepairOrder::STATUS_COMPLETED => 'đã hoàn thành',
+            RepairOrder::STATUS_CANCELLED => 'đã hủy',
+        ];
+
+        return $labels[$status] ?? ($status ?: 'không rõ');
+    }
+
+    private function decodeLegacyVietnameseText(string $text): string
+    {
+        $text = preg_replace('/\bChuy\S+\s+task/u', 'Chuyển task', $text) ?? $text;
+
+        for ($i = 0; $i < 3 && preg_match('/(?:Ã|Â|Æ|Ä|á»|áº|â€|â€¢)/u', $text); $i++) {
+            $decoded = @mb_convert_encoding($text, 'Windows-1252', 'UTF-8');
+
+            if (
+                ! is_string($decoded)
+                || $decoded === ''
+                || $decoded === $text
+                || substr_count($decoded, '?') > substr_count($text, '?')
+            ) {
+                break;
+            }
+
+            $text = $decoded;
+        }
+
+        return $text;
     }
 
     private function canManageStaffOrderFlow(): bool
@@ -1611,4 +1637,3 @@ class StaffController extends Controller
     }
 
 }
-

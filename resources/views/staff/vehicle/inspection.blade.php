@@ -2,7 +2,7 @@
 
 @section('title', '3D Inspection - ' . $vehicle->license_plate)
 
-@section('main_class', 'flex flex-row overflow-hidden p-0 absolute inset-0 w-full h-full')
+@section('main_class', 'w-full h-full flex-1 relative')
 
 @section('styles')
 <style>
@@ -33,6 +33,286 @@
         border-radius: 50%;
         animation: pulse-ring 1.5s ease-out infinite;
     }
+    .inspection-canvas { min-height: 56vh; }
+    .inspection-sidebar { min-height: 0; }
+    .inspection-shell { height: calc(100dvh - 4rem); }
+    .inspection-shell-plain { height: 100dvh; }
+    .mobile-inspection-dock { display: none; }
+    .inspection-sheet-toggle { display: none; }
+    @media (min-width: 768px) {
+        .inspection-shell { height: calc(100dvh - 5rem); }
+        .inspection-shell-plain { height: 100dvh; }
+    }
+    @media (max-width: 767px) {
+        .inspection-shell {
+            position: fixed !important;
+            inset: 0 !important;
+            height: 100dvh !important;
+            min-height: 100dvh !important;
+            overflow-y: hidden !important;
+            overflow-x: hidden !important;
+            background: #020617;
+        }
+        #webgl-container { touch-action: none; }
+        .inspection-canvas {
+            flex: 1 1 auto !important;
+            min-height: 0;
+            height: 100dvh;
+            padding-bottom: 5.75rem;
+        }
+        .inspection-sidebar {
+            position: fixed;
+            left: .5rem;
+            right: .5rem;
+            bottom: calc(.5rem + env(safe-area-inset-bottom));
+            width: auto !important;
+            height: min(74dvh, 680px);
+            max-height: calc(100dvh - 6rem);
+            border-left: 0 !important;
+            border-top: 1px solid #e2e8f0;
+            border-radius: 22px;
+            margin-top: 0;
+            box-shadow: 0 -18px 55px rgba(15, 23, 42, .32);
+            overflow: hidden !important;
+            touch-action: pan-y pinch-zoom;
+            -webkit-overflow-scrolling: touch;
+            transform: translateY(calc(100% - 5.15rem));
+            transition: transform .28s ease, height .28s ease, box-shadow .28s ease;
+            z-index: 60;
+        }
+        .inspection-shell.sheet-peek .inspection-sidebar {
+            transform: translateY(calc(100% - 5.15rem));
+        }
+        .inspection-shell.sheet-half .inspection-sidebar {
+            height: min(58dvh, 560px);
+            transform: translateY(0);
+        }
+        .inspection-shell.sheet-open .inspection-sidebar {
+            height: calc(100dvh - 1rem - env(safe-area-inset-bottom));
+            max-height: calc(100dvh - 1rem - env(safe-area-inset-bottom));
+            transform: translateY(0);
+        }
+        .inspection-shell.sheet-hidden .inspection-sidebar {
+            transform: translateY(calc(100% + 1rem));
+        }
+        .inspection-sidebar-header {
+            padding: .95rem 4.35rem .75rem 1rem !important;
+            border-bottom-color: #e2e8f0 !important;
+            position: relative !important;
+            top: auto !important;
+            min-height: 5.15rem;
+            z-index: 30;
+            flex: 0 0 auto;
+            cursor: grab;
+            touch-action: none;
+            user-select: none;
+        }
+        .inspection-shell.sheet-dragging .inspection-sidebar {
+            transition: none !important;
+        }
+        .inspection-shell.sheet-dragging .inspection-sidebar-header {
+            cursor: grabbing;
+        }
+        .inspection-sidebar-header::before {
+            content: '';
+            position: absolute;
+            top: .45rem;
+            left: 50%;
+            width: 2.75rem;
+            height: .25rem;
+            border-radius: 999px;
+            background: #cbd5e1;
+            transform: translateX(-50%);
+            pointer-events: none;
+        }
+        .inspection-sidebar-title {
+            padding-top: .35rem;
+        }
+        .inspection-sheet-toggle {
+            display: inline-flex;
+            position: absolute;
+            z-index: 80;
+            top: 1.35rem;
+            right: .9rem;
+            width: 3rem !important;
+            height: 3rem !important;
+            min-width: 3rem;
+            min-height: 3rem;
+            pointer-events: auto;
+            touch-action: manipulation;
+        }
+        .inspection-stats {
+            padding: .5rem .75rem !important;
+            gap: .5rem !important;
+            border-bottom-color: #e2e8f0 !important;
+        }
+        .inspection-stats-divider {
+            display: none;
+        }
+        .inspection-stat-card {
+            border: 1px solid #e2e8f0;
+            padding: .55rem .35rem !important;
+            background: #f8fafc;
+        }
+        .inspection-stat-card span:first-child {
+            font-size: .58rem !important;
+            letter-spacing: .04em !important;
+            line-height: .8rem;
+        }
+        .inspection-stat-card span:last-child {
+            font-size: 1.15rem !important;
+        }
+        #defectList {
+            flex: 1 1 auto !important;
+            min-height: 0 !important;
+            overflow-y: auto !important;
+            padding: .75rem .875rem !important;
+            gap: .75rem;
+            background: #f8fafc !important;
+        }
+        .defect-card {
+            padding: .875rem !important;
+            border-radius: 1rem !important;
+            box-shadow: 0 8px 20px -16px rgba(15, 23, 42, .35) !important;
+        }
+        .defect-card:hover {
+            transform: none;
+        }
+        .defect-card select,
+        .defect-card textarea {
+            font-size: .875rem !important;
+        }
+        .defect-card select {
+            min-height: 2.75rem;
+        }
+        .defect-card textarea {
+            min-height: 5rem !important;
+            line-height: 1.35rem;
+        }
+        .defect-card-mobile-actions {
+            display: grid !important;
+            grid-template-columns: minmax(0, 1fr) auto;
+            align-items: center;
+        }
+        .defect-card-mobile-actions button {
+            min-height: 2.75rem;
+            justify-content: center;
+        }
+        .inspection-actions {
+            position: sticky;
+            bottom: 0;
+            padding: .75rem .875rem calc(.75rem + env(safe-area-inset-bottom)) !important;
+            background: #fff;
+            border-top: 1px solid #e2e8f0 !important;
+            box-shadow: 0 -10px 24px rgba(15, 23, 42, .08);
+        }
+        .inspection-toolbar {
+            bottom: 1rem !important;
+            left: 0.75rem !important;
+            transition: opacity .18s ease, transform .18s ease;
+        }
+        .inspection-toolbar .glass-panel {
+            width: auto !important;
+            flex-direction: row !important;
+            max-width: calc(100vw - 6.25rem);
+            overflow-x: auto;
+            border-radius: 18px !important;
+            padding: .4rem !important;
+        }
+        .inspection-toolbar button {
+            width: 2.75rem !important;
+            height: 2.75rem !important;
+            flex: 0 0 auto;
+        }
+        #custom-panel {
+            left: 0.75rem !important;
+            right: 0.75rem !important;
+            bottom: 5.85rem !important;
+            width: auto !important;
+        }
+        #modeIndicator {
+            top: .75rem !important;
+            left: 0.75rem !important;
+            right: 0.75rem !important;
+            transform: none !important;
+            justify-content: center;
+            padding-left: 1rem;
+            padding-right: 1rem;
+        }
+        .inspection-mobile-header {
+            padding: .5rem !important;
+        }
+        .inspection-mobile-header > div {
+            gap: 0 !important;
+            border: 0 !important;
+            border-radius: 0 !important;
+            background: transparent !important;
+            box-shadow: none !important;
+            padding: 0 !important;
+        }
+        .inspection-back-button {
+            width: 2.5rem !important;
+            height: 2.5rem !important;
+            flex: 0 0 2.5rem;
+            background: rgba(15, 23, 42, .78) !important;
+            border: 1px solid rgba(255, 255, 255, .16);
+            box-shadow: 0 10px 26px rgba(15, 23, 42, .24);
+        }
+        .inspection-header-divider,
+        .inspection-header-info {
+            display: none !important;
+        }
+        .inspection-actions button {
+            min-height: 46px;
+            padding-top: .75rem !important;
+            padding-bottom: .75rem !important;
+            font-size: .875rem;
+        }
+        .inspection-actions .mobile-secondary-actions {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: .5rem;
+        }
+        .inspection-actions > button:first-of-type {
+            display: none;
+        }
+        .mobile-inspection-dock {
+            display: flex;
+            position: fixed;
+            right: .75rem;
+            bottom: calc(1rem + env(safe-area-inset-bottom));
+            z-index: 55;
+            flex-direction: column;
+            gap: .5rem;
+        }
+        .mobile-inspection-dock button {
+            width: 3.25rem;
+            height: 3.25rem;
+            border-radius: 999px;
+            box-shadow: 0 14px 34px rgba(15, 23, 42, .28);
+            border: 1px solid rgba(255,255,255,.7);
+            background: rgba(255,255,255,.96);
+            color: #0f172a;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .mobile-inspection-dock button.primary {
+            background: #0f172a;
+            color: #fff;
+        }
+        .inspection-shell.sheet-half .mobile-inspection-dock,
+        .inspection-shell.sheet-open .mobile-inspection-dock {
+            display: none;
+        }
+        .inspection-shell.sheet-half .inspection-toolbar,
+        .inspection-shell.sheet-open .inspection-toolbar,
+        .inspection-shell.sheet-dragging .inspection-toolbar {
+            opacity: 0;
+            pointer-events: none;
+            transform: translateY(.75rem);
+        }
+    }
 </style>
 @endsection
 
@@ -50,18 +330,19 @@
 </div>
 @endsection
 
-@section('content')
+@section((request('iframe') || request('fullscreen')) ? 'content' : 'full-width-content')
+<div class="inspection-shell sheet-peek flex flex-col md:flex-row overflow-hidden p-0 relative flex-1 min-h-0 w-full {{ (request('iframe') || request('fullscreen')) ? 'inspection-shell-plain' : '' }}">
 <!-- Fullscreen Header (Only visible in fullscreen mode) -->
 @if(request('iframe') || request('fullscreen'))
-<nav class="absolute top-0 left-0 right-0 z-50 p-4 pointer-events-none">
+<nav class="inspection-mobile-header absolute top-0 left-0 right-0 z-50 p-4 pointer-events-none">
     <div class="pointer-events-auto inline-flex items-center gap-4 bg-slate-900/80 backdrop-blur-md px-4 py-2.5 rounded-2xl border border-white/10 shadow-2xl">
-        <a href="{{ $backUrl ?? route('staff.dashboard') }}" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition">
+        <a href="{{ $backUrl ?? route('staff.dashboard') }}" class="inspection-back-button w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition">
             <i class="fas fa-arrow-left text-sm"></i>
         </a>
-        <div class="h-6 w-px bg-white/10"></div>
-        <div>
-            <h1 class="text-xs font-bold text-slate-400 uppercase tracking-wider">Inspection Mode</h1>
-            <div class="flex items-center gap-2">
+        <div class="inspection-header-divider h-6 w-px bg-white/10"></div>
+        <div class="inspection-header-info">
+            <h1 class="inspection-header-title text-xs font-bold text-slate-400 uppercase tracking-wider">Inspection Mode</h1>
+            <div class="inspection-header-meta flex items-center gap-2">
                 <span class="text-sm font-bold text-white">{{ $vehicle->license_plate }}</span>
                 <span class="text-xs text-slate-500">•</span>
                 <span class="text-sm text-slate-300">{{ $vehicle->model }}</span>
@@ -71,11 +352,11 @@
 </nav>
 @endif
 <!-- Center: 3D Canvas -->
-<div class="flex-1 bg-gradient-to-br from-slate-50 to-slate-100 relative overflow-hidden">
+<div class="inspection-canvas flex-1 bg-gradient-to-br from-slate-50 to-slate-100 relative overflow-hidden">
     <div id="webgl-container" class="absolute inset-0 w-full h-full"></div>
 
     <!-- Enhanced Floating Tool Panel -->
-    <div class="absolute bottom-8 left-8 flex flex-col gap-3 z-50">
+    <div class="inspection-toolbar absolute bottom-8 left-8 flex flex-col gap-3 z-50">
         <!-- Interaction Modes -->
         <div class="glass-panel p-2 rounded-2xl shadow-xl flex flex-col gap-2 w-16">
             <button id="btnView" onclick="setMode('view')"
@@ -161,36 +442,52 @@
     </div>
 </div>
 
+<!-- Mobile Floating Dock -->
+<div class="mobile-inspection-dock md:hidden" aria-label="Mobile inspection controls">
+    <button type="button" class="primary" onclick="setMobileSheet('half')" title="Mo bao cao loi">
+        <i class="fas fa-list-check"></i>
+    </button>
+    <button type="button" onclick="setMode('defect')" title="Ghim loi">
+        <i class="fas fa-wrench"></i>
+    </button>
+    <button type="button" onclick="window.saveInspection('draft')" title="Luu nhap">
+        <i class="fas fa-save"></i>
+    </button>
+</div>
+
 <!-- Right Sidebar: Defect List -->
-<aside class="w-96 bg-white border-l border-slate-100 flex flex-col z-20 shadow-[0_0_40px_rgba(0,0,0,0.05)] font-sans h-full overflow-hidden">
-    <div class="px-6 py-5 border-b border-slate-50 flex justify-between items-center bg-white sticky top-0 z-10">
-        <div>
+<aside class="inspection-sidebar w-full md:w-96 bg-white border-l border-slate-100 flex flex-col z-20 shadow-[0_0_40px_rgba(0,0,0,0.05)] font-sans md:h-full overflow-hidden" aria-label="Danh sach loi kiem tra 3D">
+    <div class="inspection-sidebar-header px-6 py-5 border-b border-slate-50 flex justify-between items-center bg-white sticky top-0 z-10">
+        <div class="inspection-sidebar-title min-w-0">
             <h2 class="font-bold text-slate-800 text-lg tracking-tight">Báo Cáo Kiểm Tra</h2>
             <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-0.5 opacity-80">3D Visual Check</p>
         </div>
-        <div class="flex items-center gap-3">
+        <div class="flex shrink-0 items-center gap-2 md:gap-3">
              <span id="saveIndicator" class="text-[10px] font-bold text-slate-400 uppercase tracking-wider transition-opacity duration-300 opacity-0">
                 Đã lưu nháp
              </span>
              <span id="defectCount" class="bg-slate-100 text-slate-600 text-[10px] px-2.5 py-1 rounded-full font-bold">
                 0 Lỗi
             </span>
+            <button type="button" id="sheetToggleButton" class="inspection-sheet-toggle items-center justify-center rounded-full bg-slate-100 text-slate-600 md:hidden" aria-label="Thu gon hoac mo rong danh sach loi" title="Thu gon / mo rong">
+                <i id="sheetToggleIcon" class="fas fa-chevron-up text-xs"></i>
+            </button>
         </div>
     </div>
 
     <!-- Stats Summary (Minimalist) -->
-    <div class="px-6 py-2 bg-white flex justify-between items-center border-b border-slate-50 gap-2">
-        <div class="flex-1 flex flex-col items-center py-2 px-3 rounded-lg hover:bg-red-50/50 transition-colors group cursor-default">
+    <div class="inspection-stats px-6 py-2 bg-white flex justify-between items-center border-b border-slate-50 gap-2">
+        <div class="inspection-stat-card flex-1 flex flex-col items-center py-2 px-3 rounded-lg hover:bg-red-50/50 transition-colors group cursor-default">
             <span class="text-[9px] font-bold text-slate-400 uppercase tracking-widest group-hover:text-red-400 transition-colors">Nghiêm trọng</span>
             <span id="stat-critical" class="text-xl font-bold text-slate-700 leading-none mt-1 group-hover:text-red-500 transition-colors">0</span>
         </div>
-        <div class="w-px h-8 bg-slate-100"></div>
-        <div class="flex-1 flex flex-col items-center py-2 px-3 rounded-lg hover:bg-orange-50/50 transition-colors group cursor-default">
+        <div class="inspection-stats-divider w-px h-8 bg-slate-100"></div>
+        <div class="inspection-stat-card flex-1 flex flex-col items-center py-2 px-3 rounded-lg hover:bg-orange-50/50 transition-colors group cursor-default">
             <span class="text-[9px] font-bold text-slate-400 uppercase tracking-widest group-hover:text-orange-400 transition-colors">Trung bình</span>
             <span id="stat-medium" class="text-xl font-bold text-slate-700 leading-none mt-1 group-hover:text-orange-500 transition-colors">0</span>
         </div>
-        <div class="w-px h-8 bg-slate-100"></div>
-        <div class="flex-1 flex flex-col items-center py-2 px-3 rounded-lg hover:bg-blue-50/50 transition-colors group cursor-default">
+        <div class="inspection-stats-divider w-px h-8 bg-slate-100"></div>
+        <div class="inspection-stat-card flex-1 flex flex-col items-center py-2 px-3 rounded-lg hover:bg-blue-50/50 transition-colors group cursor-default">
             <span class="text-[9px] font-bold text-slate-400 uppercase tracking-widest group-hover:text-blue-400 transition-colors">Nhẹ</span>
             <span id="stat-minor" class="text-xl font-bold text-slate-700 leading-none mt-1 group-hover:text-blue-500 transition-colors">0</span>
         </div>
@@ -208,7 +505,8 @@
     </div>
 
     <!-- Action Area -->
-    <div class="p-4 md:p-5 bg-white border-t border-slate-50 space-y-2.5">
+    <div class="inspection-actions p-4 md:p-5 bg-white border-t border-slate-50 space-y-2.5">
+        <input type="file" id="defect-image-input" accept="image/*" capture="environment" class="hidden">
         <button onclick="window.saveInspection('draft')"
             class="w-full bg-white hover:bg-slate-50 text-slate-700 font-bold py-2.5 rounded-lg border border-slate-200 transition-all active:scale-[0.98] flex items-center justify-center gap-2 group" title="Chỉ nhân viên Garage mới xem được">
             <i class="fas fa-save text-slate-400 group-hover:text-blue-500 transition-colors"></i>
@@ -226,6 +524,7 @@
         </button>
     </div>
 </aside>
+</div>
 @endsection
 
 @push('scripts')
@@ -243,6 +542,150 @@
     import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
     import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
     import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
+
+    const inspectionShell = document.querySelector('.inspection-shell');
+    const inspectionSidebar = document.querySelector('.inspection-sidebar');
+    const inspectionSidebarHeader = document.querySelector('.inspection-sidebar-header');
+    const sheetToggleButton = document.getElementById('sheetToggleButton');
+    const sheetToggleIcon = document.getElementById('sheetToggleIcon');
+    const mobileSheetStates = ['sheet-hidden', 'sheet-peek', 'sheet-half', 'sheet-open', 'sheet-dragging'];
+    let mobileSheetState = 'peek';
+    let sheetDrag = null;
+    let sheetJustDragged = false;
+
+    function isMobileInspection() {
+        return window.matchMedia('(max-width: 767px)').matches;
+    }
+
+    window.setMobileSheet = (state = 'half') => {
+        if (!inspectionShell || !isMobileInspection()) return;
+        mobileSheetState = state;
+        if (inspectionSidebar) inspectionSidebar.style.transform = '';
+        mobileSheetStates.forEach(className => inspectionShell.classList.remove(className));
+        inspectionShell.classList.add(`sheet-${state}`);
+
+        if (sheetToggleIcon) {
+            sheetToggleIcon.className = state === 'open'
+                ? 'fas fa-chevron-down text-xs'
+                : 'fas fa-chevron-up text-xs';
+        }
+    };
+
+    window.cycleMobileSheet = () => {
+        if (!isMobileInspection()) return;
+        if (mobileSheetState === 'peek') return window.setMobileSheet('half');
+        if (mobileSheetState === 'half') return window.setMobileSheet('open');
+        return window.setMobileSheet('half');
+    };
+
+    function getSheetTranslateForState(state) {
+        if (!inspectionSidebar) return 0;
+        const sheetHeight = inspectionSidebar.getBoundingClientRect().height;
+        const peekHeight = Math.min(82, sheetHeight);
+        if (state === 'peek') return Math.max(0, sheetHeight - peekHeight);
+        return 0;
+    }
+
+    function snapMobileSheetFromTranslate(translateY, deltaY = 0) {
+        if (!inspectionSidebar) return;
+        const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
+        const halfThreshold = viewportHeight * 0.22;
+        const peekThreshold = viewportHeight * 0.42;
+
+        if (deltaY < -36) {
+            window.setMobileSheet(mobileSheetState === 'peek' ? 'half' : 'open');
+        } else if (deltaY > 36) {
+            window.setMobileSheet(mobileSheetState === 'open' ? 'half' : 'peek');
+        } else if (translateY <= halfThreshold) {
+            window.setMobileSheet(mobileSheetState === 'half' ? 'open' : 'half');
+        } else if (translateY <= peekThreshold) {
+            window.setMobileSheet('half');
+        } else {
+            window.setMobileSheet('peek');
+        }
+    }
+
+    function startSheetDrag(event) {
+        if (!isMobileInspection() || !inspectionSidebar || !inspectionShell) return;
+        if (event.target.closest('a, input, select, textarea')) return;
+
+        const pointerY = event.clientY ?? event.touches?.[0]?.clientY;
+        if (pointerY === undefined) return;
+
+        const currentTranslate = getSheetTranslateForState(mobileSheetState);
+        sheetDrag = {
+            startY: pointerY,
+            lastY: pointerY,
+            startTranslate: currentTranslate,
+            maxTranslate: getSheetTranslateForState('peek'),
+            moved: false,
+        };
+
+        inspectionShell.classList.add('sheet-dragging');
+        inspectionSidebar.style.transform = `translateY(${currentTranslate}px)`;
+
+        if (event.pointerId !== undefined && inspectionSidebarHeader.setPointerCapture) {
+            inspectionSidebarHeader.setPointerCapture(event.pointerId);
+        }
+        event.preventDefault();
+    }
+
+    function moveSheetDrag(event) {
+        if (!sheetDrag || !inspectionSidebar) return;
+        const pointerY = event.clientY ?? event.touches?.[0]?.clientY;
+        if (pointerY === undefined) return;
+
+        const nextTranslate = Math.max(0, Math.min(sheetDrag.maxTranslate, sheetDrag.startTranslate + pointerY - sheetDrag.startY));
+        sheetDrag.lastY = pointerY;
+        if (Math.abs(pointerY - sheetDrag.startY) > 8) sheetDrag.moved = true;
+        inspectionSidebar.style.transform = `translateY(${nextTranslate}px)`;
+        event.preventDefault();
+    }
+
+    function endSheetDrag(event) {
+        if (!sheetDrag || !inspectionSidebar || !inspectionShell) return;
+        const transform = inspectionSidebar.style.transform.match(/translateY\(([-\d.]+)px\)/);
+        const currentTranslate = transform ? Number(transform[1]) : getSheetTranslateForState(mobileSheetState);
+        const deltaY = (sheetDrag.lastY ?? sheetDrag.startY) - sheetDrag.startY;
+        const didMove = sheetDrag.moved;
+
+        sheetDrag = null;
+        sheetJustDragged = didMove;
+        inspectionShell.classList.remove('sheet-dragging');
+        inspectionSidebar.style.transform = '';
+        if (didMove) snapMobileSheetFromTranslate(currentTranslate, deltaY);
+
+        if (event?.pointerId !== undefined && inspectionSidebarHeader?.releasePointerCapture) {
+            try { inspectionSidebarHeader.releasePointerCapture(event.pointerId); } catch (e) {}
+        }
+        if (didMove) setTimeout(() => { sheetJustDragged = false; }, 0);
+    }
+
+    if (sheetToggleButton) {
+        const handleSheetToggle = (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            if (sheetJustDragged) {
+                sheetJustDragged = false;
+                return;
+            }
+            window.cycleMobileSheet();
+        };
+
+        sheetToggleButton.addEventListener('click', handleSheetToggle);
+    }
+
+    if (inspectionSidebarHeader) {
+        inspectionSidebarHeader.addEventListener('pointerdown', startSheetDrag, { passive: false });
+        inspectionSidebarHeader.addEventListener('pointermove', moveSheetDrag, { passive: false });
+        inspectionSidebarHeader.addEventListener('pointerup', endSheetDrag);
+        inspectionSidebarHeader.addEventListener('pointercancel', endSheetDrag);
+    }
+
+    window.addEventListener('resize', () => {
+        if (isMobileInspection()) window.setMobileSheet(mobileSheetState);
+        else if (inspectionShell) mobileSheetStates.forEach(className => inspectionShell.classList.remove(className));
+    });
     
     // --- CONFIGURATION ---
     const vehicleType = "{{ strtolower($vehicle->type) }}";
@@ -275,6 +718,8 @@
     const defectListEl = document.getElementById('defectList');
     const defectCountEl = document.getElementById('defectCount');
     const modeIndicator = document.getElementById('modeIndicator');
+    const defectImageInput = document.getElementById('defect-image-input');
+    let pendingDefectImageIndex = null;
     
     // --- THREE.JS INIT ---
     const scene = new THREE.Scene();
@@ -477,6 +922,7 @@
                                     severity: d.severity,
                                     status: 'damage',
                                     isPublished: isPublished,
+                                    images: Array.isArray(d.images) ? d.images : [],
                                     pos: { 
                                         x: parseFloat(d.pos_x || d.pos.x), 
                                         y: parseFloat(d.pos_y || d.pos.y), 
@@ -723,9 +1169,11 @@
                     severity: 'medium', // Default
                     status: 'damage', 
                     description: '',
+                    images: [],
                     pos: { x: point.x, y: point.y, z: point.z } 
                 });
                 renderDefects();
+                if (isMobileInspection()) window.setMobileSheet('half');
                 showToast(`Đã ghim lỗi: ${partName}`);
             }
         }
@@ -875,7 +1323,13 @@
                 'Content-Type': 'application/json',
                 'X-CSRF-TOKEN': CSRF_TOKEN
             },
-            body: JSON.stringify({ defects: defects, status: status })
+            body: JSON.stringify({
+                defects: defects.map(defect => ({
+                    ...defect,
+                    images: Array.isArray(defect.images) ? defect.images : []
+                })),
+                status: status
+            })
         })
         .then(res => res.json())
         .then(res => {
@@ -938,6 +1392,9 @@
                 minor: { border: 'border-l-4 border-l-blue-500', text: 'text-blue-600', bg: 'hover:bg-blue-50/30' }
             };
             const theme = severityColors[d.severity || 'medium'];
+            const defectImages = Array.isArray(d.images) ? d.images : [];
+            const primaryImage = defectImages[0] || '';
+            const imageLabel = defectImages.length ? `${defectImages.length} ảnh` : 'Chưa có ảnh';
             
             // Format Part Name: Remove hyphens, Capitalize
             const partDisplayName = (d.part || 'Không xác định')
@@ -958,7 +1415,12 @@
                         <i class="fas fa-trash-alt text-sm"></i>
                     </button>
                 </div>
-                
+
+                ${primaryImage ? `
+                <div class="mb-3 overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
+                    <img src="${primaryImage}" alt="Ảnh lỗi" class="h-32 w-full object-cover">
+                </div>` : ''}
+
                 <div class="space-y-3">
                     <!-- Custom Select -->
                     <div class="relative" onclick="event.stopPropagation()">
@@ -982,8 +1444,43 @@
                         placeholder="Thêm mô tả chi tiết..."
                         onchange="updateDefect(${i}, 'description', this.value)">${d.description || ''}</textarea>
                 </div>
+
+                <div class="mt-3 flex items-center justify-between gap-2">
+                    <button type="button" onclick="event.stopPropagation(); attachDefectImage(${i})" class="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-3 py-2 text-xs font-bold text-white transition hover:bg-black">
+                        <i class="fas fa-camera"></i>
+                        Ảnh chụp
+                    </button>
+                    <span class="text-[10px] font-bold uppercase tracking-widest text-slate-400">${imageLabel}</span>
+                </div>
             </div>`;
         }).join('');
+    }
+
+    window.attachDefectImage = (index) => {
+        pendingDefectImageIndex = index;
+        if (!defectImageInput) return;
+        defectImageInput.value = '';
+        defectImageInput.click();
+    };
+
+    if (defectImageInput) {
+        defectImageInput.addEventListener('change', () => {
+            const file = defectImageInput.files && defectImageInput.files[0];
+            if (!file || pendingDefectImageIndex === null || !defects[pendingDefectImageIndex]) return;
+
+            const reader = new FileReader();
+            reader.onload = () => {
+                const currentImages = Array.isArray(defects[pendingDefectImageIndex].images)
+                    ? defects[pendingDefectImageIndex].images
+                    : [];
+                defects[pendingDefectImageIndex].images = [reader.result, ...currentImages.filter(Boolean)];
+                renderDefects();
+                autoSave();
+                showToast('Đã thêm ảnh vào lỗi');
+                pendingDefectImageIndex = null;
+            };
+            reader.readAsDataURL(file);
+        });
     }
 
     window.updateDefect = (index, field, value) => {

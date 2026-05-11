@@ -2,7 +2,7 @@
 
 @section('title', '3D Inspection - ' . $vehicle->license_plate)
 
-@section('main_class', 'flex flex-row overflow-hidden p-0 absolute inset-0 w-full h-full')
+@section('main_class', 'inspection-shell flex flex-col md:flex-row overflow-hidden p-0 absolute inset-0 w-full h-full')
 
 @section('styles')
 <style>
@@ -32,6 +32,37 @@
         border: 2px solid #3b82f6;
         border-radius: 50%;
         animation: pulse-ring 1.5s ease-out infinite;
+    }
+    .inspection-canvas { min-height: 58vh; }
+    .inspection-sidebar { min-height: 0; }
+    @media (max-width: 767px) {
+        #webgl-container { touch-action: none; }
+        .inspection-canvas { min-height: 58vh; }
+        .inspection-sidebar {
+            width: 100% !important;
+            max-height: 42vh;
+            border-left: 0 !important;
+            border-top: 1px solid #e2e8f0;
+        }
+        .inspection-toolbar {
+            bottom: 1rem !important;
+            left: 0.75rem !important;
+        }
+        .inspection-toolbar .glass-panel {
+            width: auto !important;
+            flex-direction: row !important;
+            max-width: calc(100vw - 1.5rem);
+            overflow-x: auto;
+        }
+        #modeIndicator {
+            top: 4.75rem !important;
+            left: 0.75rem !important;
+            right: 0.75rem !important;
+            transform: none !important;
+            justify-content: center;
+            padding-left: 1rem;
+            padding-right: 1rem;
+        }
     }
 </style>
 @endsection
@@ -71,11 +102,11 @@
 </nav>
 @endif
 <!-- Center: 3D Canvas -->
-<div class="flex-1 bg-gradient-to-br from-slate-50 to-slate-100 relative overflow-hidden">
+<div class="inspection-canvas flex-1 bg-gradient-to-br from-slate-50 to-slate-100 relative overflow-hidden">
     <div id="webgl-container" class="absolute inset-0 w-full h-full"></div>
 
     <!-- Enhanced Floating Tool Panel -->
-    <div class="absolute bottom-8 left-8 flex flex-col gap-3 z-50">
+    <div class="inspection-toolbar absolute bottom-8 left-8 flex flex-col gap-3 z-50">
         <!-- Interaction Modes -->
         <div class="glass-panel p-2 rounded-2xl shadow-xl flex flex-col gap-2 w-16">
             <button id="btnView" onclick="setMode('view')"
@@ -119,7 +150,7 @@
 </div>
 
 <!-- Right Sidebar: Defect List -->
-<aside class="w-96 bg-white border-l border-slate-100 flex flex-col z-20 shadow-[0_0_40px_rgba(0,0,0,0.05)] font-sans h-full overflow-hidden">
+<aside class="inspection-sidebar w-full md:w-96 bg-white border-l border-slate-100 flex flex-col z-20 shadow-[0_0_40px_rgba(0,0,0,0.05)] font-sans md:h-full overflow-hidden">
     <div class="px-6 py-5 border-b border-slate-50 flex justify-between items-center bg-white sticky top-0 z-10">
         <div>
             <h2 class="font-bold text-slate-800 text-lg tracking-tight">Danh sách lỗi trên xe</h2>

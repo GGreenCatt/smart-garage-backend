@@ -220,22 +220,30 @@
             <div class="space-y-4 proposed-fixes-list" id="fixes-list-{{ $task->id }}">
                 @if($task->type == 'vhc' && $order->vhcReport && $order->vhcReport->defects->count() > 0)
                     <!-- VHC Defects act as pre-filled suggested fixes -->
-                    @foreach($order->vhcReport->defects as $defect)
-                        <div class="fix-row vhc-defect-row bg-red-50/70 dark:bg-red-950/20 p-5 rounded-lg border border-red-200 dark:border-red-900/70 border-l-4 border-l-red-500 mb-5 transition-all">
-                            <div class="flex justify-between items-start mb-4">
+                            @foreach($order->vhcReport->defects as $defect)
                                 @php
-                                    $childDefectTask = $task->children->where('type', 'defect')->where('title', $defect->title)->first();
+                                    $defectImage = is_array($defect->images ?? null) ? ($defect->images[0] ?? null) : null;
+                                    $defectImageSrc = $defectImage
+                                        ? (str_starts_with($defectImage, 'data:')
+                                            ? $defectImage
+                                            : asset('storage/' . ltrim($defectImage, '/')))
+                                        : null;
                                 @endphp
-                                <div class="flex items-start gap-4 text-slate-800 dark:text-slate-200">
-                                    @if($defect->image_url)
-                                        <img src="{{ asset('storage/' . $defect->image_url) }}" alt="Ảnh lỗi" class="w-16 h-16 rounded-lg object-cover border border-slate-200 dark:border-slate-700 shadow-sm">
-                                    @else
-                                        <span class="p-3 bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 rounded-lg material-icons-round text-2xl shadow-sm">car_crash</span>
-                                    @endif
+                                <div class="fix-row vhc-defect-row bg-red-50/70 dark:bg-red-950/20 p-5 rounded-lg border border-red-200 dark:border-red-900/70 border-l-4 border-l-red-500 mb-5 transition-all">
+                                    <div class="flex justify-between items-start mb-4">
+                                        @php
+                                            $childDefectTask = $task->children->where('type', 'defect')->where('title', $defect->title)->first();
+                                        @endphp
+                                        <div class="flex items-start gap-4 text-slate-800 dark:text-slate-200">
+                                            @if($defectImageSrc)
+                                                <img src="{{ $defectImageSrc }}" alt="Ảnh lỗi" class="w-16 h-16 rounded-lg object-cover border border-slate-200 dark:border-slate-700 shadow-sm">
+                                            @else
+                                                <span class="p-3 bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 rounded-lg material-icons-round text-2xl shadow-sm">car_crash</span>
+                                            @endif
                                     
-                                    <div class="pt-1">
-                                        <p class="font-bold text-sm flex items-center gap-2">
-                                            Mã điểm lỗi: #3D-{{ $defect->id }} 
+                                            <div class="pt-1">
+                                                <p class="font-bold text-sm flex items-center gap-2">
+                                                    Mã điểm lỗi: #3D-{{ $defect->id }} 
                                             <span class="text-slate-400 font-normal">|</span> 
                                             <span class="text-red-500 dark:text-red-400 uppercase tracking-widest text-xs font-black">{{ $defect->title }}</span>
                                         </p>

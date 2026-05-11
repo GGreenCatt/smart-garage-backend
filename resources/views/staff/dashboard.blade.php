@@ -8,30 +8,124 @@
 <style>
     @media (max-width: 767px) {
         .staff-dashboard-workspace {
-            min-height: calc(100vh - 4rem);
-            padding-bottom: 5rem;
+            min-height: calc(100dvh - 4rem);
+            padding-bottom: calc(5rem + env(safe-area-inset-bottom));
+            overflow-x: hidden;
         }
         #leftPanel {
             width: 100% !important;
-            max-height: 58vh;
+            flex: 0 0 auto;
+            height: min(52dvh, 31rem);
+            max-height: min(52dvh, 31rem);
+            overflow: hidden;
             border-right: 0 !important;
             border-bottom: 1px solid rgba(148, 163, 184, .24);
+        }
+        #leftPanel > .p-4 {
+            padding: .75rem !important;
+        }
+        #leftPanel > .flex-1 {
+            flex: 1 1 auto;
+            min-height: 0;
         }
         #leftPanel.w-0 {
             max-height: 0 !important;
         }
+        #leftPanel.is-list-collapsed {
+            height: auto;
+            max-height: none;
+        }
+        #leftPanel.is-list-collapsed .staff-order-list-scroll {
+            display: none !important;
+        }
         #staffDashboardCollapse {
             display: none !important;
         }
+        #staffOrderFilter {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+        #staffOrderFilter input,
+        #staffOrderFilter select,
+        #staffOrderFilter button,
+        #staffOrderFilter a {
+            min-width: 0;
+            width: 100%;
+        }
+        .staff-mobile-secondary-search {
+            display: none !important;
+        }
+        .staff-mobile-filter-dock {
+            gap: .5rem !important;
+            padding-top: .625rem !important;
+            padding-bottom: .625rem !important;
+        }
+        .staff-mobile-filter-toggle {
+            display: flex !important;
+        }
+        .staff-mobile-filter-dock > .flex,
+        .staff-mobile-filter-dock > .staff-mobile-secondary-search,
+        .staff-mobile-filter-dock > #staffOrderFilter {
+            display: none !important;
+        }
+        .staff-mobile-filter-dock.is-open > .flex,
+        .staff-mobile-filter-dock.is-open > #staffOrderFilter {
+            display: grid !important;
+        }
+        .staff-mobile-filter-dock.is-open > .flex {
+            display: flex !important;
+        }
+        .staff-mobile-filter-dock.is-open .staff-mobile-filter-chevron {
+            transform: rotate(180deg);
+        }
+        .staff-mobile-list-toggle {
+            display: flex !important;
+        }
+        #leftPanel.is-list-collapsed .staff-mobile-list-chevron {
+            transform: rotate(180deg);
+        }
+        #staffOrderFilter input,
+        #staffOrderFilter select {
+            height: 2.5rem !important;
+        }
         #order-details-container {
-            min-height: 70vh;
+            width: 100%;
+            min-height: auto;
             overflow: visible !important;
         }
         .order-item {
             min-height: 72px;
+            padding: .875rem !important;
+            padding-right: 2.75rem !important;
         }
         .order-item .opacity-0 {
             opacity: 1 !important;
+        }
+        .order-item .flex {
+            min-width: 0;
+        }
+        .order-item .justify-between {
+            gap: .5rem;
+        }
+        .order-item span {
+            min-width: 0;
+            max-width: 100%;
+        }
+        .order-item .font-bold.text-lg {
+            overflow-wrap: anywhere;
+            line-height: 1.25rem !important;
+        }
+        .staff-task-modal-header,
+        .staff-task-modal-footer,
+        .staff-task-modal-assignment,
+        .staff-task-modal-subtask {
+            align-items: stretch !important;
+            flex-direction: column !important;
+        }
+        .staff-task-modal-status,
+        .staff-task-modal-assignment button,
+        .staff-task-modal-footer button {
+            width: 100%;
+            justify-content: center;
         }
     }
 </style>
@@ -43,7 +137,17 @@
     <!-- Left Panel: Master List -->
     <aside id="leftPanel" class="w-[400px] flex flex-col border-r border-gray-200 dark:border-[#1e293b] bg-white dark:bg-[#0B1120] z-10 transition-all duration-300 relative">
         <!-- Quick Add & Search Dock -->
-        <div class="p-4 border-b border-gray-200 dark:border-[#1e293b] space-y-4 bg-gray-50 dark:bg-[#0f172a]">
+        <div id="staffMobileFilterDock" class="staff-mobile-filter-dock p-4 border-b border-gray-200 dark:border-[#1e293b] space-y-4 bg-gray-50 dark:bg-[#0f172a]">
+            <button type="button" onclick="toggleStaffMobileFilter()" class="staff-mobile-filter-toggle hidden w-full items-center justify-between gap-3 rounded-lg border border-slate-700/70 bg-slate-900/40 px-3 py-2 text-left text-sm font-bold text-slate-100">
+                <span class="flex min-w-0 items-center gap-2">
+                    <span class="material-icons-round !text-[18px] text-indigo-300">tune</span>
+                    <span class="truncate">Tìm kiếm & lọc xe</span>
+                </span>
+                <span class="flex shrink-0 items-center gap-2 text-[11px] font-black uppercase text-indigo-300">
+                    <span data-filter-toggle-label>Mở</span>
+                    <span class="staff-mobile-filter-chevron material-icons-round !text-[18px] transition-transform">expand_more</span>
+                </span>
+            </button>
             <div class="flex gap-2 items-center">
                 <div class="relative flex-1">
                     <input id="quickInput" class="w-full bg-white dark:bg-[#1e293b] border border-gray-300 dark:border-[#1e293b] rounded h-10 px-3 text-sm text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 font-mono uppercase transition-all" placeholder="Nhập VIN/Biển số..." type="text">
@@ -53,7 +157,7 @@
                     <span>Thêm</span>
                 </button>
             </div>
-            <div class="relative">
+            <div class="staff-mobile-secondary-search relative">
                 <span class="material-icons-round absolute left-3 top-2.5 text-gray-400 !text-[20px]">search</span>
                 <input class="w-full bg-white dark:bg-[#1e293b] border border-gray-300 dark:border-transparent rounded h-10 pl-10 pr-3 text-sm text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-transparent" placeholder="Tìm kiếm biển số, SĐT, Tên KH..." type="text">
             </div>
@@ -78,8 +182,19 @@
             </form>
         </div>
 
+        <button type="button" onclick="toggleStaffMobileList()" class="staff-mobile-list-toggle hidden w-full items-center justify-between gap-3 border-b border-gray-200 bg-white px-4 py-2.5 text-left text-sm font-black text-slate-800 dark:border-[#1e293b] dark:bg-[#0B1120] dark:text-slate-100">
+            <span class="flex min-w-0 items-center gap-2">
+                <span class="material-icons-round !text-[18px] text-indigo-500">format_list_bulleted</span>
+                <span class="truncate">Danh sách xe</span>
+            </span>
+            <span class="flex shrink-0 items-center gap-2 text-[11px] uppercase text-indigo-500 dark:text-indigo-300">
+                <span data-list-toggle-label>Ẩn</span>
+                <span class="staff-mobile-list-chevron material-icons-round !text-[18px] transition-transform">expand_less</span>
+            </span>
+        </button>
+
         <!-- Scrollable List -->
-        <div class="flex-1 overflow-y-auto custom-scrollbar">
+        <div class="staff-order-list-scroll flex-1 overflow-y-auto custom-scrollbar">
             <!-- Section: New Arrivals (Waiting) -->
             <div onclick="toggleSection('new-arrivals')" class="sticky top-0 z-10 bg-gray-100/95 dark:bg-[#0B1120]/95 backdrop-blur-sm px-4 py-2 border-b border-gray-200 dark:border-[#1e293b] flex justify-between items-center group cursor-pointer select-none">
                 <h3 class="text-xs font-bold text-teal-600 dark:text-teal-400 uppercase tracking-wider flex items-center gap-2">
@@ -164,7 +279,6 @@
                 </div>
                 @endforeach
             </div>
-        </div>
 
             <!-- Section: Waiting Customer Approval -->
             <div onclick="toggleSection('pending-approval')" class="sticky top-0 z-10 bg-gray-100/95 dark:bg-[#0B1120]/95 backdrop-blur-sm px-4 py-2 border-y border-gray-200 dark:border-[#1e293b] flex justify-between items-center mt-2 cursor-pointer select-none">
@@ -254,6 +368,7 @@
                 @endforeach
             </div>
         </div>
+        </div>
     </aside>
 
     <!-- Collapse Button (Mid-left) -->
@@ -288,8 +403,53 @@
         return urlParams.get('order_id');
     }
 
+    function toggleStaffMobileFilter(forceOpen = null) {
+        const dock = document.getElementById('staffMobileFilterDock');
+        if (!dock) return;
+
+        const shouldOpen = forceOpen ?? !dock.classList.contains('is-open');
+        dock.classList.toggle('is-open', shouldOpen);
+        const label = dock.querySelector('[data-filter-toggle-label]');
+        if (label) label.textContent = shouldOpen ? 'Đóng' : 'Mở';
+        localStorage.setItem('staffMobileFilterOpen', shouldOpen ? 'true' : 'false');
+    }
+
+    function toggleStaffMobileList(forceCollapsed = null) {
+        const panel = document.getElementById('leftPanel');
+        if (!panel) return;
+
+        const shouldCollapse = forceCollapsed ?? !panel.classList.contains('is-list-collapsed');
+        panel.classList.toggle('is-list-collapsed', shouldCollapse);
+        const label = panel.querySelector('[data-list-toggle-label]');
+        if (label) label.textContent = shouldCollapse ? 'Hiện' : 'Ẩn';
+        localStorage.setItem('staffMobileListCollapsed', shouldCollapse ? 'true' : 'false');
+    }
+
+    function toggleStaffMobileSection(targetId, button = null, forceOpen = null) {
+        const target = document.getElementById(targetId);
+        if (!target) return;
+
+        const shouldOpen = forceOpen ?? !target.classList.contains('is-open');
+        target.classList.toggle('is-open', shouldOpen);
+        button?.classList.toggle('is-open', shouldOpen);
+    }
+
+    function toggleStaffInfoPanel(button = null, forceOpen = null) {
+        const panel = document.querySelector('.staff-info-panel');
+        if (!panel) return;
+
+        const shouldOpen = forceOpen ?? !panel.classList.contains('is-open');
+        panel.classList.toggle('is-open', shouldOpen);
+        button?.classList.toggle('is-open', shouldOpen);
+    }
+
     // Function to handle "Mới" badges locally
     document.addEventListener('DOMContentLoaded', () => {
+        if (window.matchMedia('(max-width: 767px)').matches) {
+            toggleStaffMobileFilter(false);
+            toggleStaffMobileList(true);
+        }
+
         // Hide badges that were previously clicked
         const viewedOrders = JSON.parse(localStorage.getItem('viewedOrders') || '[]');
         viewedOrders.forEach(id => {
@@ -387,6 +547,8 @@
             const html = await response.text();
             document.getElementById('order-details-container').innerHTML = html;
             if (window.matchMedia('(max-width: 767px)').matches) {
+                toggleStaffMobileFilter(false);
+                toggleStaffMobileList(true);
                 document.getElementById('order-details-container').scrollIntoView({ behavior: 'smooth', block: 'start' });
             }
         } catch (error) {
@@ -1035,7 +1197,7 @@
             let subtasksHtml = '';
             task.children.forEach(child => {
                 subtasksHtml += `
-                    <div class="group flex items-center justify-between p-2 border-b border-gray-100 dark:border-slate-800 hover:bg-gray-50 dark:hover:bg-slate-800/50 transition-colors rounded-lg mb-1">
+                    <div class="staff-task-modal-subtask group flex items-center justify-between gap-2 p-2 border-b border-gray-100 dark:border-slate-800 hover:bg-gray-50 dark:hover:bg-slate-800/50 transition-colors rounded-lg mb-1">
                         <div class="flex items-center gap-2">
                              <input type="checkbox" ${child.status == 'completed' ? 'checked' : ''} onclick="toggleTask(${child.id}, '${child.status}'); this.closest('.swal2-container').querySelector('#refresh-btn').click()" class="rounded text-indigo-600 border-gray-300 focus:ring-indigo-500 cursor-pointer accent-indigo-600 w-4 h-4">
                              <span class="${child.status == 'completed' ? 'line-through text-gray-400 dark:text-gray-600' : 'text-slate-700 dark:text-slate-300'} text-sm font-medium transition-colors select-none cursor-pointer" onclick="this.previousElementSibling.click()">${child.title}</span>
@@ -1052,7 +1214,7 @@
                 html: `
                     <div class="text-left font-['Plus_Jakarta_Sans',sans-serif]">
                         <!-- Header -->
-                        <div class="flex justify-between items-start mb-6">
+                        <div class="staff-task-modal-header flex justify-between items-start mb-6 gap-3">
                             <div class="flex items-center gap-3">
                                 <div class="w-10 h-10 rounded-full bg-indigo-50 dark:bg-indigo-900/50 flex items-center justify-center text-indigo-600 dark:text-indigo-400 ring-1 ring-indigo-100 dark:ring-indigo-700/50">
                                     <span class="material-icons-round text-xl">task_alt</span>
@@ -1063,7 +1225,7 @@
                                 </div>
                             </div>
                             <!-- Status Toggle -->
-                            <div class="flex items-center gap-2 bg-gray-100/80 dark:bg-slate-800 rounded-full px-3 py-1 cursor-pointer transition-colors hover:bg-gray-200 dark:hover:bg-slate-700" onclick="document.getElementById('modal-task-status').click()">
+                            <div class="staff-task-modal-status flex items-center gap-2 bg-gray-100/80 dark:bg-slate-800 rounded-full px-3 py-1 cursor-pointer transition-colors hover:bg-gray-200 dark:hover:bg-slate-700" onclick="document.getElementById('modal-task-status').click()">
                                 <input type="checkbox" id="modal-task-status" ${task.status == 'completed' ? 'checked' : ''} class="w-4 h-4 rounded text-indigo-600 border-gray-300 focus:ring-indigo-500 cursor-pointer accent-indigo-600">
                                 <span class="text-xs font-bold ${task.status == 'completed' ? 'text-green-600 dark:text-green-400' : 'text-slate-600 dark:text-slate-300'} select-none" id="modal-status-text">${task.status == 'completed' ? 'Đã hoàn thành' : 'Đang thực hiện'}</span>
                             </div>
@@ -1079,7 +1241,7 @@
                             <!-- Assignment Section -->
                             <div class="relative">
                                 <label class="block text-xs font-bold text-gray-400 dark:text-slate-500 uppercase mb-2">Người thực hiện</label>
-                                <div class="flex items-center justify-between p-3 rounded-xl border border-gray-200 dark:border-slate-800 bg-gray-50 dark:bg-slate-900/50">
+                                <div class="staff-task-modal-assignment flex items-center justify-between gap-3 p-3 rounded-xl border border-gray-200 dark:border-slate-800 bg-gray-50 dark:bg-slate-900/50">
                                     <div class="flex items-center gap-3">
                                         <div class="w-9 h-9 rounded-full ${isAssigned ? 'bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-300' : 'bg-gray-200 dark:bg-slate-800 text-gray-500 dark:text-slate-400'} flex items-center justify-center font-bold text-xs ring-2 ring-white dark:ring-slate-950">
                                             ${isAssigned && task.mechanic ? task.mechanic.name.charAt(0) : '?'}
@@ -1138,7 +1300,7 @@
                         </div>
                         
                         <!-- Footer Actions -->
-                        <div class="flex justify-between items-center pt-4 border-t border-gray-100 dark:border-gray-700">
+                        <div class="staff-task-modal-footer flex justify-between items-center gap-3 pt-4 border-t border-gray-100 dark:border-gray-700">
                             <button onclick="deleteTask(${task.id})" class="text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 text-xs font-bold flex items-center gap-1 px-2 py-1 rounded hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors">
                                 <span class="material-icons-round text-sm">delete_outline</span> Xóa việc này
                             </button>

@@ -6,6 +6,7 @@ use App\Models\RepairOrder;
 use App\Models\RepairOrderItem;
 use App\Models\RepairTask;
 use App\Models\Appointment;
+use App\Models\ActivityLog;
 use App\Models\Part;
 use App\Models\Promotion;
 use App\Models\Role;
@@ -185,6 +186,49 @@ class StaffCoreFlowTest extends TestCase
         $parentTask = $order->tasks()->where('type', 'vhc')->first();
         $this->assertNotNull($parentTask);
         $this->assertSame(2, $parentTask->children()->where('type', 'defect')->count());
+
+        $this->assertDatabaseHas('activity_logs', [
+            'action' => 'STAFF_VHC_SAVED',
+            'details' => "Order #{$order->id}: Lưu VHC draft với 2 defect.",
+        ]);
+    }
+
+    public function test_staff_activity_log_decodes_legacy_vietnamese_text(): void
+    {
+        $staff = User::factory()->create(['role' => 'staff', 'role_id' => Role::where('slug', 'staff')->value('id')]);
+        $vehicle = Vehicle::create([
+            'license_plate' => '29A-33333',
+            'model' => 'Civic',
+            'type' => 'sedan',
+            'year' => 2023,
+            'color' => 'Black',
+            'owner_name' => 'Guest',
+            'owner_phone' => '0913333333',
+        ]);
+        $order = RepairOrder::create([
+            'track_id' => 'RO-TEST-003',
+            'vehicle_id' => $vehicle->id,
+            'advisor_id' => $staff->id,
+            'status' => 'in_progress',
+        ]);
+        $task = RepairTask::create([
+            'repair_order_id' => $order->id,
+            'title' => 'Cọp-Xe',
+            'status' => 'pending',
+            'type' => 'general',
+        ]);
+
+        $this->actingAs($staff)
+            ->postJson(route('staff.task.toggle', $task->id))
+            ->assertOk()
+            ->assertJsonPath('success', true);
+
+        $log = ActivityLog::where('action', 'STAFF_TASK_TOGGLED')->latest()->first();
+
+        $this->assertNotNull($log);
+        $this->assertSame("Order #{$order->id}: Chuyển task Cọp-Xe sang completed.", $log->details);
+        $this->assertStringNotContainsString('Chuyá', $log->details);
+        $this->assertStringNotContainsString('Æ', $log->details);
     }
 
     public function test_staff_payment_can_apply_coupon_code(): void
