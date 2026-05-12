@@ -704,7 +704,7 @@
                         </div>
                         <a href="{{ route('staff.vehicle.inspection', ['id' => $selectedOrder->vehicle->id ?? 0, 'fullscreen' => 1, 'order_id' => $selectedOrder->id ?? null]) }}" class="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded flex items-center justify-center gap-2 shadow-lg shadow-indigo-900/20 transition-all transform group-hover:translate-y-[-2px]">
                             <span class="material-icons-round">view_in_ar</span>
-                            Mở Visualizer
+                            Kiểm tra mô hình 3D
                         </a>
                     </div>
                 </div>

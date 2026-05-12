@@ -12,6 +12,8 @@ use App\Models\Promotion;
 use App\Models\Role;
 use App\Models\Service;
 use App\Models\SosRequest;
+use App\Models\MaterialRequest;
+use App\Models\InventoryTransaction;
 use App\Models\User;
 use App\Models\Vehicle;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -26,6 +28,7 @@ class StaffCoreFlowTest extends TestCase
         parent::setUp();
 
         Role::firstOrCreate(['name' => 'staff', 'slug' => 'staff']);
+        Role::firstOrCreate(['name' => 'admin', 'slug' => 'admin']);
         Role::firstOrCreate(['name' => 'customer', 'slug' => 'customer']);
     }
 
@@ -776,6 +779,193 @@ class StaffCoreFlowTest extends TestCase
             'quantity' => 2,
             'reason' => null,
             'status' => 'pending',
+        ]);
+    }
+
+    public function test_admin_must_price_material_request_before_approving_into_repair_order(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin', 'role_id' => Role::where('slug', 'admin')->value('id')]);
+        $staff = User::factory()->create(['role' => 'staff', 'role_id' => Role::where('slug', 'staff')->value('id')]);
+        $vehicle = Vehicle::create([
+            'license_plate' => '59A-REQ01',
+            'model' => 'Vios',
+            'type' => 'sedan',
+            'year' => 2021,
+            'color' => 'Silver',
+            'owner_name' => 'Guest',
+            'owner_phone' => '0909000001',
+        ]);
+        $order = RepairOrder::create([
+            'track_id' => 'RO-MAT-001',
+            'vehicle_id' => $vehicle->id,
+            'advisor_id' => $staff->id,
+            'status' => 'in_progress',
+            'payment_status' => 'unpaid',
+            'subtotal' => 0,
+            'total_amount' => 0,
+        ]);
+        $materialRequest = MaterialRequest::create([
+            'staff_id' => $staff->id,
+            'repair_order_id' => $order->id,
+            'part_name' => 'Cảm biến áp suất lốp',
+            'quantity' => 2,
+            'status' => 'pending',
+        ]);
+
+        $this->actingAs($admin)
+            ->put(route('admin.requests.update', $materialRequest), [
+                'status' => 'approved',
+            ])
+            ->assertRedirect()
+            ->assertSessionHas('error', 'Vui lòng nhập giá bán trước khi duyệt vật tư vào phiếu sửa chữa');
+
+        $this->assertSame('pending', $materialRequest->fresh()->status);
+        $this->assertSame(0, $order->items()->count());
+    }
+
+    public function test_admin_approval_adds_priced_material_to_repair_order(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin', 'role_id' => Role::where('slug', 'admin')->value('id')]);
+        $staff = User::factory()->create(['role' => 'staff', 'role_id' => Role::where('slug', 'staff')->value('id')]);
+        $vehicle = Vehicle::create([
+            'license_plate' => '59A-REQ02',
+            'model' => 'Vios',
+            'type' => 'sedan',
+            'year' => 2021,
+            'color' => 'Silver',
+            'owner_name' => 'Guest',
+            'owner_phone' => '0909000002',
+        ]);
+        $order = RepairOrder::create([
+            'track_id' => 'RO-MAT-002',
+            'vehicle_id' => $vehicle->id,
+            'advisor_id' => $staff->id,
+            'status' => 'in_progress',
+            'payment_status' => 'unpaid',
+            'subtotal' => 0,
+            'total_amount' => 0,
+        ]);
+        $materialRequest = MaterialRequest::create([
+            'staff_id' => $staff->id,
+            'repair_order_id' => $order->id,
+            'part_name' => 'Cảm biến áp suất lốp',
+            'quantity' => 2,
+            'reason' => 'Kho chưa có',
+            'status' => 'pending',
+        ]);
+
+        $this->actingAs($admin)
+            ->put(route('admin.requests.update', $materialRequest), [
+                'status' => 'approved',
+                'unit_price' => 190000,
+                'admin_note' => 'Đã duyệt mua ngoài',
+            ])
+            ->assertRedirect()
+            ->assertSessionHas('success', 'Đã cập nhật yêu cầu vật tư');
+
+        $this->assertDatabaseHas('material_requests', [
+            'id' => $materialRequest->id,
+            'status' => 'approved',
+            'unit_price' => 190000,
+            'admin_note' => 'Đã duyệt mua ngoài',
+        ]);
+        $this->assertDatabaseHas('repair_order_items', [
+            'repair_order_id' => $order->id,
+            'name' => 'Vật tư ngoài: Cảm biến áp suất lốp',
+            'quantity' => 2,
+            'unit_price' => 190000,
+            'subtotal' => 380000,
+        ]);
+        $this->assertSame(380000.0, (float) $order->fresh()->total_amount);
+    }
+
+    public function test_admin_can_route_approved_material_request_into_inventory(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin', 'role_id' => Role::where('slug', 'admin')->value('id')]);
+        $staff = User::factory()->create(['role' => 'staff', 'role_id' => Role::where('slug', 'staff')->value('id')]);
+        $materialRequest = MaterialRequest::create([
+            'staff_id' => $staff->id,
+            'part_name' => 'Bóng đèn pha LED',
+            'quantity' => 3,
+            'status' => 'pending',
+        ]);
+
+        $this->actingAs($admin)
+            ->put(route('admin.requests.update', $materialRequest), [
+                'status' => 'approved',
+                'destination' => 'inventory',
+                'sku' => 'LED-HEAD-001',
+                'category' => 'Đèn',
+                'unit_price' => 180000,
+                'admin_note' => 'Nhập kho để dùng sau',
+            ])
+            ->assertRedirect()
+            ->assertSessionHas('success', 'Đã cập nhật yêu cầu vật tư');
+
+        $part = Part::where('sku', 'LED-HEAD-001')->first();
+        $this->assertNotNull($part);
+        $this->assertSame(3, $part->stock_quantity);
+        $this->assertSame(180000.0, (float) $part->selling_price);
+        $this->assertDatabaseHas('inventory_transactions', [
+            'part_id' => $part->id,
+            'type' => 'in',
+            'quantity' => 3,
+            'reference' => 'MR-'.$materialRequest->id,
+        ]);
+    }
+
+    public function test_staff_adds_inventory_part_to_order_and_stock_is_exported(): void
+    {
+        $staff = User::factory()->create(['role' => 'staff', 'role_id' => Role::where('slug', 'staff')->value('id')]);
+        $vehicle = Vehicle::create([
+            'license_plate' => '59A-STOCK',
+            'model' => 'Vios',
+            'type' => 'sedan',
+            'year' => 2021,
+            'color' => 'Silver',
+            'owner_name' => 'Guest',
+            'owner_phone' => '0909000003',
+        ]);
+        $order = RepairOrder::create([
+            'track_id' => 'RO-STOCK-001',
+            'vehicle_id' => $vehicle->id,
+            'advisor_id' => $staff->id,
+            'status' => 'in_progress',
+            'payment_status' => 'unpaid',
+        ]);
+        $part = Part::create([
+            'sku' => 'OIL-001',
+            'name' => 'Nhớt máy',
+            'category' => 'Dầu nhớt',
+            'purchase_price' => 80000,
+            'selling_price' => 150000,
+            'stock_quantity' => 5,
+            'min_stock' => 1,
+            'safety_stock' => 2,
+        ]);
+
+        $this->actingAs($staff)
+            ->postJson(route('staff.order.items.store', $order->id), [
+                'is_custom' => 'false',
+                'sku' => 'OIL-001',
+                'qty' => 2,
+            ])
+            ->assertOk()
+            ->assertJsonPath('success', true);
+
+        $this->assertSame(3, $part->fresh()->stock_quantity);
+        $this->assertDatabaseHas('inventory_transactions', [
+            'part_id' => $part->id,
+            'type' => 'out',
+            'quantity' => 2,
+            'reference' => 'RO-'.$order->id,
+        ]);
+        $this->assertDatabaseHas('repair_order_items', [
+            'repair_order_id' => $order->id,
+            'itemable_type' => Part::class,
+            'itemable_id' => $part->id,
+            'quantity' => 2,
+            'subtotal' => 300000,
         ]);
     }
 

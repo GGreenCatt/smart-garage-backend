@@ -8,19 +8,25 @@
 <style>
     .leaflet-routing-container { display: none !important; }
     .sos-map .leaflet-control-attribution { font-size: 10px; }
+    .sos-map-card { scrollbar-width: thin; scrollbar-color: rgb(71 85 105) transparent; }
 </style>
 
-<div class="-m-4 flex h-[calc(100vh-112px)] flex-col gap-4 p-4 xl:flex-row">
-    <aside class="flex w-full flex-col overflow-hidden rounded-2xl border border-slate-700/50 bg-slate-900/90 backdrop-blur-xl xl:w-[420px]">
+<div class="-m-4 flex min-h-[calc(100vh-112px)] flex-col gap-4 bg-slate-950 p-4 xl:h-[calc(100vh-112px)] xl:flex-row">
+    <aside class="flex w-full flex-col overflow-hidden rounded-2xl border border-slate-700/50 bg-slate-900/90 shadow-2xl backdrop-blur-xl xl:w-[430px]">
         <div class="border-b border-slate-700 p-4">
-            <h2 class="flex items-center gap-2 text-lg font-black text-white">
-                <span class="h-2 w-2 animate-pulse rounded-full bg-red-500"></span>
-                Điều phối cứu hộ
-            </h2>
-            <p class="mt-1 text-xs text-slate-400">Theo dõi yêu cầu SOS và vị trí nhân viên đang chia sẻ.</p>
+            <div class="flex items-start justify-between gap-3">
+                <div>
+                    <h2 class="flex items-center gap-2 text-lg font-black text-white">
+                        <span class="h-2 w-2 animate-pulse rounded-full bg-red-500"></span>
+                        Bản đồ cứu hộ
+                    </h2>
+                    <p class="mt-1 text-xs text-slate-400">Dữ liệu lấy trực tiếp từ yêu cầu SOS và vị trí nhân viên đang chia sẻ.</p>
+                </div>
+                <span id="last-sync" class="rounded-full border border-slate-700 bg-slate-950 px-2.5 py-1 text-[10px] font-black uppercase text-slate-400">Đang tải</span>
+            </div>
         </div>
 
-        <div class="grid grid-cols-3 gap-2 border-b border-slate-800 p-4">
+        <div class="grid grid-cols-4 gap-2 border-b border-slate-800 p-4">
             <div class="rounded-xl bg-slate-800/70 p-3 text-center">
                 <div class="text-xl font-black text-amber-300">{{ $stats['pending'] }}</div>
                 <div class="text-[10px] font-bold uppercase text-slate-500">Chờ nhận</div>
@@ -33,10 +39,32 @@
                 <div class="text-xl font-black text-emerald-300">{{ $stats['completed_today'] }}</div>
                 <div class="text-[10px] font-bold uppercase text-slate-500">Xong hôm nay</div>
             </div>
+            <div class="rounded-xl bg-slate-800/70 p-3 text-center">
+                <div class="text-xl font-black text-red-300">{{ $stats['cancelled_today'] }}</div>
+                <div class="text-[10px] font-bold uppercase text-slate-500">Hủy hôm nay</div>
+            </div>
         </div>
 
-        <div class="flex-1 space-y-3 overflow-y-auto p-4" id="sos-list">
-            <div class="py-4 text-center text-sm text-slate-500">Đang tải dữ liệu...</div>
+        <div class="sos-map-card flex-1 overflow-y-auto">
+            <div class="border-b border-slate-800 p-4">
+                <div class="mb-3 flex items-center justify-between">
+                    <h3 class="text-xs font-black uppercase tracking-wider text-slate-400">SOS đang hoạt động</h3>
+                    <span id="active-count" class="rounded-full bg-red-500/10 px-2 py-0.5 text-xs font-black text-red-300">0</span>
+                </div>
+                <div class="space-y-3" id="sos-list">
+                    <div class="py-4 text-center text-sm text-slate-500">Đang tải dữ liệu...</div>
+                </div>
+            </div>
+
+            <div class="p-4">
+                <div class="mb-3 flex items-center justify-between">
+                    <h3 class="text-xs font-black uppercase tracking-wider text-slate-400">Đã xử lý gần đây</h3>
+                    <span id="recent-count" class="rounded-full bg-slate-800 px-2 py-0.5 text-xs font-black text-slate-400">0</span>
+                </div>
+                <div class="space-y-2" id="recent-list">
+                    <div class="py-3 text-center text-sm text-slate-500">Đang tải dữ liệu...</div>
+                </div>
+            </div>
         </div>
 
         <div class="border-t border-slate-700 bg-slate-900 p-4">
@@ -69,6 +97,13 @@ let map;
 let garage = { lat: 10.7769, lng: 106.7009, name: 'Smart Garage' };
 let currentRoutingControl = null;
 const markers = { garage: null, staff: {}, sos: {} };
+const statusClasses = {
+    pending: 'border-red-500/30 bg-red-500/10 text-red-200',
+    assigned: 'border-blue-500/30 bg-blue-500/10 text-blue-200',
+    in_progress: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200',
+    completed: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200',
+    cancelled: 'border-slate-600 bg-slate-800 text-slate-300'
+};
 
 const garageIcon = L.divIcon({
     html: '<div class="flex h-10 w-10 items-center justify-center rounded-xl border-2 border-white bg-indigo-600 text-lg text-white shadow-lg"><i class="fas fa-warehouse"></i></div>',
@@ -83,7 +118,7 @@ const staffIcon = L.divIcon({
     iconAnchor: [16, 16]
 });
 const sosIcon = L.divIcon({
-    html: '<div class="relative"><div class="absolute -inset-2 animate-ping rounded-full bg-red-500/50"></div><div class="relative z-10 flex h-8 w-8 items-center justify-center rounded-full border-2 border-white bg-red-600 text-xs text-white shadow-lg"><i class="fas fa-exclamation"></i></div></div>',
+	    html: '<div class="relative"><div class="absolute -inset-2 animate-ping rounded-full bg-red-500/50"></div><div class="relative z-10 flex h-8 w-8 items-center justify-center rounded-full border-2 border-white bg-red-600 text-xs text-white shadow-lg"><i class="fas fa-exclamation"></i></div></div>',
     className: 'custom-icon',
     iconSize: [32, 32],
     iconAnchor: [16, 16]
@@ -110,10 +145,12 @@ async function fetchMapData() {
         const data = await response.json();
         garage = data.garage || garage;
         updateGarage(garage);
-        updateStaff(data.staffs || []);
-        updateSOS(data.sos || []);
-        updateSidebar(data.staffs || []);
-    } catch (error) {
+	        updateStaff(data.staffs || []);
+	        updateSOS(data.sos || []);
+	        updateRecent(data.recent || []);
+	        updateSidebar(data.staffs || []);
+            document.getElementById('last-sync').innerText = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+	    } catch (error) {
         document.getElementById('sos-list').innerHTML = '<div class="rounded-xl border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-300">Không tải được dữ liệu cứu hộ.</div>';
         console.error(error);
     }
@@ -150,11 +187,12 @@ function updateStaff(staffs) {
 
 function updateSOS(requests) {
     const listEl = document.getElementById('sos-list');
+    document.getElementById('active-count').innerText = requests.length;
     const activeIds = new Set(requests.map(req => String(req.id)));
     listEl.innerHTML = '';
 
     if (requests.length === 0) {
-        listEl.innerHTML = '<div class="py-6 text-center text-sm text-slate-500">Không có yêu cầu cứu hộ đang hoạt động.</div>';
+        listEl.innerHTML = '<div class="rounded-xl border border-slate-800 bg-slate-950/60 px-4 py-6 text-center text-sm text-slate-500">Không có yêu cầu cứu hộ đang hoạt động.</div>';
     }
 
     requests.forEach(req => {
@@ -168,19 +206,20 @@ function updateSOS(requests) {
 
         const item = document.createElement('button');
         item.type = 'button';
-        item.className = 'block w-full rounded-xl border border-slate-700/50 bg-slate-800/50 p-3 text-left transition hover:bg-slate-800';
+        item.className = 'block w-full rounded-xl border border-slate-700/50 bg-slate-800/50 p-3 text-left transition hover:border-indigo-500/50 hover:bg-slate-800';
         item.onclick = () => focusSos(req);
         item.innerHTML = `
             <div class="mb-2 flex items-start justify-between gap-3">
                 <div class="font-bold text-white text-sm">SOS #${req.id}</div>
-                <span class="rounded bg-red-500/20 px-2 py-0.5 text-[10px] font-bold uppercase text-red-300">${escapeHtml(req.status_label)}</span>
+                <span class="rounded border px-2 py-0.5 text-[10px] font-bold uppercase ${statusClass(req.status)}">${escapeHtml(req.status_label)}</span>
             </div>
-            <div class="mb-2 line-clamp-2 text-xs text-slate-400">${escapeHtml(req.description || 'Không có mô tả')}</div>
+            <div class="mb-2 line-clamp-2 text-xs text-slate-300">${escapeHtml(req.description || 'Không có mô tả')}</div>
             <div class="flex flex-wrap items-center gap-2 text-xs font-bold text-indigo-300">
                 <i class="fas fa-user-circle"></i> ${escapeHtml(req.display_name)}
                 <span class="text-slate-600">|</span>
                 <i class="fas fa-phone"></i> ${escapeHtml(req.display_phone)}
             </div>
+            <div class="mt-2 text-[11px] font-semibold text-slate-500"><i class="fas fa-clock mr-1"></i>${escapeHtml(req.created_at_full || req.created_at || '')}</div>
             ${req.vehicle ? `<div class="mt-2 text-[11px] text-slate-500"><i class="fas fa-car mr-1"></i>${escapeHtml(req.vehicle.license_plate || '')} ${escapeHtml(req.vehicle.name || '')}</div>` : ''}
             ${req.assigned_staff ? `<div class="mt-2 border-t border-slate-700/50 pt-2 text-[11px] text-emerald-300"><i class="fas fa-shipping-fast mr-1"></i>Nhân viên: ${escapeHtml(req.assigned_staff.name)}</div>` : ''}
         `;
@@ -192,6 +231,38 @@ function updateSOS(requests) {
             map.removeLayer(markers.sos[id]);
             delete markers.sos[id];
         }
+    });
+}
+
+function updateRecent(requests) {
+    const listEl = document.getElementById('recent-list');
+    document.getElementById('recent-count').innerText = requests.length;
+    listEl.innerHTML = '';
+
+    if (requests.length === 0) {
+        listEl.innerHTML = '<div class="rounded-xl border border-slate-800 bg-slate-950/60 px-4 py-4 text-center text-sm text-slate-500">Chưa có lịch sử SOS.</div>';
+        return;
+    }
+
+    requests.forEach(req => {
+        const item = document.createElement('button');
+        item.type = 'button';
+        item.className = 'block w-full rounded-xl border border-slate-800 bg-slate-950/50 p-3 text-left transition hover:border-slate-600 hover:bg-slate-800/70';
+        item.onclick = () => {
+            if (req.latitude && req.longitude) focusSos(req);
+        };
+        item.innerHTML = `
+            <div class="flex items-start justify-between gap-3">
+                <div>
+                    <div class="text-sm font-black text-white">SOS #${req.id}</div>
+                    <div class="mt-1 text-xs text-slate-400">${escapeHtml(req.display_name)} · ${escapeHtml(req.display_phone)}</div>
+                </div>
+                <span class="rounded border px-2 py-0.5 text-[10px] font-bold uppercase ${statusClass(req.status)}">${escapeHtml(req.status_label)}</span>
+            </div>
+            <div class="mt-2 line-clamp-1 text-xs text-slate-500">${escapeHtml(req.description || 'Không có mô tả')}</div>
+            <div class="mt-2 text-[11px] font-semibold text-slate-500">${escapeHtml(req.completed_at || req.cancelled_at || req.created_at_full || '')}</div>
+        `;
+        listEl.appendChild(item);
     });
 }
 
@@ -225,6 +296,10 @@ function updateSidebar(staffs) {
         img.title = staff.name;
         avatars.appendChild(img);
     });
+}
+
+function statusClass(status) {
+    return statusClasses[status] || 'border-slate-700 bg-slate-800 text-slate-300';
 }
 
 function escapeHtml(value) {

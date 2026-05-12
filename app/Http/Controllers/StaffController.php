@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\User;
 use App\Models\RepairTask;
+use App\Models\InventoryTransaction;
 use App\Models\RepairOrder;
 use App\Models\Vehicle;
 use App\Models\Part;
@@ -1243,6 +1244,12 @@ class StaffController extends Controller
             ]);
 
             $part = \App\Models\Part::where('sku', $request->sku)->firstOrFail();
+            if ($part->stock_quantity < $request->qty) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Tồn kho không đủ để thêm vật tư này.'
+                ], 422);
+            }
             $unitPrice = $part->selling_price ?? $part->price ?? 0;
 
             $item = $order->items()->create([
@@ -1256,8 +1263,15 @@ class StaffController extends Controller
             ]);
             $this->logOrderActivity($order, 'STAFF_ITEM_ADDED', "Thêm vật tư {$item->name} x {$item->quantity}.");
 
-            // Deduct Stock
-            // $part->decrement('quantity', $request->qty);
+            $part->decrement('stock_quantity', $request->qty);
+            InventoryTransaction::create([
+                'part_id' => $part->id,
+                'type' => 'out',
+                'quantity' => $request->qty,
+                'user_id' => Auth::id(),
+                'reference' => 'RO-'.$order->id,
+                'note' => 'Xuất kho dùng cho phiếu '.$order->track_id,
+            ]);
         }
 
         // Update Order Total

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Staff;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\MaterialRequest;
+use App\Models\RepairOrder;
 use Illuminate\Support\Facades\Auth;
 
 class MaterialRequestController extends Controller
@@ -24,53 +25,27 @@ class MaterialRequestController extends Controller
     {
         $validated = $request->validate([
             'part_name' => 'required|string|max:255',
-            'quantity' => 'required|integer|min:1',
-            'reason' => 'nullable|string'
+            'quantity' => 'required|integer|min:1|max:999',
+            'repair_order_id' => 'nullable|exists:repair_orders,id',
+            'reason' => 'nullable|string|max:1000'
         ]);
+
+        if (! empty($validated['repair_order_id'])) {
+            $order = RepairOrder::findOrFail($validated['repair_order_id']);
+
+            if ($order->isLockedForStaffChanges() || in_array($order->status, ['pending_approval', 'approved'], true)) {
+                return back()->withErrors(['part_name' => 'Không thể yêu cầu thêm vật tư cho phiếu đã khóa, đã gửi báo giá hoặc khách đã duyệt.']);
+            }
+        }
 
         MaterialRequest::create([
             'staff_id' => Auth::id(),
+            'repair_order_id' => $validated['repair_order_id'] ?? null,
             'part_name' => $validated['part_name'],
             'quantity' => $validated['quantity'],
             'reason' => $validated['reason'] ?? null,
         ]);
 
         return back()->with('success', 'Đã gửi yêu cầu vật tư');
-    }
-
-    public function updateStatus(Request $request, $id)
-    {
-        $materialRequest = MaterialRequest::findOrFail($id);
-        
-        $validated = $request->validate([
-            'status' => 'required|in:approved,rejected',
-            'admin_note' => 'nullable|string'
-        ]);
-
-        $materialRequest->update([
-            'status' => $validated['status'],
-            'admin_note' => $validated['admin_note']
-        ]);
-
-        if ($validated['status'] === 'approved' && $materialRequest->repair_order_id) {
-             // Create an external part item automatically
-             \App\Models\RepairOrderItem::create([
-                 'repair_order_id' => $materialRequest->repair_order_id,
-                 'name' => 'Vật tư ngoài: ' . $materialRequest->part_name,
-                 'quantity' => $materialRequest->quantity,
-                 'cost_price' => $materialRequest->cost_price ?? 0,
-                 'unit_price' => $materialRequest->unit_price ?? 0,
-                 'subtotal' => $materialRequest->quantity * ($materialRequest->unit_price ?? 0),
-             ]);
-
-             // Recalculate complete order total
-             $order = \App\Models\RepairOrder::find($materialRequest->repair_order_id);
-             if ($order) {
-                 $order->total_amount = $order->items()->sum('subtotal');
-                 $order->save();
-             }
-        }
-
-        return response()->json(['success' => true]);
     }
 }

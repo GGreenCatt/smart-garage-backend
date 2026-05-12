@@ -49,6 +49,30 @@
         </div>
     </div>
 
+    <div class="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <div class="rounded-2xl border border-indigo-500/20 bg-indigo-500/10 p-4">
+            <div class="mb-2 flex items-center gap-2 text-sm font-black text-indigo-200">
+                <span class="material-icons-round text-base">add_circle</span>
+                Thêm vật tư
+            </div>
+            <p class="text-sm text-slate-300">Tạo mã vật tư mới trong kho. Nếu có tồn đầu, hệ thống tự ghi một giao dịch nhập kho.</p>
+        </div>
+        <div class="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-4">
+            <div class="mb-2 flex items-center gap-2 text-sm font-black text-emerald-200">
+                <span class="material-icons-round text-base">login</span>
+                Nhập kho
+            </div>
+            <p class="text-sm text-slate-300">Tăng số lượng tồn của vật tư có sẵn, dùng khi mua thêm hoặc nhận hàng về kho.</p>
+        </div>
+        <div class="rounded-2xl border border-orange-500/20 bg-orange-500/10 p-4">
+            <div class="mb-2 flex items-center gap-2 text-sm font-black text-orange-200">
+                <span class="material-icons-round text-base">logout</span>
+                Xuất kho
+            </div>
+            <p class="text-sm text-slate-300">Giảm tồn kho khi xuất dùng. Nếu thêm vật tư từ kho vào phiếu sửa chữa, hệ thống cũng tự ghi xuất kho.</p>
+        </div>
+    </div>
+
     @if($errors->any())
         <div class="rounded-xl border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-200">
             <ul class="list-disc space-y-1 pl-5">

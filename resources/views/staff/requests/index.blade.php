@@ -5,11 +5,15 @@
 @section('content')
 <div class="flex flex-col gap-6 h-full">
     <!-- Header -->
-    <div class="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 flex justify-between items-center">
+    <div class="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
             <h1 class="text-2xl font-black text-slate-800 dark:text-slate-100">Yêu Cầu Của Tôi</h1>
             <p class="text-slate-500 dark:text-slate-400 text-sm mt-1">Theo dõi trạng thái các vật tư bạn đã yêu cầu nhập ngoài</p>
         </div>
+        <button type="button" onclick="document.getElementById('createRequestModal').showModal()" class="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-5 py-3 text-sm font-black text-white shadow-lg shadow-indigo-600/20 transition hover:bg-indigo-500">
+            <span class="material-icons-round text-base">add_circle</span>
+            Tạo yêu cầu
+        </button>
     </div>
 
     <!-- Main Content -->
@@ -86,6 +90,49 @@
         </div>
     </div>
 </div>
+
+<dialog id="createRequestModal" class="w-full max-w-lg overflow-hidden rounded-3xl border border-slate-200 bg-white p-0 shadow-2xl backdrop:bg-slate-950/70 dark:border-slate-700 dark:bg-slate-900">
+    <div class="border-b border-slate-100 p-6 dark:border-slate-800">
+        <div class="flex items-start justify-between gap-4">
+            <div>
+                <h3 class="text-xl font-black text-slate-900 dark:text-white">Tạo yêu cầu vật tư</h3>
+                <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Dùng khi cần mua ngoài hoặc bổ sung vật tư chưa có trong kho.</p>
+            </div>
+            <button type="button" onclick="document.getElementById('createRequestModal').close()" class="rounded-full p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-white">
+                <span class="material-icons-round">close</span>
+            </button>
+        </div>
+    </div>
+
+    <form method="POST" action="{{ route('staff.requests.store') }}" class="space-y-5 p-6">
+        @csrf
+        <label class="block">
+            <span class="mb-2 block text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">Tên vật tư</span>
+            <input name="part_name" value="{{ old('part_name') }}" required maxlength="255" class="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-800 outline-none transition focus:border-indigo-500 dark:border-slate-700 dark:bg-slate-950 dark:text-white" placeholder="VD: Cảm biến áp suất lốp">
+        </label>
+
+        <div class="grid gap-4 sm:grid-cols-2">
+            <label class="block">
+                <span class="mb-2 block text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">Số lượng</span>
+                <input type="number" name="quantity" value="{{ old('quantity', 1) }}" min="1" max="999" required class="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-800 outline-none transition focus:border-indigo-500 dark:border-slate-700 dark:bg-slate-950 dark:text-white">
+            </label>
+            <label class="block">
+                <span class="mb-2 block text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">Mã phiếu sửa chữa</span>
+                <input type="number" name="repair_order_id" value="{{ old('repair_order_id') }}" min="1" class="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-800 outline-none transition focus:border-indigo-500 dark:border-slate-700 dark:bg-slate-950 dark:text-white" placeholder="Bỏ trống nếu mua lẻ">
+            </label>
+        </div>
+
+        <label class="block">
+            <span class="mb-2 block text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">Lý do / ghi chú</span>
+            <textarea name="reason" rows="4" maxlength="1000" class="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition focus:border-indigo-500 dark:border-slate-700 dark:bg-slate-950 dark:text-white" placeholder="VD: Kho không còn hàng, cần mua ngoài để hoàn tất sửa chữa.">{{ old('reason') }}</textarea>
+        </label>
+
+        <div class="flex flex-col-reverse gap-3 border-t border-slate-100 pt-5 sm:flex-row sm:justify-end dark:border-slate-800">
+            <button type="button" onclick="document.getElementById('createRequestModal').close()" class="rounded-xl border border-slate-200 px-5 py-3 text-sm font-black text-slate-600 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800">Hủy</button>
+            <button class="rounded-xl bg-indigo-600 px-6 py-3 text-sm font-black text-white shadow-lg shadow-indigo-600/20 transition hover:bg-indigo-500">Gửi yêu cầu</button>
+        </div>
+    </form>
+</dialog>
 
 <!-- Request Details Modal -->
 <div id="requestModal" class="hidden fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 opacity-0 transition-opacity duration-300">

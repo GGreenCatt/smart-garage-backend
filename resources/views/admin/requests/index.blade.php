@@ -22,13 +22,23 @@
         </div>
     </div>
 
-    <div>
-        <h2 class="flex items-center gap-2 text-2xl font-bold text-white">
-            <span class="material-icons-round text-indigo-400">verified_user</span>
-            Phê Duyệt Vật Tư
-        </h2>
-        <p class="mt-1 text-sm text-slate-400">Duyệt vật tư nhân viên yêu cầu mua ngoài hoặc bổ sung vào phiếu sửa chữa.</p>
-    </div>
+	    <div>
+	        <h2 class="flex items-center gap-2 text-2xl font-bold text-white">
+	            <span class="material-icons-round text-indigo-400">verified_user</span>
+	            Phê Duyệt Vật Tư
+	        </h2>
+	        <p class="mt-1 text-sm text-slate-400">Duyệt vật tư nhân viên yêu cầu mua ngoài hoặc bổ sung vào phiếu sửa chữa.</p>
+	    </div>
+
+	    <div class="rounded-2xl border border-slate-700/50 bg-slate-900/70 p-4">
+	        <div class="flex items-start gap-3">
+	            <span class="material-icons-round mt-0.5 text-indigo-300">route</span>
+	            <div>
+	                <div class="font-black text-white">Luồng vật tư sau khi duyệt</div>
+	                <p class="mt-1 text-sm text-slate-400">Khi duyệt, chọn <b class="text-slate-200">Đưa vào phiếu</b> để cộng chi phí trực tiếp vào lệnh sửa chữa, hoặc chọn <b class="text-slate-200">Nhập vào kho</b> để tạo/tăng tồn kho và ghi lịch sử nhập kho.</p>
+	            </div>
+	        </div>
+	    </div>
 
     <section class="space-y-4">
         <div class="flex items-center justify-between">
@@ -64,10 +74,6 @@
                                 </div>
                                 <div class="grid grid-cols-1 gap-3 text-sm md:grid-cols-3">
                                     <div class="rounded-lg border border-slate-800 bg-black/20 p-3">
-                                        <div class="text-xs text-slate-500">Giá nhập</div>
-                                        <div class="font-bold text-red-300">{{ number_format($requestItem->cost_price ?? 0, 0, ',', '.') }}đ</div>
-                                    </div>
-                                    <div class="rounded-lg border border-slate-800 bg-black/20 p-3">
                                         <div class="text-xs text-slate-500">Giá bán</div>
                                         <div class="font-bold text-emerald-300">{{ number_format($requestItem->unit_price ?? 0, 0, ',', '.') }}đ</div>
                                     </div>
@@ -82,10 +88,20 @@
                             </div>
                         </div>
                         <div class="flex items-center gap-3 self-end lg:self-center">
-                            <button onclick="openProcessModal({{ $requestItem->id }}, @js($requestItem->part_name), 'approved')" class="flex h-12 w-12 items-center justify-center rounded-full border border-emerald-500/20 bg-emerald-500/10 text-emerald-300 transition hover:bg-emerald-600 hover:text-white" title="Duyệt">
+                            <button onclick="openProcessModal({{ $requestItem->id }}, @js([
+                                'part_name' => $requestItem->part_name,
+                                'quantity' => $requestItem->quantity,
+                                'unit_price' => (float) ($requestItem->unit_price ?? 0),
+                                'has_order' => (bool) $requestItem->repair_order_id,
+                            ]), 'approved')" class="flex h-12 w-12 items-center justify-center rounded-full border border-emerald-500/20 bg-emerald-500/10 text-emerald-300 transition hover:bg-emerald-600 hover:text-white" title="Duyệt">
                                 <span class="material-icons-round">check</span>
                             </button>
-                            <button onclick="openProcessModal({{ $requestItem->id }}, @js($requestItem->part_name), 'rejected')" class="flex h-12 w-12 items-center justify-center rounded-full border border-red-500/20 bg-red-500/10 text-red-300 transition hover:bg-red-600 hover:text-white" title="Từ chối">
+                            <button onclick="openProcessModal({{ $requestItem->id }}, @js([
+                                'part_name' => $requestItem->part_name,
+                                'quantity' => $requestItem->quantity,
+                                'unit_price' => (float) ($requestItem->unit_price ?? 0),
+                                'has_order' => (bool) $requestItem->repair_order_id,
+                            ]), 'rejected')" class="flex h-12 w-12 items-center justify-center rounded-full border border-red-500/20 bg-red-500/10 text-red-300 transition hover:bg-red-600 hover:text-white" title="Từ chối">
                                 <span class="material-icons-round">close</span>
                             </button>
                         </div>
@@ -130,66 +146,187 @@
     </section>
 </div>
 
-<dialog id="processModal" class="w-full max-w-md overflow-hidden rounded-3xl border border-slate-700 bg-slate-900 p-0 text-white shadow-2xl backdrop:bg-black/80">
-    <div id="modalHeader" class="bg-emerald-600 p-6 text-white">
-        <h3 class="flex items-center gap-2 text-xl font-black">
-            <span id="modalIcon" class="material-icons-round">check_circle</span>
-            <span id="modalTitle">Duyệt yêu cầu</span>
-        </h3>
-        <p id="modalPartNameDisplay" class="mt-1 text-sm font-medium text-white/80"></p>
+<dialog id="processModal" class="w-full max-w-3xl overflow-hidden rounded-3xl border border-slate-700 bg-slate-900 p-0 text-white shadow-2xl backdrop:bg-black/80">
+    <div id="modalHeader" class="border-b border-slate-700 bg-slate-900 p-6 text-white">
+        <div class="flex items-start justify-between gap-4">
+            <div class="flex items-start gap-4">
+                <div id="modalIconWrap" class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-500/15 text-emerald-300">
+                    <span id="modalIcon" class="material-icons-round">check_circle</span>
+                </div>
+                <div>
+                    <h3 id="modalTitle" class="text-xl font-black">Duyệt yêu cầu</h3>
+                    <p id="modalPartNameDisplay" class="mt-1 text-sm font-semibold text-slate-300"></p>
+                </div>
+            </div>
+            <button type="button" onclick="document.getElementById('processModal').close()" class="rounded-full p-2 text-slate-500 transition hover:bg-white/10 hover:text-white">
+                <span class="material-icons-round">close</span>
+            </button>
+        </div>
     </div>
 
-    <form id="processForm" method="POST" class="p-6">
+    <form id="processForm" method="POST" class="max-h-[75vh] overflow-y-auto p-6">
         @csrf
         @method('PUT')
         <input type="hidden" name="status" id="modalStatusInput">
 
-        <div class="mb-6">
-            <label class="mb-2 block text-sm font-bold uppercase tracking-wider text-slate-400">Ghi chú cho nhân viên</label>
-            <textarea name="admin_note" id="admin_note" rows="4" class="w-full resize-none rounded-2xl border border-slate-700 bg-slate-950 p-4 text-white outline-none focus:border-indigo-500" placeholder="Nhập hướng dẫn hoặc lý do từ chối..."></textarea>
+        <div class="space-y-6">
+            <section id="destinationFields" class="rounded-2xl border border-slate-700 bg-slate-950/70 p-4">
+                <div class="mb-3 flex items-center gap-2">
+                    <span class="material-icons-round text-indigo-300">route</span>
+                    <div>
+                        <h4 class="font-black text-white">Đích đến sau khi duyệt</h4>
+                        <p class="text-xs text-slate-500">Chọn rõ vật tư sẽ cộng vào phiếu hay nhập tồn kho.</p>
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <label class="cursor-pointer">
+                        <input type="radio" name="destination" value="repair_order" class="peer sr-only">
+                        <span class="flex h-full items-start gap-3 rounded-2xl border border-slate-700 bg-slate-900 p-4 text-slate-300 transition hover:border-emerald-500/50 peer-checked:border-emerald-500 peer-checked:bg-emerald-500/10 peer-checked:text-emerald-200">
+                            <span class="material-icons-round">receipt_long</span>
+                            <span>
+                                <span class="block font-black">Đưa vào phiếu</span>
+                                <span class="mt-1 block text-xs text-slate-400">Cộng vào chi phí sửa chữa của khách.</span>
+                            </span>
+                        </span>
+                    </label>
+                    <label class="cursor-pointer">
+                        <input type="radio" name="destination" value="inventory" class="peer sr-only">
+                        <span class="flex h-full items-start gap-3 rounded-2xl border border-slate-700 bg-slate-900 p-4 text-slate-300 transition hover:border-indigo-500/50 peer-checked:border-indigo-500 peer-checked:bg-indigo-500/10 peer-checked:text-indigo-200">
+                            <span class="material-icons-round">inventory_2</span>
+                            <span>
+                                <span class="block font-black">Nhập vào kho</span>
+                                <span class="mt-1 block text-xs text-slate-400">Tăng tồn kho và ghi lịch sử nhập kho.</span>
+                            </span>
+                        </span>
+                    </label>
+                </div>
+            </section>
+
+            <section class="rounded-2xl border border-slate-700 bg-slate-950/70 p-4">
+                <div class="mb-3 flex items-center gap-2">
+                    <span class="material-icons-round text-emerald-300">payments</span>
+                    <div>
+                        <h4 class="font-black text-white">Giá vật tư</h4>
+                        <p class="text-xs text-slate-500">Giá bán dùng để cộng vào phiếu hoặc lưu giá kho.</p>
+                    </div>
+                </div>
+
+                <div id="priceFields" class="grid grid-cols-1 gap-4">
+                    <label class="block">
+                        <span class="mb-2 block text-xs font-black uppercase tracking-wider text-slate-400">Giá bán cho khách</span>
+                        <input type="number" name="unit_price" id="modalUnitPrice" min="0" step="1000" class="w-full rounded-2xl border border-slate-700 bg-slate-900 p-4 text-white outline-none focus:border-indigo-500" placeholder="Bắt buộc nếu gắn phiếu">
+                    </label>
+                    <p id="priceHint" class="rounded-xl border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs font-semibold text-amber-200"></p>
+                </div>
+            </section>
+
+            <section id="inventoryFields" class="hidden rounded-2xl border border-slate-700 bg-slate-950/70 p-4">
+                <div class="mb-3 flex items-center gap-2">
+                    <span class="material-icons-round text-indigo-300">inventory</span>
+                    <div>
+                        <h4 class="font-black text-white">Thông tin nhập kho</h4>
+                        <p class="text-xs text-slate-500">Nếu SKU đã tồn tại, hệ thống tăng tồn cho vật tư đó.</p>
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <label class="block">
+                        <span class="mb-2 block text-xs font-black uppercase tracking-wider text-slate-400">SKU</span>
+                        <input name="sku" id="modalSku" class="w-full rounded-2xl border border-slate-700 bg-slate-900 p-4 font-mono text-white outline-none focus:border-indigo-500" placeholder="Tự tạo nếu bỏ trống">
+                    </label>
+                    <label class="block">
+                        <span class="mb-2 block text-xs font-black uppercase tracking-wider text-slate-400">Danh mục</span>
+                        <input name="category" id="modalCategory" class="w-full rounded-2xl border border-slate-700 bg-slate-900 p-4 text-white outline-none focus:border-indigo-500" placeholder="Mua ngoài">
+                    </label>
+                </div>
+            </section>
+
+            <section class="rounded-2xl border border-slate-700 bg-slate-950/70 p-4">
+                <label class="block">
+                    <span class="mb-2 block text-xs font-black uppercase tracking-wider text-slate-400">Ghi chú cho nhân viên</span>
+                    <textarea name="admin_note" id="admin_note" rows="4" class="w-full resize-none rounded-2xl border border-slate-700 bg-slate-900 p-4 text-white outline-none focus:border-indigo-500" placeholder="Nhập hướng dẫn hoặc lý do từ chối..."></textarea>
+                </label>
+            </section>
         </div>
 
-        <div class="flex gap-3">
-            <button type="button" onclick="document.getElementById('processModal').close()" class="flex-1 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 font-bold text-slate-300 transition hover:bg-white/10">Hủy</button>
+        <div class="sticky bottom-0 -mx-6 mt-6 flex flex-col-reverse gap-3 border-t border-slate-700 bg-slate-900/95 px-6 py-4 backdrop-blur sm:flex-row sm:justify-end">
+            <button type="button" onclick="document.getElementById('processModal').close()" class="rounded-2xl border border-white/10 bg-white/5 px-5 py-3 font-bold text-slate-300 transition hover:bg-white/10">Hủy</button>
             <button id="modalSubmitBtn" class="rounded-2xl bg-emerald-600 px-8 py-3 font-bold text-white transition hover:bg-emerald-500">Xác nhận</button>
         </div>
     </form>
 </dialog>
 
 <script>
-function openProcessModal(id, partName, status) {
-    const modal = document.getElementById('processModal');
-    const form = document.getElementById('processForm');
-    const header = document.getElementById('modalHeader');
-    const icon = document.getElementById('modalIcon');
-    const title = document.getElementById('modalTitle');
-    const submit = document.getElementById('modalSubmitBtn');
-    const note = document.getElementById('admin_note');
-
-    form.action = `/admin/material-requests/${id}`;
-    document.getElementById('modalStatusInput').value = status;
-    document.getElementById('modalPartNameDisplay').innerText = partName;
-    note.value = '';
-
-    if (status === 'approved') {
-        header.className = 'bg-emerald-600 p-6 text-white';
-        icon.innerText = 'check_circle';
-        title.innerText = 'Duyệt yêu cầu';
-        submit.className = 'rounded-2xl bg-emerald-600 px-8 py-3 font-bold text-white transition hover:bg-emerald-500';
-        submit.innerText = 'Duyệt';
-        note.required = false;
-        note.placeholder = 'VD: Đã duyệt, nhận vật tư tại kho.';
-    } else {
-        header.className = 'bg-red-600 p-6 text-white';
-        icon.innerText = 'cancel';
+	function openProcessModal(id, data, status) {
+	    const modal = document.getElementById('processModal');
+	    const form = document.getElementById('processForm');
+	    const header = document.getElementById('modalHeader');
+	    const iconWrap = document.getElementById('modalIconWrap');
+	    const icon = document.getElementById('modalIcon');
+	    const title = document.getElementById('modalTitle');
+	    const submit = document.getElementById('modalSubmitBtn');
+	    const note = document.getElementById('admin_note');
+	    const destinationFields = document.getElementById('destinationFields');
+	    const inventoryFields = document.getElementById('inventoryFields');
+	    const priceFields = document.getElementById('priceFields');
+	    const unitInput = document.getElementById('modalUnitPrice');
+	    const priceHint = document.getElementById('priceHint');
+	    const skuInput = document.getElementById('modalSku');
+	    const categoryInput = document.getElementById('modalCategory');
+	    const destinationInputs = form.querySelectorAll('input[name="destination"]');
+	
+	    form.action = `/admin/material-requests/${id}`;
+	    document.getElementById('modalStatusInput').value = status;
+	    document.getElementById('modalPartNameDisplay').innerText = `${data.part_name} x${data.quantity}`;
+	    note.value = '';
+	    unitInput.value = data.unit_price || '';
+	    skuInput.value = '';
+	    categoryInput.value = 'Mua ngoài';
+	    destinationInputs.forEach(input => {
+	        input.checked = input.value === (data.has_order ? 'repair_order' : 'inventory');
+	        input.onchange = () => toggleDestination(data);
+	    });
+	
+	    if (status === 'approved') {
+	        header.className = 'border-b border-emerald-500/20 bg-emerald-500/10 p-6 text-white';
+	        iconWrap.className = 'flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-500/15 text-emerald-300';
+	        icon.innerText = 'check_circle';
+	        title.innerText = 'Duyệt yêu cầu';
+	        submit.className = 'rounded-2xl bg-emerald-600 px-8 py-3 font-bold text-white transition hover:bg-emerald-500';
+	        submit.innerText = 'Duyệt';
+	        note.required = false;
+	        note.placeholder = 'VD: Đã duyệt, nhận vật tư tại kho.';
+	        destinationFields.classList.remove('hidden');
+	        priceFields.classList.remove('hidden');
+	        toggleDestination(data);
+	    } else {
+	        header.className = 'border-b border-red-500/20 bg-red-500/10 p-6 text-white';
+	        iconWrap.className = 'flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-red-500/15 text-red-300';
+	        icon.innerText = 'cancel';
         title.innerText = 'Từ chối yêu cầu';
         submit.className = 'rounded-2xl bg-red-600 px-8 py-3 font-bold text-white transition hover:bg-red-500';
-        submit.innerText = 'Từ chối';
-        note.required = true;
-        note.placeholder = 'Nhập lý do từ chối để nhân viên nắm rõ.';
-    }
+	        submit.innerText = 'Từ chối';
+	        note.required = true;
+	        note.placeholder = 'Nhập lý do từ chối để nhân viên nắm rõ.';
+	        destinationFields.classList.add('hidden');
+	        inventoryFields.classList.add('hidden');
+	        priceFields.classList.add('hidden');
+	        unitInput.required = false;
+	    }
+	
+	    modal.showModal();
+	}
 
-    modal.showModal();
-}
-</script>
+	function toggleDestination(data) {
+	    const selected = document.querySelector('input[name="destination"]:checked')?.value || (data.has_order ? 'repair_order' : 'inventory');
+	    const inventoryFields = document.getElementById('inventoryFields');
+	    const unitInput = document.getElementById('modalUnitPrice');
+	    const priceHint = document.getElementById('priceHint');
+
+	    inventoryFields.classList.toggle('hidden', selected !== 'inventory');
+	    unitInput.required = true;
+	    priceHint.innerText = selected === 'repair_order'
+	        ? 'Vật tư sẽ được cộng vào phiếu sửa chữa, không tăng tồn kho.'
+	        : 'Vật tư sẽ được nhập vào kho và xuất hiện trong danh sách Kho & Vật Tư.';
+	}
+	</script>
 @endsection

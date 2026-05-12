@@ -8,6 +8,7 @@ use App\Models\Part;
 use App\Models\Promotion;
 use App\Models\RepairOrder;
 use App\Models\RepairOrderItem;
+use App\Models\InventoryTransaction;
 use App\Models\RepairTask;
 use App\Models\Role;
 use App\Models\Service;
@@ -237,6 +238,19 @@ class RepairOrderController extends Controller
             'unit_price' => $unitPrice,
             'subtotal' => $unitPrice * $validated['quantity'],
         ]);
+
+        if ($validated['type'] === 'part') {
+            $item->decrement('stock_quantity', $validated['quantity']);
+
+            InventoryTransaction::create([
+                'part_id' => $item->id,
+                'type' => 'out',
+                'quantity' => $validated['quantity'],
+                'user_id' => auth()->id(),
+                'reference' => 'RO-'.$repairOrder->id,
+                'note' => 'Xuất kho dùng cho phiếu '.$repairOrder->track_id,
+            ]);
+        }
 
         $this->recalculateTotal($repairOrder);
 

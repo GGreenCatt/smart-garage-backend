@@ -19,7 +19,8 @@ class MaterialRequest extends Model
         'unit_price', // Selling
         'reason',
         'status',
-        'admin_note'
+        'admin_note',
+        'repair_task_id',
     ];
 
     public function staff()
@@ -30,5 +31,10 @@ class MaterialRequest extends Model
     public function repairOrder()
     {
         return $this->belongsTo(RepairOrder::class);
+    }
+
+    public function repairTask()
+    {
+        return $this->belongsTo(RepairTask::class);
     }
 }
