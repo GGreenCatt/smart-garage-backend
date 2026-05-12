@@ -126,6 +126,20 @@
             transform: rotate(180deg);
         }
     }
+    @media (min-width: 768px) and (max-width: 1599px) {
+        .staff-task-list-header {
+            align-items: flex-start !important;
+            flex-direction: column !important;
+        }
+        .staff-task-toolbar {
+            width: 100%;
+            justify-content: flex-start !important;
+            flex-wrap: wrap !important;
+        }
+        .staff-task-toolbar > * {
+            max-width: 100%;
+        }
+    }
 </style>
 @endonce
 @php
@@ -429,7 +443,7 @@
 <div class="flex-1 flex flex-col xl:flex-row min-w-0">
     <!-- Tasks List -->
     <div class="flex-1 min-w-0 p-8 border-b xl:border-b-0 xl:border-r border-gray-200 dark:border-[#1e293b] bg-gray-50 dark:bg-[#111827]">
-        <div class="staff-detail-row flex items-center justify-between mb-6 gap-3">
+        <div class="staff-detail-row staff-task-list-header flex items-center justify-between mb-6 gap-3">
             <h3 class="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
                 <span class="material-icons-round text-indigo-600">list_alt</span>
                 Danh sách công việc
@@ -441,7 +455,7 @@
                 </span>
                 <span class="staff-mobile-section-chevron material-icons-round !text-[18px] transition-transform">expand_more</span>
             </button>
-            <div id="staffTaskActions" class="staff-order-actions flex items-center gap-2 flex-wrap sm:flex-nowrap justify-end">
+            <div id="staffTaskActions" class="staff-order-actions staff-task-toolbar flex items-center gap-2 flex-wrap justify-end">
                 @if($canCreateQuote || $canViewQuote)
                     @if($canCreateQuote)
                         <button onclick="window.location.href='{{ route('staff.quote.create', $selectedOrder->id) }}'" class="text-sm whitespace-nowrap shrink-0 w-max bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-bold py-1.5 px-3 rounded-lg shadow-md hover:shadow-lg flex items-center justify-center gap-1.5 transition-all transform hover:-translate-y-0.5" title="Tạo Báo Giá gửi Khách Hàng">

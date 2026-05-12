@@ -186,9 +186,11 @@ Route::middleware(['auth', 'verified', 'staff'])->prefix('staff')->name('staff.'
 
     // SOS Requests
     Route::get('/sos', [App\Http\Controllers\Staff\SosController::class, 'index'])->name('sos.index');
+    Route::get('/sos/pending-alert', [App\Http\Controllers\Staff\SosController::class, 'pendingAlert'])->name('sos.pending-alert');
     Route::get('/sos/{id}', [App\Http\Controllers\Staff\SosController::class, 'show'])->name('sos.show');
     Route::post('/sos/{id}/accept', [App\Http\Controllers\Staff\SosController::class, 'accept'])->name('sos.accept');
     Route::post('/sos/{id}/status', [App\Http\Controllers\Staff\SosController::class, 'updateStatus'])->name('sos.status');
+    Route::post('/sos/{id}/cancel', [App\Http\Controllers\Staff\SosController::class, 'cancel'])->name('sos.cancel');
     Route::post('/sos/{id}/unassign', [App\Http\Controllers\Staff\SosController::class, 'unassign'])->name('sos.unassign');
     
     // SOS Location APIs

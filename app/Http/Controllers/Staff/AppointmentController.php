@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Appointment;
 use App\Models\RepairOrder;
 use App\Models\RepairOrderItem;
+use App\Models\RepairTask;
 use App\Models\Service;
 use App\Models\Vehicle;
 use Illuminate\Http\Request;
@@ -88,7 +89,7 @@ class AppointmentController extends Controller
         return back()->with('success', 'Đã xóa lịch hẹn thành công');
     }
 
-    public function convertToRo(Appointment $appointment)
+    public function convertToRo(Request $request, Appointment $appointment)
     {
         if (in_array($appointment->status, ['cancelled', 'no_show'], true)) {
             return back()->withErrors(['error' => 'Không thể tạo lệnh cho lịch đã hủy hoặc khách không đến.']);
@@ -104,14 +105,41 @@ class AppointmentController extends Controller
             return back()->withErrors(['error' => 'Lịch hẹn thiếu thông tin khách hàng, không thể tạo lệnh sửa chữa.']);
         }
 
-        $vehicle = $appointment->vehicle ?: $this->resolveVehicleFromAppointment($appointment);
+        $validated = $request->validate([
+            'service_id' => 'nullable|exists:services,id',
+            'reason' => 'nullable|string|max:1000',
+            'notes' => 'nullable|string|max:1000',
+            'admin_notes' => 'nullable|string|max:1000',
+            'intake_note' => 'nullable|string|max:1000',
+            'vehicle_type' => ['nullable', Rule::in(['sedan', 'suv', 'hatchback', 'pickup', 'mpv'])],
+            'inspection_options.general' => 'nullable|boolean',
+            'inspection_options.use_3d' => 'nullable|boolean',
+            'inspection_options.cabin' => 'nullable|boolean',
+            'inspection_options.engine' => 'nullable|boolean',
+        ]);
+
+        $appointment->fill([
+            'service_id' => $validated['service_id'] ?? $appointment->service_id,
+            'reason' => $validated['reason'] ?? $appointment->reason,
+            'notes' => $validated['notes'] ?? $appointment->notes,
+            'admin_notes' => $validated['admin_notes'] ?? $appointment->admin_notes,
+        ]);
+        $appointment->loadMissing(['service']);
+
+        $vehicleType = $validated['vehicle_type'] ?? $appointment->vehicle?->type ?? 'sedan';
+        $vehicle = $appointment->vehicle ?: $this->resolveVehicleFromAppointment($appointment, $vehicleType);
         if (! $vehicle) {
             return back()->withErrors(['error' => 'Lịch hẹn thiếu xe hoặc biển số, không thể tạo lệnh sửa chữa.']);
         }
 
-        $servicePrice = (float) ($appointment->service?->base_price ?? $appointment->service?->price ?? 0);
+        if ($request->filled('vehicle_type') && $vehicle->type !== $vehicleType) {
+            $vehicle->forceFill(['type' => $vehicleType])->save();
+        }
 
-        $ro = DB::transaction(function () use ($appointment, $vehicle, $servicePrice) {
+        $servicePrice = (float) ($appointment->service?->base_price ?? $appointment->service?->price ?? 0);
+        $inspectionOptions = $request->input('inspection_options', []);
+
+        $ro = DB::transaction(function () use ($appointment, $vehicle, $servicePrice, $inspectionOptions, $validated) {
             $ro = RepairOrder::create([
                 'track_id' => strtoupper(uniqid('RO-')),
                 'customer_id' => $appointment->customer_id,
@@ -121,7 +149,7 @@ class AppointmentController extends Controller
                 'quote_status' => 'draft',
                 'payment_status' => 'unpaid',
                 'service_type' => $appointment->service?->name ?? 'Dịch vụ theo lịch hẹn',
-                'diagnosis_note' => $this->buildDiagnosisNote($appointment),
+                'diagnosis_note' => $this->buildDiagnosisNote($appointment, $validated['intake_note'] ?? null),
                 'start_time' => now(),
                 'subtotal' => $servicePrice,
                 'discount_amount' => 0,
@@ -141,6 +169,7 @@ class AppointmentController extends Controller
                 ]);
             }
 
+            $this->createInitialInspectionTasks($ro, $inspectionOptions);
             $appointment->update(['status' => 'completed']);
 
             return $ro;
@@ -150,7 +179,7 @@ class AppointmentController extends Controller
             ->with('success', 'Đã tiếp nhận xe và tạo lệnh sửa chữa từ lịch hẹn');
     }
 
-    private function resolveVehicleFromAppointment(Appointment $appointment): ?Vehicle
+    private function resolveVehicleFromAppointment(Appointment $appointment, string $vehicleType = 'sedan'): ?Vehicle
     {
         if (! $appointment->license_plate) {
             return null;
@@ -174,7 +203,7 @@ class AppointmentController extends Controller
             'user_id' => $appointment->customer_id,
             'license_plate' => $plate,
             'model' => $appointment->vehicle_name ?: 'Chưa xác định',
-            'type' => 'sedan',
+            'type' => $vehicleType,
             'year' => date('Y'),
             'color' => 'Unknown',
             'owner_name' => $appointment->customer->name,
@@ -182,12 +211,43 @@ class AppointmentController extends Controller
         ]);
     }
 
-    private function buildDiagnosisNote(Appointment $appointment): string
+    private function createInitialInspectionTasks(RepairOrder $order, array $inspectionOptions): void
+    {
+        if (! empty($inspectionOptions['general'])) {
+            RepairTask::create([
+                'repair_order_id' => $order->id,
+                'title' => ! empty($inspectionOptions['use_3d']) ? 'Kiểm tra tổng quát (3D)' : 'Kiểm tra tổng quát',
+                'type' => ! empty($inspectionOptions['use_3d']) ? 'vhc' : 'general',
+                'status' => 'pending',
+            ]);
+        }
+
+        if (! empty($inspectionOptions['cabin'])) {
+            RepairTask::create([
+                'repair_order_id' => $order->id,
+                'title' => 'Kiểm tra bên trong khoang lái',
+                'type' => 'general',
+                'status' => 'pending',
+            ]);
+        }
+
+        if (! empty($inspectionOptions['engine'])) {
+            RepairTask::create([
+                'repair_order_id' => $order->id,
+                'title' => 'Kiểm tra động cơ',
+                'type' => 'general',
+                'status' => 'pending',
+            ]);
+        }
+    }
+
+    private function buildDiagnosisNote(Appointment $appointment, ?string $intakeNote = null): string
     {
         return trim(
             ($appointment->reason ? "Lý do: {$appointment->reason}. " : '').
             ($appointment->notes ? "Ghi chú khách: {$appointment->notes}. " : '').
             ($appointment->admin_notes ? "Phản hồi garage: {$appointment->admin_notes}. " : '').
+            ($intakeNote ? "Ghi chú tiếp nhận: {$intakeNote}. " : '').
             'Tiếp nhận từ lịch hẹn #'.$appointment->id
         );
     }

@@ -501,7 +501,7 @@
         </button>
     </div>
 
-    <main id="order-details-container" class="flex-1 flex flex-col bg-white dark:bg-[#020617] relative overflow-y-auto">
+    <main id="order-details-container" class="min-w-0 flex-1 flex flex-col bg-white dark:bg-[#020617] relative overflow-y-auto">
         @php
             if(!isset($selectedOrder)) {
                  $selectedOrder = $approved->first() ?? $pendingApproval->first() ?? $inProgress->first() ?? $waiting->first() ?? $ready->first();

@@ -8,6 +8,19 @@
     $minSchedule = now()->addMinutes(30)->format('Y-m-d\TH:i');
 @endphp
 
+@push('styles')
+<style>
+    .appointment-datetime::-webkit-calendar-picker-indicator {
+        cursor: pointer;
+        filter: invert(1) brightness(1.7);
+        opacity: .9;
+    }
+    .appointment-datetime::-webkit-calendar-picker-indicator:hover {
+        opacity: 1;
+    }
+</style>
+@endpush
+
 <main class="min-h-screen bg-[#0f172a] px-4 pb-16 pt-28 text-white md:px-6">
     <div class="mx-auto max-w-6xl">
         <div class="mb-6 flex items-center justify-between gap-3">
@@ -182,7 +195,7 @@
 
                         <label class="block">
                             <span class="mb-2 block text-xs font-black uppercase tracking-wider text-slate-500">Thời gian hẹn</span>
-                            <input type="datetime-local" name="scheduled_at" id="scheduled_at" value="{{ old('scheduled_at') }}" min="{{ $minSchedule }}" class="w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 font-bold text-white outline-none transition focus:border-cyan-400" required>
+                            <input type="datetime-local" name="scheduled_at" id="scheduled_at" value="{{ old('scheduled_at') }}" min="{{ $minSchedule }}" class="appointment-datetime w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 font-bold text-white outline-none transition focus:border-cyan-400" required>
                         </label>
                     </div>
                 </div>

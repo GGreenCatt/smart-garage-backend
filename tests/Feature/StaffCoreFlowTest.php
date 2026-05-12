@@ -401,6 +401,64 @@ class StaffCoreFlowTest extends TestCase
         $this->assertSame('unpaid', $order->fresh()->payment_status);
     }
 
+    public function test_staff_payment_preview_uses_final_order_total_when_coupon_is_entered(): void
+    {
+        $staff = User::factory()->create(['role' => 'staff', 'role_id' => Role::where('slug', 'staff')->value('id')]);
+        $vehicle = Vehicle::create([
+            'license_plate' => '59A-19000',
+            'model' => 'Vios',
+            'type' => 'sedan',
+            'year' => 2022,
+            'color' => 'White',
+            'owner_name' => 'Guest',
+            'owner_phone' => '0909190000',
+        ]);
+        $order = RepairOrder::create([
+            'track_id' => 'RO-PAY-FINAL',
+            'vehicle_id' => $vehicle->id,
+            'advisor_id' => $staff->id,
+            'status' => 'completed',
+            'payment_status' => 'unpaid',
+            'subtotal' => 190000,
+            'discount_amount' => 0,
+            'tax_amount' => 0,
+            'total_amount' => 190000,
+        ]);
+        $task = RepairTask::create([
+            'repair_order_id' => $order->id,
+            'title' => 'Công việc đã cộng vào hóa đơn',
+            'status' => 'completed',
+            'customer_approval_status' => 'approved',
+            'labor_cost' => 150000,
+        ]);
+        RepairOrderItem::create([
+            'repair_order_id' => $order->id,
+            'repair_task_id' => $task->id,
+            'name' => 'Phụ tùng',
+            'quantity' => 1,
+            'unit_price' => 190000,
+            'subtotal' => 190000,
+        ]);
+        Promotion::create([
+            'code' => 'NEWYEAR',
+            'type' => 'fixed',
+            'value' => 50000,
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($staff)
+            ->getJson(route('staff.order.payment-preview', [
+                'id' => $order->id,
+                'coupon_code' => 'NEWYEAR',
+            ]))
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('base_amount', 190000)
+            ->assertJsonPath('discount_amount', 50000)
+            ->assertJsonPath('total_amount', 140000)
+            ->assertJsonPath('promotion_code', 'NEWYEAR');
+    }
+
     public function test_staff_can_handover_paid_completed_order_once(): void
     {
         $staff = User::factory()->create(['role' => 'staff', 'role_id' => Role::where('slug', 'staff')->value('id')]);
@@ -743,6 +801,41 @@ class StaffCoreFlowTest extends TestCase
         $this->assertSame('completed', $sos->fresh()->status);
     }
 
+    public function test_staff_can_cancel_sos_with_reason_and_admin_log(): void
+    {
+        $staff = User::factory()->create(['role' => 'staff', 'role_id' => Role::where('slug', 'staff')->value('id')]);
+        $customer = User::factory()->create(['role' => 'customer', 'role_id' => Role::where('slug', 'customer')->value('id')]);
+        $sos = SosRequest::create([
+            'customer_id' => $customer->id,
+            'latitude' => 10.762622,
+            'longitude' => 106.660172,
+            'description' => 'Xe chết máy',
+            'status' => 'assigned',
+            'assigned_staff_id' => $staff->id,
+        ]);
+
+        $this->actingAs($staff)
+            ->postJson(route('staff.sos.cancel', $sos->id), [
+                'cancel_reason' => 'unable_to_contact',
+                'cancel_note' => 'Gọi nhiều lần nhưng khách không nghe máy.',
+            ])
+            ->assertOk()
+            ->assertJsonPath('success', true);
+
+        $this->assertDatabaseHas('sos_requests', [
+            'id' => $sos->id,
+            'status' => 'cancelled',
+            'cancel_reason' => 'unable_to_contact',
+            'cancel_note' => 'Gọi nhiều lần nhưng khách không nghe máy.',
+            'cancelled_by' => $staff->id,
+        ]);
+
+        $this->assertDatabaseHas('activity_logs', [
+            'user_id' => $staff->id,
+            'action' => 'STAFF_SOS_CANCELLED',
+        ]);
+    }
+
     public function test_staff_location_list_only_returns_recent_staff_with_coordinates(): void
     {
         $staff = User::factory()->create(['role' => 'staff', 'role_id' => Role::where('slug', 'staff')->value('id')]);
@@ -769,5 +862,37 @@ class StaffCoreFlowTest extends TestCase
             ->assertJsonPath('success', true)
             ->assertJsonCount(1, 'data')
             ->assertJsonPath('data.0.id', $otherStaff->id);
+    }
+
+    public function test_staff_sos_pending_alert_only_returns_pending_requests(): void
+    {
+        $staff = User::factory()->create(['role' => 'staff', 'role_id' => Role::where('slug', 'staff')->value('id')]);
+        $customer = User::factory()->create(['role' => 'customer', 'role_id' => Role::where('slug', 'customer')->value('id')]);
+
+        $pending = SosRequest::create([
+            'customer_id' => $customer->id,
+            'latitude' => 10.762622,
+            'longitude' => 106.660172,
+            'description' => 'Xe dừng giữa đường',
+            'status' => 'pending',
+        ]);
+
+        SosRequest::create([
+            'customer_id' => $customer->id,
+            'latitude' => 10.77,
+            'longitude' => 106.67,
+            'description' => 'Đã có người nhận',
+            'status' => 'assigned',
+            'assigned_staff_id' => $staff->id,
+        ]);
+
+        $this->actingAs($staff)
+            ->getJson(route('staff.sos.pending-alert'))
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('count', 1)
+            ->assertJsonPath('items.0.id', $pending->id)
+            ->assertJsonPath('items.0.display_name', $customer->name)
+            ->assertJsonPath('items.0.url', route('staff.sos.show', $pending->id));
     }
 }

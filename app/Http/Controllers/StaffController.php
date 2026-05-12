@@ -992,6 +992,19 @@ class StaffController extends Controller
     }
     private function paymentBaseAmount(\App\Models\RepairOrder $order): float
     {
+        $storedTotal = (float) ($order->total_amount ?? 0);
+        $storedDiscount = (float) ($order->discount_amount ?? 0);
+        $storedTax = (float) ($order->tax_amount ?? 0);
+
+        if ($storedTotal > 0) {
+            return max(0, $storedTotal + $storedDiscount - $storedTax);
+        }
+
+        $storedSubtotal = (float) ($order->subtotal ?? 0);
+        if ($storedSubtotal > 0) {
+            return $storedSubtotal;
+        }
+
         $tasks = $order->tasks->reject(fn ($task) => $task->customer_approval_status === 'rejected');
 
         $taskTotal = $tasks->sum(function ($task) {
@@ -1004,10 +1017,6 @@ class StaffController extends Controller
             ->sum('subtotal');
 
         $baseAmount = (float) $taskTotal + (float) $standaloneItemsTotal;
-
-        if ($baseAmount <= 0) {
-            return max(0, (float) ($order->subtotal ?: $order->total_amount));
-        }
 
         return $baseAmount;
     }

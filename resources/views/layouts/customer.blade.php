@@ -56,6 +56,8 @@
         .border-brand-primary { border-color: var(--brand-primary) !important; }
         .bg-brand-accent { background-color: var(--brand-accent) !important; }
         .text-brand-accent { color: var(--brand-accent) !important; }
+        .swal2-container { z-index: 20000 !important; }
+        .customer-auth-swal-container { z-index: 20000 !important; }
     </style>
     @yield('styles')
     @stack('styles')
@@ -166,7 +168,53 @@
     </a>
     @endif
 
-    @stack('modals')
+    @guest
+    <div id="authModal" class="hidden fixed inset-0 bg-black/80 z-[9999] flex items-center justify-center backdrop-blur-md p-4">
+        <div class="relative z-[10000] bg-slate-900 rounded-2xl w-full max-w-md shadow-2xl border border-slate-700 overflow-hidden">
+            <div class="flex border-b border-slate-700">
+                <button type="button" onclick="switchAuthTab('login')" id="tabLogin" class="flex-1 py-4 text-center font-bold text-white border-b-2 border-cyan-500 bg-slate-800/50">Đăng nhập</button>
+                <button type="button" onclick="switchAuthTab('register')" id="tabRegister" class="flex-1 py-4 text-center font-bold text-slate-400 hover:text-white transition">Đăng ký</button>
+            </div>
+
+            <div class="p-8">
+                <form id="loginForm" onsubmit="handleLogin(event)" class="space-y-4">
+                    <h3 class="text-xl font-bold text-white text-center mb-6">Chào mừng trở lại</h3>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-400 mb-1">Email hoặc số điện thoại</label>
+                        <input type="text" class="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-lg text-white focus:border-cyan-500 focus:outline-none transition" placeholder="Nhập email hoặc SĐT">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-400 mb-1">Mật khẩu</label>
+                        <input type="password" class="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-lg text-white focus:border-cyan-500 focus:outline-none transition">
+                    </div>
+                    <button type="submit" class="w-full py-3.5 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white rounded-lg font-bold shadow-lg shadow-cyan-900/30 transition mt-4">Đăng nhập</button>
+                </form>
+
+                <form id="registerForm" onsubmit="handleRegister(event)" class="space-y-4 hidden">
+                    <h3 class="text-xl font-bold text-white text-center mb-6">Tạo tài khoản mới</h3>
+                    <div class="bg-blue-900/20 p-3 rounded-lg border border-blue-500/20 text-xs text-blue-300 mb-4"><i class="fas fa-history mr-1"></i> Tài khoản sẽ tự động đồng bộ lịch sử sửa chữa cũ dựa trên số điện thoại.</div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-400 mb-1">Họ và tên</label>
+                        <input type="text" class="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-lg text-white focus:border-cyan-500 focus:outline-none transition">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-400 mb-1">Số điện thoại</label>
+                        <input type="tel" class="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-lg text-white focus:border-cyan-500 focus:outline-none transition">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-400 mb-1">Mật khẩu</label>
+                        <input type="password" class="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-lg text-white focus:border-cyan-500 focus:outline-none transition">
+                    </div>
+                    <button type="submit" class="w-full py-3.5 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white rounded-lg font-bold shadow-lg shadow-cyan-900/30 transition mt-4">Đăng ký thành viên</button>
+                </form>
+            </div>
+            <div class="bg-slate-800/50 p-4 text-center border-t border-slate-700">
+                <button type="button" onclick="closeAuthModal()" class="text-sm font-semibold text-slate-400 hover:text-white">Đóng</button>
+            </div>
+        </div>
+    </div>
+    @endguest
+
     @stack('modals')
     @stack('scripts')
     <script>
@@ -203,13 +251,127 @@
     <script>
         function openLoginModal() {
             const modal = document.getElementById('authModal');
-            if(modal) modal.classList.remove('hidden');
+            if(modal) {
+                modal.classList.remove('hidden');
+                document.body.classList.add('overflow-hidden');
+            }
         }
         function closeAuthModal() {
             const modal = document.getElementById('authModal');
-            if(modal) modal.classList.add('hidden');
+            if(modal) {
+                modal.classList.add('hidden');
+                document.body.classList.remove('overflow-hidden');
+            }
+        }
+
+        function showAuthSuccessToast(title) {
+            closeAuthModal();
+            setTimeout(() => {
+                Swal.fire({
+                    toast: true,
+                    target: document.body,
+                    position: 'top-end',
+                    icon: 'success',
+                    title,
+                    showConfirmButton: false,
+                    timer: 1600,
+                    customClass: { container: 'customer-auth-swal-container' }
+                });
+            }, 80);
         }
     </script>
+
+    @guest
+    <script>
+        function switchAuthTab(tab) {
+            const loginForm = document.getElementById('loginForm');
+            const registerForm = document.getElementById('registerForm');
+            const tabLogin = document.getElementById('tabLogin');
+            const tabRegister = document.getElementById('tabRegister');
+            if (!loginForm || !registerForm || !tabLogin || !tabRegister) return;
+
+            if (tab === 'login') {
+                loginForm.classList.remove('hidden'); registerForm.classList.add('hidden');
+                tabLogin.className = 'flex-1 py-4 text-center font-bold text-white border-b-2 border-cyan-500 bg-slate-800/50';
+                tabRegister.className = 'flex-1 py-4 text-center font-bold text-slate-400 hover:text-white transition';
+            } else {
+                loginForm.classList.add('hidden'); registerForm.classList.remove('hidden');
+                tabLogin.className = 'flex-1 py-4 text-center font-bold text-slate-400 hover:text-white transition';
+                tabRegister.className = 'flex-1 py-4 text-center font-bold text-white border-b-2 border-cyan-500 bg-slate-800/50';
+            }
+        }
+
+        function handleLogin(e) {
+            e.preventDefault();
+            const form = e.target;
+            const userInput = form.querySelector('input[type="text"]').value;
+            const password = form.querySelector('input[type="password"]').value;
+
+            fetch("{{ route('login') }}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': "{{ csrf_token() }}",
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({ email: userInput, password: password })
+            })
+            .then(res => res.json().then(data => ({ status: res.status, body: data })))
+            .then(res => {
+                if (res.status === 200) {
+                    showAuthSuccessToast('Đăng nhập thành công!');
+                    setTimeout(() => window.location.href = res.body.redirect, 1200);
+                    return;
+                }
+                Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: res.body.message || 'Đăng nhập thất bại!', showConfirmButton: false, timer: 3000 });
+            })
+            .catch(() => Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: 'Lỗi kết nối!', showConfirmButton: false, timer: 3000 }));
+        }
+
+        function handleRegister(e) {
+            e.preventDefault();
+            const form = e.target;
+            const name = form.querySelector('input[type="text"]').value;
+            const phone = form.querySelector('input[type="tel"]').value;
+            const password = form.querySelector('input[type="password"]').value;
+
+            fetch("{{ route('register') }}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': "{{ csrf_token() }}",
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({ name: name, phone: phone, password: password })
+            })
+            .then(res => res.json().then(data => ({ status: res.status, body: data })))
+            .then(res => {
+                if (res.status === 200) {
+                    showAuthSuccessToast('Đăng ký thành công!');
+                    setTimeout(() => window.location.href = res.body.redirect, 1200);
+                    return;
+                }
+
+                let message = res.body.message || 'Đăng ký thất bại!';
+                if (res.body.errors) {
+                    message = Object.values(res.body.errors).flat().join('\n');
+                }
+
+                Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: 'Đăng ký thất bại', text: message, showConfirmButton: false, timer: 3000 });
+            })
+            .catch(() => Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: 'Lỗi kết nối!', showConfirmButton: false, timer: 3000 }));
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const authModal = document.getElementById('authModal');
+            if (!authModal) return;
+
+            authModal.addEventListener('click', (e) => {
+                if (e.target === authModal) closeAuthModal();
+            });
+        });
+    </script>
+    @endguest
 
     @auth
     <script>

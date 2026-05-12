@@ -76,69 +76,75 @@
 </div>
 
 <!-- Payment Modal -->
-<div id="paymentModal" class="hidden fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm transition-opacity" data-total="0">
-    <div onclick="event.stopPropagation()" class="bg-white dark:bg-slate-800 w-full max-w-lg rounded-2xl p-6 shadow-2xl relative transform transition-all scale-100 flex flex-col gap-6 mt-10">
+<div id="paymentModal" class="hidden fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-3 sm:p-4 backdrop-blur-sm transition-opacity" data-total="0">
+    <div onclick="event.stopPropagation()" class="bg-white dark:bg-slate-800 w-full max-w-lg max-h-[calc(100vh-1.5rem)] sm:max-h-[calc(100vh-2rem)] rounded-2xl shadow-2xl relative transform transition-all scale-100 flex flex-col overflow-hidden">
         <button onclick="document.getElementById('paymentModal').classList.add('hidden')" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 dark:text-slate-300 transition">
             <i class="fas fa-times text-xl"></i>
         </button>
-        <h3 class="font-black text-2xl text-slate-800 dark:text-slate-100 flex items-center gap-2">
-            <i class="fas fa-wallet text-teal-500"></i> Thanh Toán
-        </h3>
-
-        <div class="bg-slate-50 dark:bg-slate-900/50 rounded-xl p-4 border border-slate-100 dark:border-slate-700 flex justify-between items-center">
-            <span class="text-slate-500 dark:text-slate-400 font-medium text-sm">Tổng cộng</span>
-            <span class="text-2xl font-black text-teal-600" id="paymentModalTotal">0đ</span>
+        <div class="shrink-0 border-b border-slate-100 dark:border-slate-700 p-5 pb-4">
+            <h3 class="font-black text-2xl text-slate-800 dark:text-slate-100 flex items-center gap-2 pr-10">
+                <i class="fas fa-wallet text-teal-500"></i> Thanh Toán
+            </h3>
         </div>
 
-        <div>
-            <label for="paymentCouponCode" class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Mã giảm giá</label>
-            <div class="relative">
-                <input type="text" id="paymentCouponCode" class="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 pr-10 text-slate-800 dark:text-slate-100 uppercase tracking-wider font-bold focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none" placeholder="Nhập mã nếu có">
-                <i class="fas fa-ticket-alt absolute right-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
+        <div class="flex-1 overflow-y-auto p-5 space-y-5">
+            <div class="bg-slate-50 dark:bg-slate-900/50 rounded-xl p-4 border border-slate-100 dark:border-slate-700 flex justify-between items-center">
+                <span class="text-slate-500 dark:text-slate-400 font-medium text-sm">Tổng cộng</span>
+                <span class="text-2xl font-black text-teal-600" id="paymentModalTotal">0đ</span>
             </div>
-            <p class="text-xs text-slate-500 dark:text-slate-400 mt-2">Mã sẽ được kiểm tra và trừ trực tiếp khi xác nhận thanh toán.</p>
+
+            <div>
+                <label for="paymentCouponCode" class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Mã giảm giá</label>
+                <div class="relative">
+                    <input type="text" id="paymentCouponCode" class="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 pr-10 text-slate-800 dark:text-slate-100 uppercase tracking-wider font-bold focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none" placeholder="Nhập mã nếu có">
+                    <i class="fas fa-ticket-alt absolute right-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                </div>
+                <p class="text-xs text-slate-500 dark:text-slate-400 mt-2">Mã sẽ được kiểm tra và trừ trực tiếp khi xác nhận thanh toán.</p>
+            </div>
+
+            <div id="paymentPreviewBox" class="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 p-4 space-y-2 text-sm">
+                <div class="flex items-center justify-between text-slate-500 dark:text-slate-400">
+                    <span>Tạm tính</span>
+                    <span id="paymentPreviewBase" class="font-bold text-slate-700 dark:text-slate-200">0đ</span>
+                </div>
+                <div class="flex items-center justify-between text-emerald-600 dark:text-emerald-400">
+                    <span>Giảm giá</span>
+                    <span id="paymentPreviewDiscount" class="font-bold">-0đ</span>
+                </div>
+                <div class="flex items-center justify-between border-t border-slate-200 dark:border-slate-700 pt-2 text-base">
+                    <span class="font-black text-slate-800 dark:text-slate-100">Khách cần thanh toán</span>
+                    <span id="paymentPreviewDue" class="text-xl font-black text-teal-600">0đ</span>
+                </div>
+                <div id="paymentCouponStatus" class="hidden rounded-lg px-3 py-2 text-xs font-bold"></div>
+            </div>
+
+            <div>
+                <label class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Phương thức thanh toán</label>
+                <div class="grid grid-cols-2 gap-3">
+                    <button type="button" onclick="selectPaymentMethod('cash')" id="btnPmtCash" class="py-3 px-4 rounded-xl border-2 border-teal-500 bg-teal-50 dark:bg-teal-900/20 text-teal-700 dark:text-teal-400 font-bold transition flex items-center justify-center gap-2">
+                        <i class="fas fa-money-bill-wave"></i> Tiền Mặt
+                    </button>
+                    <button type="button" onclick="selectPaymentMethod('transfer')" id="btnPmtTransfer" class="py-3 px-4 rounded-xl border-2 border-slate-200 dark:border-slate-700 text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 font-bold transition flex items-center justify-center gap-2">
+                        <i class="fas fa-qrcode"></i> Chuyển Khoản / QR
+                    </button>
+                </div>
+                <input type="hidden" id="paymentMethodInput" value="cash">
+            </div>
+
+            <div id="qrPreviewArea" class="hidden text-center bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-200 dark:border-slate-700 relative min-h-[220px] flex items-center justify-center">
+                <div id="qrLoading" class="text-slate-400 flex flex-col items-center">
+                    <i class="fas fa-circle-notch fa-spin text-3xl mb-2"></i>
+                    <span class="text-sm">Đang tạo mã QR...</span>
+                </div>
+                <img id="qrImage" src="" class="hidden w-44 h-44 sm:w-48 sm:h-48 mx-auto rounded-xl shadow-sm border p-1 bg-white">
+            </div>
         </div>
 
-        <div id="paymentPreviewBox" class="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 p-4 space-y-2 text-sm">
-            <div class="flex items-center justify-between text-slate-500 dark:text-slate-400">
-                <span>Tạm tính</span>
-                <span id="paymentPreviewBase" class="font-bold text-slate-700 dark:text-slate-200">0đ</span>
-            </div>
-            <div class="flex items-center justify-between text-emerald-600 dark:text-emerald-400">
-                <span>Giảm giá</span>
-                <span id="paymentPreviewDiscount" class="font-bold">-0đ</span>
-            </div>
-            <div class="flex items-center justify-between border-t border-slate-200 dark:border-slate-700 pt-2 text-base">
-                <span class="font-black text-slate-800 dark:text-slate-100">Khách cần thanh toán</span>
-                <span id="paymentPreviewDue" class="text-xl font-black text-teal-600">0đ</span>
-            </div>
-            <div id="paymentCouponStatus" class="hidden rounded-lg px-3 py-2 text-xs font-bold"></div>
+        <div class="shrink-0 border-t border-slate-100 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
+            <button onclick="confirmPayment()" id="btnConfirmPayment" class="w-full bg-teal-600 hover:bg-teal-700 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-teal-600/30 transition text-base sm:text-lg flex items-center justify-center gap-2">
+                <i class="fas fa-check-circle"></i> Xác Nhận Đã Thu Khách
+            </button>
         </div>
-
-        <div>
-            <label class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Phương thức thanh toán</label>
-            <div class="grid grid-cols-2 gap-3">
-                <button type="button" onclick="selectPaymentMethod('cash')" id="btnPmtCash" class="py-3 px-4 rounded-xl border-2 border-teal-500 bg-teal-50 dark:bg-teal-900/20 text-teal-700 dark:text-teal-400 font-bold transition flex items-center justify-center gap-2">
-                    <i class="fas fa-money-bill-wave"></i> Tiền Mặt
-                </button>
-                <button type="button" onclick="selectPaymentMethod('transfer')" id="btnPmtTransfer" class="py-3 px-4 rounded-xl border-2 border-slate-200 dark:border-slate-700 text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 font-bold transition flex items-center justify-center gap-2">
-                    <i class="fas fa-qrcode"></i> Chuyển Khoản / QR
-                </button>
-            </div>
-            <input type="hidden" id="paymentMethodInput" value="cash">
-        </div>
-
-        <div id="qrPreviewArea" class="hidden text-center bg-slate-50 dark:bg-slate-800/50 p-6 rounded-xl border border-slate-200 dark:border-slate-700 relative min-h-[250px] flex items-center justify-center">
-            <div id="qrLoading" class="text-slate-400 flex flex-col items-center">
-                <i class="fas fa-circle-notch fa-spin text-3xl mb-2"></i>
-                <span class="text-sm">Đang tạo mã QR...</span>
-            </div>
-            <img id="qrImage" src="" class="hidden w-48 h-48 mx-auto rounded-xl shadow-sm border p-1 bg-white">
-        </div>
-
-        <button onclick="confirmPayment()" id="btnConfirmPayment" class="w-full bg-teal-600 hover:bg-teal-700 text-white font-bold py-4 rounded-xl shadow-lg shadow-teal-600/30 transition text-lg flex items-center justify-center gap-2">
-            <i class="fas fa-check-circle"></i> Xác Nhận Đã Thu Khách
-        </button>
     </div>
 </div>
 

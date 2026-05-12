@@ -216,6 +216,28 @@
                                         $vehicleLabel = $appt->vehicle
                                             ? trim(($appt->vehicle->license_plate ?? '') . ' - ' . ($appt->vehicle->model ?? ''))
                                             : trim(($appt->license_plate ?? 'Chưa rõ biển số') . ' - ' . ($appt->vehicle_name ?? 'Chưa rõ xe'));
+                                        $intakePayload = [
+                                            'id' => $appt->id,
+                                            'customer' => $appt->customer->name ?? 'Khách lẻ',
+                                            'phone' => $appt->customer->phone ?? 'Chưa có SĐT',
+                                            'vehicle' => $vehicleLabel,
+                                            'scheduled_at' => $appt->scheduled_at?->format('H:i d/m/Y'),
+                                            'service_id' => $appt->service_id,
+                                            'reason' => $appt->reason,
+                                            'notes' => $appt->notes,
+                                            'admin_notes' => $appt->admin_notes,
+                                            'vehicle_type' => strtolower($appt->vehicle->type ?? 'sedan'),
+                                        ];
+                                        $editPayload = [
+                                            'id' => $appt->id,
+                                            'scheduled_at' => $appt->scheduled_at?->format('Y-m-d\TH:i'),
+                                            'service_id' => $appt->service_id,
+                                            'reason' => $appt->reason,
+                                            'notes' => $appt->notes,
+                                            'admin_notes' => $appt->admin_notes,
+                                            'status' => $appt->status,
+                                            'vehicle' => $vehicleLabel,
+                                        ];
                                     @endphp
                                     <tr class="transition hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
                                         <td class="px-5 py-4">
@@ -255,13 +277,10 @@
                                                 @endif
 
                                                 @if(in_array($appt->status, ['pending', 'confirmed']))
-                                                    <form action="{{ route('staff.appointments.convert', $appt->id) }}" method="POST" onsubmit="return confirm('Tiếp nhận xe và tạo lệnh sửa chữa?');">
-                                                        @csrf
-                                                        <button type="submit" class="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 transition hover:bg-indigo-100 dark:bg-indigo-500/10 dark:text-indigo-300" title="Tiếp nhận xe">
-                                                            <i class="fas fa-file-invoice"></i>
-                                                        </button>
-                                                    </form>
-                                                    <form action="{{ route('staff.appointments.update', $appt->id) }}" method="POST" onsubmit="return confirm('Hủy lịch hẹn này?');">
+                                                    <button type="button" data-action="{{ route('staff.appointments.convert', $appt->id) }}" data-intake='@json($intakePayload)' class="js-open-intake inline-flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 transition hover:bg-indigo-100 dark:bg-indigo-500/10 dark:text-indigo-300" title="Tiếp nhận xe">
+                                                        <i class="fas fa-file-invoice"></i>
+                                                    </button>
+                                                    <form action="{{ route('staff.appointments.update', $appt->id) }}" method="POST" data-confirm-submit data-confirm-title="Hủy lịch hẹn?" data-confirm-text="Lịch hẹn sẽ được chuyển sang trạng thái Đã hủy." data-confirm-button="Hủy lịch">
                                                         @csrf
                                                         @method('PUT')
                                                         <input type="hidden" name="status" value="cancelled">
@@ -271,16 +290,7 @@
                                                     </form>
                                                 @endif
 
-                                                <button type="button" onclick='openEditModal(@js([
-                                                    "id" => $appt->id,
-                                                    "scheduled_at" => $appt->scheduled_at?->format("Y-m-d\TH:i"),
-                                                    "service_id" => $appt->service_id,
-                                                    "reason" => $appt->reason,
-                                                    "notes" => $appt->notes,
-                                                    "admin_notes" => $appt->admin_notes,
-                                                    "status" => $appt->status,
-                                                    "vehicle" => $vehicleLabel,
-                                                ]))' class="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-600 transition hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700" title="Chỉnh sửa">
+                                                <button type="button" data-action="{{ route('staff.appointments.update', $appt->id) }}" data-edit='@json($editPayload)' class="js-open-edit inline-flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-600 transition hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700" title="Chỉnh sửa">
                                                     <i class="fas fa-pen"></i>
                                                 </button>
                                             </div>
@@ -297,6 +307,28 @@
                                 $vehicleLabel = $appt->vehicle
                                     ? trim(($appt->vehicle->license_plate ?? '') . ' - ' . ($appt->vehicle->model ?? ''))
                                     : trim(($appt->license_plate ?? 'Chưa rõ biển số') . ' - ' . ($appt->vehicle_name ?? 'Chưa rõ xe'));
+                                $intakePayload = [
+                                    'id' => $appt->id,
+                                    'customer' => $appt->customer->name ?? 'Khách lẻ',
+                                    'phone' => $appt->customer->phone ?? 'Chưa có SĐT',
+                                    'vehicle' => $vehicleLabel,
+                                    'scheduled_at' => $appt->scheduled_at?->format('H:i d/m/Y'),
+                                    'service_id' => $appt->service_id,
+                                    'reason' => $appt->reason,
+                                    'notes' => $appt->notes,
+                                    'admin_notes' => $appt->admin_notes,
+                                    'vehicle_type' => strtolower($appt->vehicle->type ?? 'sedan'),
+                                ];
+                                $editPayload = [
+                                    'id' => $appt->id,
+                                    'scheduled_at' => $appt->scheduled_at?->format('Y-m-d\TH:i'),
+                                    'service_id' => $appt->service_id,
+                                    'reason' => $appt->reason,
+                                    'notes' => $appt->notes,
+                                    'admin_notes' => $appt->admin_notes,
+                                    'status' => $appt->status,
+                                    'vehicle' => $vehicleLabel,
+                                ];
                             @endphp
                             <div class="p-4">
                                 <div class="flex items-start justify-between gap-3">
@@ -335,21 +367,9 @@
                                         </form>
                                     @endif
                                     @if(in_array($appt->status, ['pending', 'confirmed']))
-                                        <form action="{{ route('staff.appointments.convert', $appt->id) }}" method="POST" onsubmit="return confirm('Tiếp nhận xe và tạo lệnh sửa chữa?');">
-                                            @csrf
-                                            <button type="submit" class="rounded-xl bg-indigo-600 px-3 py-2 text-sm font-black text-white">Tiếp nhận</button>
-                                        </form>
+                                        <button type="button" data-action="{{ route('staff.appointments.convert', $appt->id) }}" data-intake='@json($intakePayload)' class="js-open-intake rounded-xl bg-indigo-600 px-3 py-2 text-sm font-black text-white">Tiếp nhận</button>
                                     @endif
-                                    <button type="button" onclick='openEditModal(@js([
-                                        "id" => $appt->id,
-                                        "scheduled_at" => $appt->scheduled_at?->format("Y-m-d\TH:i"),
-                                        "service_id" => $appt->service_id,
-                                        "reason" => $appt->reason,
-                                        "notes" => $appt->notes,
-                                        "admin_notes" => $appt->admin_notes,
-                                        "status" => $appt->status,
-                                        "vehicle" => $vehicleLabel,
-                                    ]))' class="rounded-xl bg-slate-100 px-3 py-2 text-sm font-black text-slate-700 dark:bg-slate-800 dark:text-slate-200">Sửa</button>
+                                    <button type="button" data-action="{{ route('staff.appointments.update', $appt->id) }}" data-edit='@json($editPayload)' class="js-open-edit rounded-xl bg-slate-100 px-3 py-2 text-sm font-black text-slate-700 dark:bg-slate-800 dark:text-slate-200">Sửa</button>
                                 </div>
                             </div>
                         @endforeach
@@ -432,14 +452,127 @@
         </form>
     </div>
 </dialog>
+
+<dialog id="intakeModal" class="m-auto w-full max-w-4xl bg-transparent p-4 backdrop:bg-slate-950/70 backdrop:backdrop-blur-sm">
+    <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900">
+        <div class="flex items-center justify-between border-b border-slate-200 px-6 py-5 dark:border-slate-800">
+            <div>
+                <p class="text-xs font-black uppercase tracking-[0.18em] text-indigo-500">Tiếp nhận xe</p>
+                <h3 class="mt-1 text-xl font-black text-slate-900 dark:text-white">Tạo lệnh sửa chữa từ lịch hẹn</h3>
+                <p class="mt-1 text-sm font-medium text-slate-500 dark:text-slate-400">Kiểm tra lại thông tin và bổ sung ghi chú trước khi tạo lệnh.</p>
+            </div>
+            <button type="button" onclick="closeIntakeModal()" class="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-500 transition hover:bg-slate-200 hover:text-slate-800 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+
+        <form id="intakeForm" method="POST" class="max-h-[75vh] overflow-y-auto p-6">
+            @csrf
+
+            <div class="grid gap-5 lg:grid-cols-[minmax(0,.9fr)_minmax(0,1.1fr)]">
+                <section class="space-y-4">
+                    <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-950">
+                        <div class="text-xs font-black uppercase tracking-wider text-slate-400">Khách hàng</div>
+                        <div id="intake_customer" class="mt-1 text-lg font-black text-slate-900 dark:text-white"></div>
+                        <div id="intake_phone" class="mt-1 text-sm font-bold text-slate-500 dark:text-slate-400"></div>
+                    </div>
+                    <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-950">
+                        <div class="text-xs font-black uppercase tracking-wider text-slate-400">Xe / lịch hẹn</div>
+                        <div id="intake_vehicle" class="mt-1 font-black uppercase text-slate-900 dark:text-white"></div>
+                        <div id="intake_time" class="mt-1 text-sm font-bold text-indigo-600 dark:text-indigo-300"></div>
+                    </div>
+
+                    <label class="block">
+                        <span class="mb-2 block text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">Dịch vụ</span>
+                        <select name="service_id" id="intake_service_id" class="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 outline-none transition focus:border-indigo-400 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:focus:border-indigo-500">
+                            <option value="">Chưa xác định / cần tư vấn thêm</option>
+                            @foreach($services as $service)
+                                <option value="{{ $service->id }}">{{ $service->name }} - {{ number_format($service->base_price ?? $service->price ?? 0) }}đ</option>
+                            @endforeach
+                        </select>
+                    </label>
+
+                    <div>
+                        <span class="mb-2 block text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">Loại xe / Model 3D</span>
+                        <div class="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                            @foreach([
+                                'sedan' => ['label' => 'Sedan', 'icon' => 'fa-car-side'],
+                                'suv' => ['label' => 'SUV / CUV', 'icon' => 'fa-car'],
+                                'hatchback' => ['label' => 'Hatchback', 'icon' => 'fa-car-rear'],
+                                'pickup' => ['label' => 'Bán tải', 'icon' => 'fa-truck-pickup'],
+                                'mpv' => ['label' => 'MPV 7 chỗ', 'icon' => 'fa-van-shuttle'],
+                            ] as $type => $typeConfig)
+                                <label class="cursor-pointer">
+                                    <input type="radio" name="vehicle_type" value="{{ $type }}" class="peer sr-only" @checked($type === 'sedan')>
+                                    <span class="flex h-full items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-black text-slate-600 transition hover:border-indigo-300 hover:text-indigo-600 peer-checked:border-indigo-500 peer-checked:bg-indigo-50 peer-checked:text-indigo-700 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300 dark:hover:border-indigo-500 dark:peer-checked:border-indigo-400 dark:peer-checked:bg-indigo-500/10 dark:peer-checked:text-indigo-300">
+                                        <i class="fas {{ $typeConfig['icon'] }} text-xs"></i>
+                                        {{ $typeConfig['label'] }}
+                                    </span>
+                                </label>
+                            @endforeach
+                        </div>
+                    </div>
+
+                    <label class="block">
+                        <span class="mb-2 block text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">Ghi chú tiếp nhận</span>
+                        <textarea name="intake_note" id="intake_note" rows="4" class="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 outline-none transition focus:border-indigo-400 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:focus:border-indigo-500" placeholder="VD: Khách báo xe có tiếng kêu khi phanh, ưu tiên kiểm tra hệ thống phanh."></textarea>
+                    </label>
+                </section>
+
+                <section class="space-y-4">
+                    <label class="block">
+                        <span class="mb-2 block text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">Yêu cầu của khách</span>
+                        <textarea name="reason" id="intake_reason" rows="3" class="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 outline-none transition focus:border-indigo-400 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:focus:border-indigo-500"></textarea>
+                    </label>
+                    <label class="block">
+                        <span class="mb-2 block text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">Ghi chú khách</span>
+                        <textarea name="notes" id="intake_notes" rows="3" class="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 outline-none transition focus:border-indigo-400 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:focus:border-indigo-500"></textarea>
+                    </label>
+                    <label class="block">
+                        <span class="mb-2 block text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">Phản hồi garage</span>
+                        <textarea name="admin_notes" id="intake_admin_notes" rows="3" class="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 outline-none transition focus:border-indigo-400 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:focus:border-indigo-500"></textarea>
+                    </label>
+
+                    <div class="rounded-2xl border border-slate-200 p-4 dark:border-slate-700">
+                        <div class="mb-3 text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">Tạo công việc kiểm tra ban đầu</div>
+                        <div class="space-y-3">
+                            <label class="flex items-center gap-3 text-sm font-bold text-slate-700 dark:text-slate-200">
+                                <input type="checkbox" name="inspection_options[general]" value="1" checked class="h-5 w-5 rounded border-slate-300 text-indigo-600">
+                                Kiểm tra tổng quát
+                            </label>
+                            <label class="ml-8 flex items-center gap-3 text-sm font-bold text-indigo-600 dark:text-indigo-300">
+                                <input type="checkbox" name="inspection_options[use_3d]" value="1" checked class="h-4 w-4 rounded border-slate-300 text-indigo-600">
+                                Sử dụng 3D Visualizer
+                            </label>
+                            <label class="flex items-center gap-3 text-sm font-bold text-slate-700 dark:text-slate-200">
+                                <input type="checkbox" name="inspection_options[cabin]" value="1" checked class="h-5 w-5 rounded border-slate-300 text-indigo-600">
+                                Kiểm tra bên trong khoang lái
+                            </label>
+                            <label class="flex items-center gap-3 text-sm font-bold text-slate-700 dark:text-slate-200">
+                                <input type="checkbox" name="inspection_options[engine]" value="1" checked class="h-5 w-5 rounded border-slate-300 text-indigo-600">
+                                Kiểm tra động cơ
+                            </label>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <div class="mt-6 flex flex-col-reverse gap-3 border-t border-slate-200 pt-5 sm:flex-row sm:justify-end dark:border-slate-800">
+                <button type="button" onclick="closeIntakeModal()" class="rounded-xl border border-slate-200 px-5 py-3 text-sm font-black text-slate-600 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800">Hủy</button>
+                <button type="submit" class="rounded-xl bg-indigo-600 px-6 py-3 text-sm font-black text-white shadow-lg shadow-indigo-600/20 transition hover:bg-indigo-700">Tiếp nhận và tạo lệnh</button>
+            </div>
+        </form>
+    </div>
+</dialog>
 @endsection
 
 @push('scripts')
 <script>
     const modal = document.getElementById('editModal');
+    const intakeModal = document.getElementById('intakeModal');
 
     function openEditModal(data) {
-        document.getElementById('editForm').action = `/staff/appointments/${data.id}`;
+        document.getElementById('editForm').action = data.action || `/staff/appointments/${data.id}`;
         document.getElementById('edit_scheduled_at').value = data.scheduled_at || '';
         document.getElementById('edit_service_id').value = data.service_id || '';
         document.getElementById('edit_reason').value = data.reason || '';
@@ -453,5 +586,68 @@
     function closeEditModal() {
         modal.close();
     }
+
+    function openIntakeModal(data) {
+        document.getElementById('intakeForm').action = data.action || `/staff/appointments/${data.id}/convert`;
+        document.getElementById('intake_customer').textContent = data.customer || 'Khách lẻ';
+        document.getElementById('intake_phone').textContent = data.phone || 'Chưa có SĐT';
+        document.getElementById('intake_vehicle').textContent = data.vehicle || 'Chưa rõ xe';
+        document.getElementById('intake_time').textContent = data.scheduled_at || 'Chưa có giờ hẹn';
+        document.getElementById('intake_service_id').value = data.service_id || '';
+        document.getElementById('intake_reason').value = data.reason || '';
+        document.getElementById('intake_notes').value = data.notes || '';
+        document.getElementById('intake_admin_notes').value = data.admin_notes || '';
+        document.getElementById('intake_note').value = '';
+        document.querySelectorAll('input[name="vehicle_type"]').forEach(input => {
+            input.checked = input.value === (data.vehicle_type || 'sedan');
+        });
+        intakeModal.showModal();
+    }
+
+    function closeIntakeModal() {
+        intakeModal.close();
+    }
+
+    document.querySelectorAll('.js-open-intake').forEach(button => {
+        button.addEventListener('click', () => {
+            const data = JSON.parse(button.dataset.intake || '{}');
+            data.action = button.dataset.action;
+            openIntakeModal(data);
+        });
+    });
+
+    document.querySelectorAll('.js-open-edit').forEach(button => {
+        button.addEventListener('click', () => {
+            const data = JSON.parse(button.dataset.edit || '{}');
+            data.action = button.dataset.action;
+            openEditModal(data);
+        });
+    });
+
+    document.querySelectorAll('[data-confirm-submit]').forEach(form => {
+        form.addEventListener('submit', event => {
+            if (form.dataset.confirmed === 'true') {
+                return;
+            }
+
+            event.preventDefault();
+            Swal.fire({
+                title: form.dataset.confirmTitle || 'Xác nhận thao tác?',
+                text: form.dataset.confirmText || 'Bạn có chắc chắn muốn tiếp tục?',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#dc2626',
+                cancelButtonColor: '#64748b',
+                confirmButtonText: form.dataset.confirmButton || 'Xác nhận',
+                cancelButtonText: 'Quay lại'
+            }).then(result => {
+                if (!result.isConfirmed) return;
+
+                form.dataset.confirmed = 'true';
+                form.submit();
+            });
+        });
+    });
 </script>
 @endpush
+
