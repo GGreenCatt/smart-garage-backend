@@ -38,10 +38,27 @@ class Promotion extends Model
 
     public function isValid()
     {
-        if (!$this->is_active) return false;
-        if ($this->start_date && now()->lt($this->start_date)) return false;
-        if ($this->end_date && now()->gt($this->end_date)) return false;
-        if ($this->usage_limit && $this->used_count >= $this->usage_limit) return false;
-        return true;
+        return $this->statusReason() === 'active';
+    }
+
+    public function statusReason(): string
+    {
+        if (! $this->is_active) {
+            return 'inactive';
+        }
+
+        if ($this->start_date && now()->lt($this->start_date)) {
+            return 'scheduled';
+        }
+
+        if ($this->end_date && now()->gt($this->end_date)) {
+            return 'expired';
+        }
+
+        if ($this->usage_limit && $this->used_count >= $this->usage_limit) {
+            return 'exhausted';
+        }
+
+        return 'active';
     }
 }

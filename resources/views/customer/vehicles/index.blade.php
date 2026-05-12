@@ -44,9 +44,6 @@
                             <div class="text-xs text-slate-500 font-mono break-all">VIN: {{ $vehicle->vin }}</div>
                         @endif
                         <div class="flex gap-2">
-                            <a href="{{ route('customer.vehicle.3d', $vehicle->id) }}" class="flex-1 bg-cyan-600/20 hover:bg-cyan-600/30 border border-cyan-500/25 text-cyan-200 py-3 rounded-xl text-xs font-black text-center transition">
-                                <i class="fas fa-cube mr-1"></i> Xem 3D
-                            </a>
                             <a href="{{ route('customer.appointments.create') }}" class="flex-1 bg-slate-800 hover:bg-slate-700 text-white py-3 rounded-xl text-xs font-black text-center transition">
                                 <i class="fas fa-calendar-plus mr-1"></i> Đặt lịch
                             </a>

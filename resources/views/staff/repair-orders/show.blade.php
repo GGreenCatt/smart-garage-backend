@@ -481,7 +481,31 @@
 
         <div class="bg-slate-50 dark:bg-slate-900/50 rounded-xl p-4 border border-slate-100 dark:border-slate-700 flex justify-between items-center">
             <span class="text-slate-500 dark:text-slate-400 font-medium text-sm">Tổng cộng</span>
-            <span class="text-2xl font-black text-teal-600">{{ number_format($order->total_amount) }}đ</span>
+            <span class="text-2xl font-black text-teal-600" id="paymentModalTotal">{{ number_format($order->total_amount) }}đ</span>
+        </div>
+
+        <div>
+            <label for="paymentCouponCode" class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Mã giảm giá</label>
+            <div class="relative">
+                <input type="text" id="paymentCouponCode" class="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 pr-10 text-slate-800 dark:text-slate-100 uppercase tracking-wider font-bold focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none" placeholder="Nhập mã nếu có">
+                <i class="fas fa-ticket-alt absolute right-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
+            </div>
+        </div>
+
+        <div class="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 p-4 space-y-2 text-sm">
+            <div class="flex items-center justify-between text-slate-500 dark:text-slate-400">
+                <span>Tạm tính</span>
+                <span id="paymentPreviewBase" class="font-bold text-slate-700 dark:text-slate-200">{{ number_format($order->total_amount) }}đ</span>
+            </div>
+            <div class="flex items-center justify-between text-emerald-600 dark:text-emerald-400">
+                <span>Giảm giá</span>
+                <span id="paymentPreviewDiscount" class="font-bold">-0đ</span>
+            </div>
+            <div class="flex items-center justify-between border-t border-slate-200 dark:border-slate-700 pt-2 text-base">
+                <span class="font-black text-slate-800 dark:text-slate-100">Khách cần thanh toán</span>
+                <span id="paymentPreviewDue" class="text-xl font-black text-teal-600">{{ number_format($order->total_amount) }}đ</span>
+            </div>
+            <div id="paymentCouponStatus" class="hidden rounded-lg px-3 py-2 text-xs font-bold"></div>
         </div>
 
         <div>
@@ -996,7 +1020,92 @@
     setInterval(loadComments, 5000);
 
     // --- Payment Logic ---
+    let paymentPreviewTimer = null;
+    let currentPaymentPreview = {
+        base_amount: {{ (float) ($order->total_amount ?? 0) }},
+        discount_amount: 0,
+        total_amount: {{ (float) ($order->total_amount ?? 0) }},
+        success: true
+    };
+
+    function formatMoney(amount) {
+        return new Intl.NumberFormat('vi-VN').format(Math.max(0, Math.round(Number(amount) || 0))) + 'đ';
+    }
+
+    function setPaymentPreview(data, statusText = '', isError = false) {
+        currentPaymentPreview = {
+            base_amount: Number(data.base_amount || 0),
+            discount_amount: Number(data.discount_amount || 0),
+            total_amount: Number(data.total_amount || 0),
+            success: !isError
+        };
+
+        document.getElementById('paymentModalTotal').innerText = formatMoney(currentPaymentPreview.total_amount);
+        document.getElementById('paymentPreviewBase').innerText = formatMoney(currentPaymentPreview.base_amount);
+        document.getElementById('paymentPreviewDiscount').innerText = '-' + formatMoney(currentPaymentPreview.discount_amount);
+        document.getElementById('paymentPreviewDue').innerText = formatMoney(currentPaymentPreview.total_amount);
+
+        const statusEl = document.getElementById('paymentCouponStatus');
+        if (statusText) {
+            statusEl.innerText = statusText;
+            statusEl.className = isError
+                ? 'rounded-lg px-3 py-2 text-xs font-bold bg-red-50 text-red-600 border border-red-100 dark:bg-red-900/20 dark:text-red-300 dark:border-red-900/40'
+                : 'rounded-lg px-3 py-2 text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-100 dark:bg-emerald-900/20 dark:text-emerald-300 dark:border-emerald-900/40';
+            statusEl.classList.remove('hidden');
+        } else {
+            statusEl.classList.add('hidden');
+        }
+
+        updatePaymentConfirmButton();
+    }
+
+    function updatePaymentConfirmButton() {
+        const btnConfirm = document.getElementById('btnConfirmPayment');
+        btnConfirm.disabled = !currentPaymentPreview.success;
+        btnConfirm.classList.toggle('opacity-60', !currentPaymentPreview.success);
+        btnConfirm.classList.toggle('cursor-not-allowed', !currentPaymentPreview.success);
+        btnConfirm.innerHTML = currentPaymentPreview.success
+            ? `<i class="fas fa-check-circle"></i> Xác Nhận Đã Thu Khách ${formatMoney(currentPaymentPreview.total_amount)}`
+            : '<i class="fas fa-ban"></i> Kiểm tra lại mã giảm giá';
+    }
+
+    function refreshPaymentPreview(immediate = false) {
+        clearTimeout(paymentPreviewTimer);
+        const run = () => {
+            const couponCode = document.getElementById('paymentCouponCode').value.trim();
+            const url = `{{ route('staff.order.payment-preview', $order->id) }}`
+                + (couponCode ? `?coupon_code=${encodeURIComponent(couponCode)}` : '');
+
+            fetch(url)
+                .then(async response => {
+                    const data = await response.json();
+                    if (!response.ok || !data.success) throw data;
+                    const message = couponCode && data.discount_amount > 0
+                        ? `Đã áp dụng mã ${data.promotion_code || couponCode}: giảm ${formatMoney(data.discount_amount)}.`
+                        : '';
+                    setPaymentPreview(data, message, false);
+                })
+                .catch(error => {
+                    const baseAmount = {{ (float) ($order->total_amount ?? 0) }};
+                    setPaymentPreview({
+                        base_amount: baseAmount,
+                        discount_amount: 0,
+                        total_amount: baseAmount
+                    }, error.message || 'Không thể kiểm tra mã giảm giá.', true);
+                });
+        };
+
+        if (immediate) run();
+        else paymentPreviewTimer = setTimeout(run, 300);
+    }
+
     function openPaymentModal() {
+        document.getElementById('paymentCouponCode').value = '';
+        setPaymentPreview({
+            base_amount: {{ (float) ($order->total_amount ?? 0) }},
+            discount_amount: 0,
+            total_amount: {{ (float) ($order->total_amount ?? 0) }}
+        });
         const modal = document.getElementById('paymentModal');
         modal.classList.remove('hidden');
         setTimeout(() => {
@@ -1022,7 +1131,7 @@
         if (method === 'cash') {
             btnCash.className = 'py-3 px-4 rounded-xl border-2 border-teal-500 bg-teal-50 dark:bg-teal-900/20 text-teal-700 dark:text-teal-400 font-bold transition flex items-center justify-center gap-2';
             qrArea.classList.add('hidden');
-            btnConfirm.innerHTML = '<i class="fas fa-check-circle"></i> Xác Nhận Đã Thu Khách {{ number_format($order->total_amount) }}đ (Tiền Mặt)';
+            updatePaymentConfirmButton();
         } else {
             btnTransfer.className = 'py-3 px-4 rounded-xl border-2 border-teal-500 bg-teal-50 dark:bg-teal-900/20 text-teal-700 dark:text-teal-400 font-bold transition flex items-center justify-center gap-2';
             qrArea.classList.remove('hidden');
@@ -1048,16 +1157,25 @@
         }
     }
 
+    document.getElementById('paymentCouponCode').addEventListener('input', function () {
+        refreshPaymentPreview(false);
+    });
+
     function confirmPayment() {
         const method = document.getElementById('paymentMethodInput').value;
+        const couponCode = document.getElementById('paymentCouponCode').value.trim();
         const btn = document.getElementById('btnConfirmPayment');
+        if (!currentPaymentPreview.success) {
+            Swal.fire('Lỗi', 'Vui lòng kiểm tra lại mã giảm giá trước khi thanh toán.', 'error');
+            return;
+        }
         btn.disabled = true;
         btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Đang xử lý...';
 
         fetch(`{{ route('staff.order.pay', $order->id) }}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
-            body: JSON.stringify({ payment_method: method })
+            body: JSON.stringify({ payment_method: method, coupon_code: couponCode })
         })
         .then(r => r.json())
         .then(d => {

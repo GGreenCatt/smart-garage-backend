@@ -292,6 +292,115 @@ class StaffCoreFlowTest extends TestCase
         $this->assertSame(1, $promotion->fresh()->used_count);
     }
 
+    public function test_staff_payment_invalid_coupon_message_is_utf8(): void
+    {
+        $staff = User::factory()->create(['role' => 'staff', 'role_id' => Role::where('slug', 'staff')->value('id')]);
+        $vehicle = Vehicle::create([
+            'license_plate' => '59A-54321',
+            'model' => 'Vios',
+            'type' => 'sedan',
+            'year' => 2021,
+            'color' => 'Silver',
+            'owner_name' => 'Guest',
+            'owner_phone' => '0909543210',
+        ]);
+        $order = RepairOrder::create([
+            'track_id' => 'RO-PAY-INVALID',
+            'vehicle_id' => $vehicle->id,
+            'advisor_id' => $staff->id,
+            'status' => 'completed',
+            'payment_status' => 'unpaid',
+        ]);
+        $task = RepairTask::create([
+            'repair_order_id' => $order->id,
+            'title' => 'Thay nhớt',
+            'status' => 'completed',
+            'customer_approval_status' => 'approved',
+            'labor_cost' => 100000,
+        ]);
+        RepairOrderItem::create([
+            'repair_order_id' => $order->id,
+            'repair_task_id' => $task->id,
+            'name' => 'Nhớt máy',
+            'quantity' => 1,
+            'unit_price' => 400000,
+            'subtotal' => 400000,
+        ]);
+        Promotion::create([
+            'code' => 'OFF50',
+            'type' => 'fixed',
+            'value' => 50000,
+            'is_active' => false,
+        ]);
+
+        $this->actingAs($staff)
+            ->postJson(route('staff.order.pay', $order->id), [
+                'payment_method' => 'cash',
+                'coupon_code' => 'OFF50',
+            ])
+            ->assertStatus(422)
+            ->assertJsonPath('success', false)
+            ->assertJsonPath('message', 'Mã giảm giá đã hết hạn hoặc không khả dụng.');
+
+        $this->assertSame('unpaid', $order->fresh()->payment_status);
+    }
+
+    public function test_staff_payment_preview_returns_discount_and_payable_amount(): void
+    {
+        $staff = User::factory()->create(['role' => 'staff', 'role_id' => Role::where('slug', 'staff')->value('id')]);
+        $vehicle = Vehicle::create([
+            'license_plate' => '59A-24680',
+            'model' => 'City',
+            'type' => 'sedan',
+            'year' => 2022,
+            'color' => 'White',
+            'owner_name' => 'Guest',
+            'owner_phone' => '0909246800',
+        ]);
+        $order = RepairOrder::create([
+            'track_id' => 'RO-PAY-PREVIEW',
+            'vehicle_id' => $vehicle->id,
+            'advisor_id' => $staff->id,
+            'status' => 'completed',
+            'payment_status' => 'unpaid',
+        ]);
+        $task = RepairTask::create([
+            'repair_order_id' => $order->id,
+            'title' => 'Thay lọc gió',
+            'status' => 'completed',
+            'customer_approval_status' => 'approved',
+            'labor_cost' => 100000,
+        ]);
+        RepairOrderItem::create([
+            'repair_order_id' => $order->id,
+            'repair_task_id' => $task->id,
+            'name' => 'Lọc gió',
+            'quantity' => 1,
+            'unit_price' => 400000,
+            'subtotal' => 400000,
+        ]);
+        Promotion::create([
+            'code' => 'PREVIEW50',
+            'type' => 'fixed',
+            'value' => 50000,
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($staff)
+            ->getJson(route('staff.order.payment-preview', [
+                'id' => $order->id,
+                'coupon_code' => 'preview50',
+            ]))
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('base_amount', 500000)
+            ->assertJsonPath('discount_amount', 50000)
+            ->assertJsonPath('total_amount', 450000)
+            ->assertJsonPath('promotion_code', 'PREVIEW50');
+
+        $this->assertSame('unpaid', $order->fresh()->payment_status);
+    }
+
     public function test_staff_can_handover_paid_completed_order_once(): void
     {
         $staff = User::factory()->create(['role' => 'staff', 'role_id' => Role::where('slug', 'staff')->value('id')]);
@@ -502,6 +611,35 @@ class StaffCoreFlowTest extends TestCase
             ->assertRedirect(route('staff.customers.show', $customer->id));
 
         $this->assertDatabaseHas('vehicles', ['id' => $vehicle->id]);
+    }
+
+    public function test_staff_customer_update_flash_message_is_utf8(): void
+    {
+        $staff = User::factory()->create(['role' => 'staff', 'role_id' => Role::where('slug', 'staff')->value('id')]);
+        $customer = User::factory()->create([
+            'role' => 'customer',
+            'role_id' => Role::where('slug', 'customer')->value('id'),
+            'name' => 'Khách cũ',
+            'phone' => '0907000003',
+        ]);
+
+        $this->actingAs($staff)
+            ->followingRedirects()
+            ->put(route('staff.customers.update', $customer->id), [
+                'name' => 'Nguyễn Văn Khách',
+                'phone' => '0907000004',
+                'email' => 'khach@example.com',
+                'address' => 'Quận 1',
+            ])
+            ->assertOk()
+            ->assertSee('Th\u00f4ng tin kh\u00e1ch h\u00e0ng \u0111\u00e3 \u0111\u01b0\u1ee3c c\u1eadp nh\u1eadt.', false)
+            ->assertDontSee('ThÃ´ng tin', false);
+
+        $this->assertDatabaseHas('users', [
+            'id' => $customer->id,
+            'name' => 'Nguyễn Văn Khách',
+            'phone' => '0907000004',
+        ]);
     }
 
     public function test_staff_cannot_add_order_item_after_quote_sent(): void

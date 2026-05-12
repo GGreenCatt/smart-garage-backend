@@ -160,7 +160,7 @@
         'in_progress' => 'Đang kiểm tra',
         'pending_approval' => 'Chờ khách duyệt',
         'approved' => 'Khách đã duyệt',
-        'completed' => $selectedOrder->delivered_at ? 'Đã bàn giao' : ($selectedOrder->payment_status === 'paid' ? 'Đã thanh toán' : 'Chờ thanh toán'),
+        'completed' => $selectedOrder->delivered_at ? 'Đã bàn giao' : ($selectedOrder->payment_status === 'paid' ? 'Chờ bàn giao' : 'Chờ thanh toán'),
         'cancelled' => 'Đã hủy',
     ];
 @endphp
@@ -949,7 +949,18 @@
                     'X-CSRF-TOKEN': '{{ csrf_token() }}'
                 }
             })
-            .then(response => response.json().then(data => ({ ok: response.ok, data })))
+            .then(async response => {
+                const text = await response.text();
+                let data = {};
+
+                try {
+                    data = text ? JSON.parse(text) : {};
+                } catch (error) {
+                    data = { message: response.ok ? '' : 'Máy chủ trả về lỗi không hợp lệ. Vui lòng kiểm tra log hệ thống.' };
+                }
+
+                return { ok: response.ok, data };
+            })
             .then(({ ok, data }) => {
                 if (!ok || !data.success) {
                     Swal.fire('Không thể bàn giao', data.message || 'Vui lòng thử lại.', 'error');

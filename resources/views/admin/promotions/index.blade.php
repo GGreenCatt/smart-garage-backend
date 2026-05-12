@@ -63,6 +63,7 @@
                     @php
                         $limit = $promotion->usage_limit ?: null;
                         $percent = $limit ? min(100, ($promotion->used_count / $limit) * 100) : 0;
+                        $statusReason = $promotion->statusReason();
                     @endphp
                     <tr class="transition hover:bg-slate-800/30">
                         <td class="px-6 py-4">
@@ -95,12 +96,16 @@
                             </div>
                         </td>
                         <td class="px-6 py-4">
-                            @if(!$promotion->is_active)
+                            @if($statusReason === 'inactive')
                                 <span class="rounded bg-slate-700 px-2 py-1 text-xs font-bold text-slate-300">Đã tắt</span>
-                            @elseif($promotion->isValid())
+                            @elseif($statusReason === 'active')
                                 <span class="rounded border border-green-500/20 bg-green-500/10 px-2 py-1 text-xs font-bold text-green-300">Đang dùng được</span>
+                            @elseif($statusReason === 'scheduled')
+                                <span class="rounded border border-sky-500/20 bg-sky-500/10 px-2 py-1 text-xs font-bold text-sky-300">Chưa đến ngày bắt đầu</span>
+                            @elseif($statusReason === 'expired')
+                                <span class="rounded border border-red-500/20 bg-red-500/10 px-2 py-1 text-xs font-bold text-red-300">Hết hạn</span>
                             @else
-                                <span class="rounded border border-red-500/20 bg-red-500/10 px-2 py-1 text-xs font-bold text-red-300">Hết hạn / hết lượt</span>
+                                <span class="rounded border border-amber-500/20 bg-amber-500/10 px-2 py-1 text-xs font-bold text-amber-300">Hết lượt</span>
                             @endif
                         </td>
                         <td class="px-6 py-4 text-right">

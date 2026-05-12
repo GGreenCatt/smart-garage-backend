@@ -82,10 +82,30 @@ class CustomerController extends Controller
     public function showOrder($id)
     {
         $order = $this->customerOrdersQuery(auth()->user())
-            ->with(['vehicle', 'advisor', 'items', 'items.itemable', 'tasks.items', 'promotion'])
+            ->with([
+                'vehicle',
+                'advisor',
+                'items',
+                'items.itemable',
+                'tasks.items',
+                'tasks.mechanic',
+                'promotion',
+                'vhcReport.defects',
+            ])
             ->findOrFail($id);
 
-        return view('customer.orders.show', compact('order'));
+        $vehicleRepairHistory = RepairOrder::with([
+                'advisor',
+                'items',
+                'tasks.items',
+            ])
+            ->where('vehicle_id', $order->vehicle_id)
+            ->where('id', '!=', $order->id)
+            ->latest()
+            ->limit(8)
+            ->get();
+
+        return view('customer.orders.show', compact('order', 'vehicleRepairHistory'));
     }
 
     public function profile()
@@ -118,7 +138,14 @@ class CustomerController extends Controller
         }
 
         $vehicle = $this->customerVehiclesQuery(auth()->user())->findOrFail($id);
-        $backUrl = route('customer.dashboard');
+        $order = request('order_id')
+            ? $this->customerOrdersQuery(auth()->user())
+                ->where('vehicle_id', $vehicle->id)
+                ->find(request('order_id'))
+            : null;
+        $backUrl = $order
+            ? route('customer.orders.show', $order->id)
+            : route('customer.dashboard');
         return view('customer.vehicle.3d_view', compact('vehicle', 'backUrl'));
     }
 

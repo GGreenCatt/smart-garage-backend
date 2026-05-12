@@ -68,9 +68,48 @@ class VehicleController extends Controller
         Gate::authorize('manage_vehicles');
 
         $vehicle = Vehicle::findOrFail($id);
-        $backUrl = route('admin.vehicles.show', $id);
+        $orderId = request('order_id');
+        $backUrl = $orderId
+            ? route('admin.repair_orders.show', $orderId)
+            : route('admin.vehicles.show', $id);
 
         return view('staff.vehicle.inspection', compact('vehicle', 'backUrl'));
+    }
+
+    public function vhcData($id, Request $request)
+    {
+        Gate::authorize('manage_vehicles');
+
+        $vehicle = Vehicle::findOrFail($id);
+        $orderId = $request->input('order_id');
+
+        if ($orderId) {
+            $order = RepairOrder::where('id', $orderId)
+                ->where('vehicle_id', $vehicle->id)
+                ->first();
+        } else {
+            $order = RepairOrder::where('vehicle_id', $vehicle->id)
+                ->where('status', '!=', RepairOrder::STATUS_COMPLETED)
+                ->latest()
+                ->first();
+        }
+
+        if (! $order) {
+            return response()->json(['defects' => []]);
+        }
+
+        $report = \App\Models\VhcReport::with('defects')
+            ->where('repair_order_id', $order->id)
+            ->first();
+
+        if (! $report) {
+            return response()->json(['defects' => []]);
+        }
+
+        return response()->json([
+            'defects' => $report->defects,
+            'status' => $report->status,
+        ]);
     }
 
     public function store(Request $request)

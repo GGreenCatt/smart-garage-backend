@@ -209,7 +209,7 @@
                     </div>
                 </div>
                 @if($repairOrder->vehicle)
-                    <button onclick="open3DModal('{{ route('admin.vehicles.3d', $repairOrder->vehicle->id) }}', '{{ $repairOrder->vehicle->model }}')" class="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-slate-800 py-2.5 text-xs font-bold text-white transition hover:bg-slate-700">
+                    <button onclick="open3DModal('{{ route('admin.vehicles.3d', ['vehicle' => $repairOrder->vehicle->id, 'order_id' => $repairOrder->id]) }}', '{{ $repairOrder->vehicle->model }}')" class="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-slate-800 py-2.5 text-xs font-bold text-white transition hover:bg-slate-700">
                         <i class="fas fa-cube text-teal-300"></i>
                         Xem mô hình 3D
                     </button>

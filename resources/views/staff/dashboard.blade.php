@@ -483,8 +483,8 @@
                             <span class="font-mono text-xs text-indigo-700 dark:text-indigo-300 bg-indigo-100 dark:bg-indigo-500/20 px-1.5 py-0.5 rounded font-bold">{{ $order->vehicle->license_plate ?? 'N/A' }}</span>
                         </div>
                         <div class="mt-2 text-xs text-green-600 dark:text-green-400 font-bold flex items-center gap-1">
-                            <span class="material-icons-round !text-[14px]">check_circle</span>
-                            <span>Đã hoàn tất</span>
+                            <span class="material-icons-round !text-[14px]">{{ $order->delivered_at ? 'verified' : ($order->payment_status === 'paid' ? 'local_shipping' : 'payments') }}</span>
+                            <span>{{ $order->status_label }}</span>
                         </div>
                     </div>
                 </div>

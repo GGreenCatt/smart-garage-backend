@@ -157,4 +157,71 @@ class CustomerDashboardTest extends TestCase
             ->assertSee('Nhân viên sẽ áp mã')
             ->assertDontSee('orders.coupon');
     }
+
+    public function test_customer_order_detail_shows_task_costs_and_vehicle_history(): void
+    {
+        $customer = User::factory()->create([
+            'role' => 'customer',
+            'role_id' => Role::where('slug', 'customer')->value('id'),
+            'phone' => '0909555005',
+        ]);
+        $staff = User::factory()->create(['role' => 'staff']);
+        $vehicle = Vehicle::create([
+            'user_id' => $customer->id,
+            'license_plate' => '51A-99999',
+            'model' => 'Mazda 3',
+            'type' => 'sedan',
+            'year' => 2020,
+            'color' => 'Blue',
+            'owner_name' => $customer->name,
+            'owner_phone' => $customer->phone,
+        ]);
+        $order = RepairOrder::create([
+            'track_id' => 'RO-CUS-DETAIL',
+            'customer_id' => $customer->id,
+            'vehicle_id' => $vehicle->id,
+            'advisor_id' => $staff->id,
+            'status' => 'completed',
+            'payment_status' => 'paid',
+            'subtotal' => 450000,
+            'total_amount' => 450000,
+        ]);
+        $task = RepairTask::create([
+            'repair_order_id' => $order->id,
+            'title' => 'Thay má phanh trước',
+            'status' => 'completed',
+            'customer_approval_status' => 'approved',
+            'labor_cost' => 150000,
+            'description' => 'Đã thay má phanh và vệ sinh cụm phanh.',
+        ]);
+        RepairOrderItem::create([
+            'repair_order_id' => $order->id,
+            'repair_task_id' => $task->id,
+            'name' => 'Má phanh trước',
+            'quantity' => 1,
+            'unit_price' => 300000,
+            'subtotal' => 300000,
+        ]);
+        RepairOrder::create([
+            'track_id' => 'RO-CUS-OLD',
+            'customer_id' => $customer->id,
+            'vehicle_id' => $vehicle->id,
+            'advisor_id' => $staff->id,
+            'status' => 'completed',
+            'payment_status' => 'paid',
+            'total_amount' => 200000,
+        ]);
+
+        $this->actingAs($customer)
+            ->get(route('customer.orders.show', $order->id))
+            ->assertOk()
+            ->assertSee('Các việc đã làm')
+            ->assertSee('Thay má phanh trước')
+            ->assertSee('Đã thay má phanh và vệ sinh cụm phanh.')
+            ->assertSee('Má phanh trước')
+            ->assertSee('150,000đ')
+            ->assertSee('300,000đ')
+            ->assertSee('Lịch sử sửa chữa của xe')
+            ->assertSee('RO-CUS-OLD');
+    }
 }

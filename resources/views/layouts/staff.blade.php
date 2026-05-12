@@ -245,16 +245,16 @@
         });
 
         @if(session('success'))
-            Toast.fire({ icon: 'success', title: "{{ session('success') }}" });
+            Toast.fire({ icon: 'success', title: @js(session('success')) });
         @endif
         @if(session('error'))
-            Toast.fire({ icon: 'error', title: "{{ session('error') }}" });
+            Toast.fire({ icon: 'error', title: @js(session('error')) });
         @endif
         @if(session('warning'))
-            Toast.fire({ icon: 'warning', title: "{{ session('warning') }}" });
+            Toast.fire({ icon: 'warning', title: @js(session('warning')) });
         @endif
         @if(session('info'))
-            Toast.fire({ icon: 'info', title: "{{ session('info') }}" });
+            Toast.fire({ icon: 'info', title: @js(session('info')) });
         @endif
 
         function toggleTheme() {

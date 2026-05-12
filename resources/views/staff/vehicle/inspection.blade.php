@@ -698,7 +698,7 @@
     const MODEL_URL = "/assets/models/" + modelFile;
     console.log('Target Model URL:', MODEL_URL);
 
-    const API_FETCH = "{{ route('staff.vhc.fetch', ['id' => $vehicle->id, 'order_id' => request('order_id')]) }}";
+    const API_FETCH = "{{ request()->routeIs('admin.*') ? route('admin.vehicles.vhc.data', ['vehicle' => $vehicle->id, 'order_id' => request('order_id')]) : route('staff.vhc.fetch', ['id' => $vehicle->id, 'order_id' => request('order_id')]) }}";
     const API_SAVE = "{{ route('staff.vhc.save', ['id' => $vehicle->id, 'order_id' => request('order_id')]) }}";
     const CSRF_TOKEN = "{{ csrf_token() }}";
 

@@ -207,11 +207,6 @@
                                 <div class="flex flex-col lg:flex-row gap-5">
                                     <div class="lg:w-48 aspect-video rounded-lg bg-slate-950 border border-slate-800 flex items-center justify-center relative overflow-hidden">
                                         <i class="fas fa-car-side text-4xl text-slate-700"></i>
-                                        @if($order->vehicle_id)
-                                            <a href="{{ route('customer.vehicle.3d', ['id' => $order->vehicle_id, 'order_id' => $order->id]) }}" class="absolute inset-0 grid place-items-center bg-black/0 hover:bg-black/55 text-transparent hover:text-white text-xs font-black transition">
-                                                Xem 3D/VHC
-                                            </a>
-                                        @endif
                                     </div>
                                     <div class="flex-1 min-w-0">
                                         <div class="flex flex-col md:flex-row md:items-start justify-between gap-3">
@@ -233,9 +228,6 @@
                                         <div class="mt-4 flex flex-wrap gap-2">
                                             @if($order->quote_status)
                                                 <a href="{{ route('customer.quote.show', $order->id) }}" class="rounded-lg bg-slate-800 hover:bg-slate-700 px-3 py-2 text-xs font-bold text-white">Xem báo giá</a>
-                                            @endif
-                                            @if($order->vehicle_id)
-                                                <a href="{{ route('customer.vehicle.3d', ['id' => $order->vehicle_id, 'order_id' => $order->id]) }}" class="rounded-lg bg-slate-800 hover:bg-slate-700 px-3 py-2 text-xs font-bold text-white">Xem 3D</a>
                                             @endif
                                             <button onclick="openChat(@js($context), {{ $order->id }})" class="rounded-lg bg-cyan-600/20 hover:bg-cyan-600/30 px-3 py-2 text-xs font-bold text-cyan-200 border border-cyan-500/25">Chat</button>
                                         </div>
@@ -312,12 +304,11 @@
                     </div>
                     <div class="p-5 space-y-3">
                         @forelse($vehicles->take(4) as $vehicle)
-                            <div class="rounded-xl bg-slate-950/40 border border-slate-800 p-4 flex items-center justify-between gap-3">
+                            <div class="rounded-xl bg-slate-950/40 border border-slate-800 p-4">
                                 <div>
                                     <div class="font-black text-white">{{ $vehicle->license_plate }}</div>
                                     <div class="text-sm text-slate-400">{{ $vehicle->model }} {{ $vehicle->year ? '(' . $vehicle->year . ')' : '' }}</div>
                                 </div>
-                                <a href="{{ route('customer.vehicle.3d', $vehicle->id) }}" class="text-xs font-bold text-cyan-300">3D</a>
                             </div>
                         @empty
                             <div class="rounded-xl border border-dashed border-slate-700 p-6 text-center text-slate-400">Chưa có xe được liên kết với tài khoản.</div>

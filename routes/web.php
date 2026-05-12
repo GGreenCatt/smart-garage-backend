@@ -145,6 +145,7 @@ Route::middleware(['auth', 'verified', 'staff'])->prefix('staff')->name('staff.'
     Route::get('/order/{repairOrder}/quote/show', [App\Http\Controllers\Staff\QuoteController::class, 'show'])->name('quote.show');
 
     // Payment Flow
+    Route::get('/order/{id}/payment-preview', [StaffController::class, 'previewPayment'])->name('order.payment-preview');
     Route::post('/order/{id}/pay', [StaffController::class, 'processPayment'])->name('order.pay');
     Route::get('/order/{id}/qr', [StaffController::class, 'generateQrCode'])->name('order.qr');
     Route::get('/order/{id}/invoice', [StaffController::class, 'printInvoice'])->name('order.invoice');
@@ -202,8 +203,9 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::resource('staff', App\Http\Controllers\Admin\StaffController::class);
     Route::get('/logs', [App\Http\Controllers\Admin\StaffController::class, 'logs'])->name('staff.logs');
     Route::resource('customers', App\Http\Controllers\Admin\CustomerController::class);
-    Route::resource('vehicles', App\Http\Controllers\Admin\VehicleController::class);
     Route::get('vehicles/{vehicle}/3d', [App\Http\Controllers\Admin\VehicleController::class, 'view3d'])->name('vehicles.3d');
+    Route::get('vehicles/{vehicle}/vhc', [App\Http\Controllers\Admin\VehicleController::class, 'vhcData'])->name('vehicles.vhc.data');
+    Route::resource('vehicles', App\Http\Controllers\Admin\VehicleController::class);
     
     // Repair Order Tasks
     Route::post('/repair-orders/{repairOrder}/tasks', [App\Http\Controllers\Admin\RepairOrderController::class, 'storeTask'])->name('repair_orders.tasks.store');

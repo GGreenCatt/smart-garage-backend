@@ -99,6 +99,22 @@
             <p class="text-xs text-slate-500 dark:text-slate-400 mt-2">Mã sẽ được kiểm tra và trừ trực tiếp khi xác nhận thanh toán.</p>
         </div>
 
+        <div id="paymentPreviewBox" class="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 p-4 space-y-2 text-sm">
+            <div class="flex items-center justify-between text-slate-500 dark:text-slate-400">
+                <span>Tạm tính</span>
+                <span id="paymentPreviewBase" class="font-bold text-slate-700 dark:text-slate-200">0đ</span>
+            </div>
+            <div class="flex items-center justify-between text-emerald-600 dark:text-emerald-400">
+                <span>Giảm giá</span>
+                <span id="paymentPreviewDiscount" class="font-bold">-0đ</span>
+            </div>
+            <div class="flex items-center justify-between border-t border-slate-200 dark:border-slate-700 pt-2 text-base">
+                <span class="font-black text-slate-800 dark:text-slate-100">Khách cần thanh toán</span>
+                <span id="paymentPreviewDue" class="text-xl font-black text-teal-600">0đ</span>
+            </div>
+            <div id="paymentCouponStatus" class="hidden rounded-lg px-3 py-2 text-xs font-bold"></div>
+        </div>
+
         <div>
             <label class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Phương thức thanh toán</label>
             <div class="grid grid-cols-2 gap-3">
@@ -285,11 +301,99 @@
     });
 
     // --- Payment Modal Logic ---
+    let paymentPreviewTimer = null;
+    let currentPaymentPreview = { base_amount: 0, discount_amount: 0, total_amount: 0, success: true };
+
+    function formatMoney(amount) {
+        return new Intl.NumberFormat('vi-VN').format(Math.max(0, Math.round(Number(amount) || 0))) + 'đ';
+    }
+
+    function setPaymentPreview(data, statusText = '', isError = false) {
+        currentPaymentPreview = {
+            base_amount: Number(data.base_amount || 0),
+            discount_amount: Number(data.discount_amount || 0),
+            total_amount: Number(data.total_amount || 0),
+            success: !isError
+        };
+
+        document.getElementById('paymentModalTotal').innerText = formatMoney(currentPaymentPreview.total_amount);
+        document.getElementById('paymentPreviewBase').innerText = formatMoney(currentPaymentPreview.base_amount);
+        document.getElementById('paymentPreviewDiscount').innerText = '-' + formatMoney(currentPaymentPreview.discount_amount);
+        document.getElementById('paymentPreviewDue').innerText = formatMoney(currentPaymentPreview.total_amount);
+        document.getElementById('paymentModal').dataset.payable = currentPaymentPreview.total_amount;
+
+        const statusEl = document.getElementById('paymentCouponStatus');
+        if (statusText) {
+            statusEl.innerText = statusText;
+            statusEl.className = isError
+                ? 'rounded-lg px-3 py-2 text-xs font-bold bg-red-50 text-red-600 border border-red-100 dark:bg-red-900/20 dark:text-red-300 dark:border-red-900/40'
+                : 'rounded-lg px-3 py-2 text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-100 dark:bg-emerald-900/20 dark:text-emerald-300 dark:border-emerald-900/40';
+            statusEl.classList.remove('hidden');
+        } else {
+            statusEl.classList.add('hidden');
+        }
+
+        updatePaymentConfirmButton();
+    }
+
+    function updatePaymentConfirmButton() {
+        const btnConfirm = document.getElementById('btnConfirmPayment');
+        const method = document.getElementById('paymentMethodInput').value;
+        const amount = currentPaymentPreview.total_amount;
+        btnConfirm.disabled = !currentPaymentPreview.success;
+        btnConfirm.classList.toggle('opacity-60', !currentPaymentPreview.success);
+        btnConfirm.classList.toggle('cursor-not-allowed', !currentPaymentPreview.success);
+
+        if (!currentPaymentPreview.success) {
+            btnConfirm.innerHTML = '<i class="fas fa-ban"></i> Kiểm tra lại mã giảm giá';
+        } else if (method === 'transfer') {
+            btnConfirm.innerHTML = `<i class="fas fa-check-circle"></i> Xác Nhận Đã Nhận Chuyển Khoản ${formatMoney(amount)}`;
+        } else {
+            btnConfirm.innerHTML = `<i class="fas fa-check-circle"></i> Xác Nhận Đã Thu Khách ${formatMoney(amount)} (Tiền Mặt)`;
+        }
+    }
+
+    function refreshPaymentPreview(immediate = false) {
+        clearTimeout(paymentPreviewTimer);
+        const run = () => {
+            const orderId = getCurrentOrderId();
+            if (!orderId) return;
+
+            const couponCode = document.getElementById('paymentCouponCode').value.trim();
+            const url = `{{ route('staff.order.payment-preview', ':id') }}`.replace(':id', orderId)
+                + (couponCode ? `?coupon_code=${encodeURIComponent(couponCode)}` : '');
+
+            fetch(url)
+                .then(async response => {
+                    const data = await response.json();
+                    if (!response.ok || !data.success) throw data;
+                    const message = couponCode && data.discount_amount > 0
+                        ? `Đã áp dụng mã ${data.promotion_code || couponCode}: giảm ${formatMoney(data.discount_amount)}.`
+                        : '';
+                    setPaymentPreview(data, message, false);
+                    if (document.getElementById('paymentMethodInput').value === 'transfer') {
+                        selectPaymentMethod('transfer');
+                    }
+                })
+                .catch(error => {
+                    const baseAmount = parseInt(document.getElementById('paymentModal').dataset.total || 0);
+                    setPaymentPreview({
+                        base_amount: baseAmount,
+                        discount_amount: 0,
+                        total_amount: baseAmount
+                    }, error.message || 'Không thể kiểm tra mã giảm giá.', true);
+                });
+        };
+
+        if (immediate) run();
+        else paymentPreviewTimer = setTimeout(run, 300);
+    }
+
     function openPaymentModal(totalAmount) {
         totalAmount = parseInt(totalAmount) || 0;
-        document.getElementById('paymentModalTotal').innerText = new Intl.NumberFormat('vi-VN').format(totalAmount) + 'đ';
-        document.getElementById('btnConfirmPayment').innerHTML = `<i class="fas fa-check-circle"></i> Xác Nhận Đã Thu Khách ${new Intl.NumberFormat('vi-VN').format(totalAmount)}đ`;
+        setPaymentPreview({ base_amount: totalAmount, discount_amount: 0, total_amount: totalAmount }, '', false);
         document.getElementById('paymentModal').dataset.total = totalAmount; // Store for select method
+        document.getElementById('paymentModal').dataset.payable = totalAmount;
         document.getElementById('paymentCouponCode').value = '';
         
         // Reset to cash payment method
@@ -327,7 +431,7 @@
         if (method === 'cash') {
             btnCash.className = 'py-3 px-4 rounded-xl border-2 border-teal-500 bg-teal-50 dark:bg-teal-900/20 text-teal-700 dark:text-teal-400 font-bold transition flex items-center justify-center gap-2';
             qrArea.classList.add('hidden');
-            btnConfirm.innerHTML = `<i class="fas fa-check-circle"></i> Xác Nhận Đã Thu Khách ${new Intl.NumberFormat('vi-VN').format(totalAmount)}đ (Tiền Mặt)`;
+            updatePaymentConfirmButton();
         } else {
             btnTransfer.className = 'py-3 px-4 rounded-xl border-2 border-teal-500 bg-teal-50 dark:bg-teal-900/20 text-teal-700 dark:text-teal-400 font-bold transition flex items-center justify-center gap-2';
             qrArea.classList.remove('hidden');
@@ -346,7 +450,8 @@
                             qrImage.src = d.qr_url;
                             qrLoading.classList.add('hidden');
                             qrImage.classList.remove('hidden');
-                            btnConfirm.innerHTML = `<i class="fas fa-check-circle"></i> Xác Nhận Đã Nhận Chuyển Khoản ${new Intl.NumberFormat('vi-VN').format(d.amount)}đ`;
+                            currentPaymentPreview.total_amount = d.amount;
+                            updatePaymentConfirmButton();
                         } else {
                             qrLoading.innerHTML = `<span class="text-red-500"><i class="fas fa-exclamation-triangle"></i> ${d.message || 'Lỗi tạo QR'}</span>`;
                         }
@@ -359,9 +464,7 @@
     }
 
     document.getElementById('paymentCouponCode').addEventListener('input', function () {
-        if (document.getElementById('paymentMethodInput').value === 'transfer') {
-            selectPaymentMethod('transfer');
-        }
+        refreshPaymentPreview(false);
     });
 
     function confirmPayment() {
@@ -372,6 +475,10 @@
         const couponCode = document.getElementById('paymentCouponCode').value.trim();
         const btn = document.getElementById('btnConfirmPayment');
         const originalText = btn.innerHTML;
+        if (!currentPaymentPreview.success) {
+            Swal.fire('Lỗi', 'Vui lòng kiểm tra lại mã giảm giá trước khi thanh toán.', 'error');
+            return;
+        }
         btn.disabled = true;
         btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Đang xử lý...';
 
