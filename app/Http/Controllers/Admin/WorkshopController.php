@@ -75,7 +75,7 @@ class WorkshopController extends Controller
             ->when($request->filled('advisor_id') && $request->advisor_id !== 'all', fn ($orderQuery) => $orderQuery->where('advisor_id', $request->advisor_id))
             ->when($request->filled('payment_status') && $request->payment_status !== 'all', fn ($orderQuery) => $orderQuery->where('payment_status', $request->payment_status));
 
-        if ($request->input('scope', 'active') === 'active') {
+        if ($request->input('scope', 'all') === 'active') {
             $query->whereNotIn('status', [RepairOrder::STATUS_COMPLETED, RepairOrder::STATUS_CANCELLED]);
         }
 

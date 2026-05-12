@@ -23,6 +23,11 @@ class RepairOrderItem extends Model
         return $this->belongsTo(RepairOrder::class);
     }
 
+    public function repairTask()
+    {
+        return $this->belongsTo(RepairTask::class);
+    }
+
     public function itemable()
     {
         return $this->morphTo();

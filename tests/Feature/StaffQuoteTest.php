@@ -8,6 +8,7 @@ use Tests\TestCase;
 use App\Models\User;
 use App\Models\Role;
 use App\Models\RepairOrder;
+use App\Models\RepairOrderItem;
 use App\Models\RepairTask;
 use App\Models\Vehicle;
 
@@ -48,11 +49,17 @@ class StaffQuoteTest extends TestCase
             'track_id' => 'TRK-' . uniqid()
         ]);
         
-        // This makes sure tasks() isn't empty, avoiding the 400 error in sendQuote
-        $task = RepairTask::factory()->create([
+        $parentTask = RepairTask::factory()->create([
             'repair_order_id' => $repairOrder->id,
             'title' => 'Replace Brake Pads',
             'status' => 'pending',
+        ]);
+        $task = RepairTask::factory()->create([
+            'repair_order_id' => $repairOrder->id,
+            'parent_id' => $parentTask->id,
+            'title' => 'Replace Brake Pads - labor',
+            'status' => 'pending',
+            'labor_cost' => 300000,
         ]);
 
         $response = $this->actingAs($staff)->postJson(route('staff.order.send-quote', $repairOrder->id));
@@ -100,7 +107,98 @@ class StaffQuoteTest extends TestCase
 
         $response = $this->actingAs($staff)->postJson(route('staff.order.send-quote', $repairOrder->id));
 
-        $response->assertStatus(400);
+        $response->assertStatus(422);
         $response->assertJsonPath('success', false);
+    }
+
+    public function test_cannot_send_quote_without_billable_quote_items()
+    {
+        $staff = User::factory()->create(['role' => 'staff', 'role_id' => Role::where('name', 'staff')->first()->id]);
+        $customer = User::factory()->create(['role' => 'customer', 'role_id' => Role::where('name', 'customer')->first()->id, 'phone' => '1234567890']);
+        $vehicle = Vehicle::factory()->create([
+            'user_id' => $customer->id,
+            'owner_phone' => $customer->phone,
+            'license_plate' => '29A-12345',
+            'make' => 'Toyota',
+            'model' => 'Camry',
+            'year' => 2020,
+            'color' => 'Black',
+            'type' => 'sedan',
+        ]);
+        $repairOrder = RepairOrder::factory()->create([
+            'customer_id' => $customer->id,
+            'vehicle_id' => $vehicle->id,
+            'status' => 'pending',
+            'track_id' => 'TRK-' . uniqid(),
+        ]);
+
+        RepairTask::factory()->create([
+            'repair_order_id' => $repairOrder->id,
+            'title' => 'Inspection only',
+            'status' => 'pending',
+        ]);
+
+        $response = $this->actingAs($staff)->postJson(route('staff.order.send-quote', $repairOrder->id));
+
+        $response->assertStatus(422);
+        $response->assertJsonPath('success', false);
+        $this->assertNotSame('pending_approval', $repairOrder->fresh()->status);
+    }
+
+    public function test_send_quote_total_only_includes_billable_child_tasks()
+    {
+        $staff = User::factory()->create(['role' => 'staff', 'role_id' => Role::where('name', 'staff')->first()->id]);
+        $customer = User::factory()->create(['role' => 'customer', 'role_id' => Role::where('name', 'customer')->first()->id, 'phone' => '1234567890']);
+        $vehicle = Vehicle::factory()->create([
+            'user_id' => $customer->id,
+            'owner_phone' => $customer->phone,
+            'license_plate' => '29A-12345',
+            'make' => 'Toyota',
+            'model' => 'Camry',
+            'year' => 2020,
+            'color' => 'Black',
+            'type' => 'sedan',
+        ]);
+        $repairOrder = RepairOrder::factory()->create([
+            'customer_id' => $customer->id,
+            'vehicle_id' => $vehicle->id,
+            'status' => 'pending',
+            'track_id' => 'TRK-' . uniqid(),
+        ]);
+        $parentTask = RepairTask::factory()->create([
+            'repair_order_id' => $repairOrder->id,
+            'title' => 'Inspection',
+            'labor_cost' => 999999,
+        ]);
+        $childTask = RepairTask::factory()->create([
+            'repair_order_id' => $repairOrder->id,
+            'parent_id' => $parentTask->id,
+            'title' => 'Replace Brake Pads',
+            'labor_cost' => 250000,
+        ]);
+        RepairOrderItem::create([
+            'repair_order_id' => $repairOrder->id,
+            'repair_task_id' => $childTask->id,
+            'name' => 'Brake pad',
+            'quantity' => 1,
+            'unit_price' => 150000,
+            'subtotal' => 150000,
+        ]);
+
+        $this->actingAs($staff)
+            ->postJson(route('staff.order.send-quote', $repairOrder->id))
+            ->assertOk()
+            ->assertJsonPath('success', true);
+
+        $this->assertDatabaseHas('repair_orders', [
+            'id' => $repairOrder->id,
+            'status' => 'pending_approval',
+            'quote_status' => 'sent',
+            'total_amount' => 400000,
+        ]);
+        $this->assertDatabaseHas('repair_tasks', [
+            'id' => $childTask->id,
+            'customer_approval_status' => 'pending',
+        ]);
     }
 }

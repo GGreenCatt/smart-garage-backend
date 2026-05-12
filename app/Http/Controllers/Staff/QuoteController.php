@@ -3,40 +3,44 @@
 namespace App\Http\Controllers\Staff;
 
 use App\Http\Controllers\Controller;
+use App\Models\ActivityLog;
+use App\Models\Notification;
+use App\Models\Part;
+use App\Models\RepairOrder;
+use App\Models\RepairOrderItem;
+use App\Models\RepairTask;
+use App\Models\Service;
+use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class QuoteController extends Controller
 {
-    /**
-     * Show the Quote Builder Form
-     */
     public function create($id)
     {
         if (auth()->user()?->isTechnician() && ! auth()->user()?->isAdmin() && ! auth()->user()?->isManager()) {
             abort(403, 'Kỹ thuật viên không có quyền tạo báo giá.');
         }
 
-        $order = \App\Models\RepairOrder::with([
-            'vehicle.user', 
+        $order = RepairOrder::with([
+            'vehicle.user',
             'advisor',
-            'tasks.items', // if tasks have items
-            'tasks.children.items', // eager load child tasks (proposed fixes)
-            'items', // generic items on order
-            'vhcReport.defects'
+            'tasks.items',
+            'tasks.children.items',
+            'items',
+            'vhcReport.defects',
         ])->findOrFail($id);
 
-        $services = \App\Models\Service::orderBy('name')->get();
-        $parts = \App\Models\Part::orderBy('name')->get();
-
+        $services = Service::orderBy('name')->get();
+        $parts = Part::orderBy('name')->get();
         $quoteWarnings = $this->quoteWarnings($order);
 
         return view('staff.quote.create', compact('order', 'services', 'parts', 'quoteWarnings'));
     }
 
-    /**
-     * Send a quote to the customer for approval with updated costs.
-     */
-    public function sendQuote(Request $request, \App\Models\RepairOrder $repairOrder)
+    public function sendQuote(Request $request, RepairOrder $repairOrder)
     {
         if (auth()->user()?->isTechnician() && ! auth()->user()?->isAdmin() && ! auth()->user()?->isManager()) {
             return response()->json([
@@ -52,107 +56,32 @@ class QuoteController extends Controller
             ], 409);
         }
 
-        \Log::info("Quote Payload:", $request->all());
-        // The frontend will send a 'tasks' array.
-        // For existing tasks, it will send an array of 'proposed_fixes' inside.
-        $tasksData = $request->input('tasks', []);
-        
-        foreach ($tasksData as $parentTaskId => $data) {
-            $parentTask = $repairOrder->tasks()->find($parentTaskId);
-            if (!$parentTask) continue;
-            
-            // Note: Parent task (Inspection) usually doesn't have a direct labor cost submitted here anymore
-            
-            if (isset($data['proposed_fixes']) && is_array($data['proposed_fixes'])) {
-                foreach ($data['proposed_fixes'] as $fix) {
-                    $childTask = null;
-                    
-                    // If this proposed fix comes from a VHC defect, try to update the existing auto-generated task
-                    if (!empty($fix['task_id'])) {
-                        $childTask = \App\Models\RepairTask::where('parent_id', $parentTaskId)
-                            ->where('id', $fix['task_id'])
-                            ->first();
-                    }
-
-                    if ($childTask) {
-                        // For VHC defects, DO NOT change the title or type. This maintains the link to the 3D model.
-                        // We store the proposed action in the description so the customer can still see what is proposed.
-                        $proposedAction = $fix['title'] ?? '';
-                        $originalDesc = $fix['description'] ?? '';
-                        
-                        $finalDesc = '';
-                        if ($proposedAction) {
-                            $finalDesc .= "Đề xuất sửa chữa: " . $proposedAction;
-                        }
-                        if ($originalDesc) {
-                            $finalDesc .= ($finalDesc ? "\n" : "") . "Ghi chú báo lỗi: " . $originalDesc;
-                        }
-
-                        // Update existing defect task costs/details only
-                        $childTask->update([
-                            'severity' => $fix['severity'] ?? 'medium',
-                            'description' => $finalDesc,
-                            'labor_cost' => $fix['labor_cost'] ?? 0,
-                            // Ensure it's marked as pending approval now that it has a quote
-                            'status' => 'pending',
-                            'customer_approval_status' => 'pending',
-                        ]);
-                    } else {
-                        // Create the child RepairTask (Brand New Proposed Fix)
-                        $childTask = \App\Models\RepairTask::create([
-                            'repair_order_id' => $repairOrder->id,
-                            'parent_id' => $parentTaskId,
-                            'title' => $fix['title'] ?? 'Đề xuất sửa chữa', // Free text title from user
-                            'type' => 'repair', // Since it's a fix
-                            'status' => 'pending',
-                            'customer_approval_status' => 'pending',
-                            'service_id' => null, // No longer linked to predefined services
-                            'labor_cost' => $fix['labor_cost'] ?? 0,
-                            'severity' => $fix['severity'] ?? 'medium',
-                            'description' => $fix['description'] ?? null,
-                        ]);
-                    }
-
-                    // If parts (items) are provided, associate them
-                    if (isset($fix['parts']) && is_array($fix['parts'])) {
-                        // Clear existing parts for this task
-                        \App\Models\RepairOrderItem::where('repair_task_id', $childTask->id)->delete();
-                        
-                        foreach ($fix['parts'] as $part) {
-                            $partName = trim($part['name'] ?? '');
-                            $partPrice = isset($part['price']) ? (float)$part['price'] : 0;
-                            $partQty = isset($part['qty']) ? (int)$part['qty'] : 1;
-                            
-                            // Skip dummy parts or empty inputs from frontend
-                            if (empty($partName) || ($partName === 'Phụ tùng kèm theo' && $partPrice <= 0)) {
-                                continue;
-                            }
-                            
-                            \App\Models\RepairOrderItem::create([
-                                'repair_order_id' => $repairOrder->id,
-                                'repair_task_id' => $childTask->id,
-                                'name' => $partName,
-                                'quantity' => $partQty,
-                                'unit_price' => $partPrice,
-                                'cost_price' => 0, // Optionally look up from db if exists
-                                'subtotal' => $partPrice * $partQty,
-                            ]);
-                        }
-                    }
-                }
-            }
-        }
-
-        // Require the order to have at least one task or have a VhcReport
-        if ($repairOrder->tasks()->count() === 0 && !$repairOrder->vhcReport) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Không thể gửi báo giá khi chưa có task hoặc báo cáo VHC.',
-            ], 400);
-        }
-
         $repairOrder->loadMissing('vehicle');
         $customerId = $repairOrder->customer_id ?: optional($repairOrder->vehicle)->user_id;
+
+        DB::transaction(function () use ($request, $repairOrder) {
+            foreach ($request->input('tasks', []) as $parentTaskId => $data) {
+                $parentTask = $repairOrder->tasks()->find($parentTaskId);
+                if (! $parentTask) {
+                    continue;
+                }
+
+                foreach (($data['proposed_fixes'] ?? []) as $fix) {
+                    $childTask = $this->resolveOrCreateQuotedTask($repairOrder, $parentTask->id, $fix);
+                    $this->syncTaskParts($repairOrder, $childTask, $fix['parts'] ?? []);
+                }
+            }
+        });
+
+        $repairOrder->refresh()->loadMissing([
+            'vehicle',
+            'customer',
+            'items',
+            'tasks.items',
+            'tasks.children.items',
+            'vhcReport.defects',
+        ]);
+
         $criticalWarnings = collect($this->quoteWarnings($repairOrder))
             ->where('level', 'critical')
             ->pluck('message')
@@ -166,36 +95,46 @@ class QuoteController extends Controller
             ], 422);
         }
 
-        if ($customerId && !$repairOrder->customer_id) {
+        $quoteTasks = $this->quoteTasks($repairOrder);
+        if ($quoteTasks->isEmpty()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Không thể gửi báo giá khi chưa có hạng mục sửa chữa có chi phí để khách duyệt.',
+            ], 422);
+        }
+
+        if ($customerId && ! $repairOrder->customer_id) {
             $repairOrder->forceFill(['customer_id' => $customerId])->save();
         }
 
-        $totalAmount = $repairOrder->tasks()->sum('labor_cost') + $repairOrder->items()->sum('subtotal');
+        $quoteTasks
+            ->filter(fn ($task) => $task->customer_approval_status !== 'pending')
+            ->each(fn ($task) => $task->update(['customer_approval_status' => 'pending']));
 
-        // Change the status of the repair order to indicate it's waiting for customer approval
+        if ($repairOrder->vhcReport) {
+            $repairOrder->vhcReport->update(['status' => 'published']);
+        }
+
+        $totalAmount = $this->quoteTotal($quoteTasks);
         $repairOrder->update([
-            'status' => 'pending_approval',
+            'status' => RepairOrder::STATUS_PENDING_APPROVAL,
+            'quote_status' => 'sent',
+            'quote_sent_at' => now(),
             'include_vhc' => $request->boolean('include_vhc', true),
             'total_amount' => $totalAmount,
         ]);
-        
-        // Also update any repair tasks that have a null customer_approval_status to 'pending'
-        $repairOrder->tasks()
-            ->whereNull('customer_approval_status')
-            ->update(['customer_approval_status' => 'pending']);
 
-        // Create a notification for the customer if one exists
         if ($customerId) {
-            \App\Models\Notification::create([
-                'id' => \Illuminate\Support\Str::uuid(),
-                'notifiable_type' => \App\Models\User::class,
+            Notification::create([
+                'id' => Str::uuid(),
+                'notifiable_type' => User::class,
                 'notifiable_id' => $customerId,
                 'type' => 'quote_ready',
                 'data' => [
                     'title' => 'Báo giá dịch vụ mới',
                     'message' => "Báo giá sửa chữa cho xe {$repairOrder->vehicle->license_plate} đã sẵn sàng. Vui lòng kiểm tra và phê duyệt.",
                     'related_id' => $repairOrder->id,
-                    'link' => '/customer/quote/' . $repairOrder->id // Adjust with real customer quote link if needed
+                    'link' => route('customer.quote.show', $repairOrder->id, false),
                 ],
                 'read_at' => null,
                 'created_at' => now(),
@@ -203,20 +142,7 @@ class QuoteController extends Controller
             ]);
         }
 
-        // Publish the VHC report if it exists so the customer can see the 3D markers
-        if ($repairOrder->vhcReport) {
-            $repairOrder->vhcReport->update(['status' => 'published']);
-        }
-
-        // 3. Mark the Order as purely 'pending_approval' now
-        $repairOrder->update([
-            'status' => 'pending_approval',
-            'quote_status' => 'sent',
-            'quote_sent_at' => now(),
-            'total_amount' => $totalAmount,
-        ]);
-
-        \App\Models\ActivityLog::create([
+        ActivityLog::create([
             'user_id' => auth()->id(),
             'action' => 'STAFF_QUOTE_SENT',
             'details' => "Order #{$repairOrder->id}: Gửi báo giá cho khách, tổng tiền {$totalAmount}.",
@@ -226,26 +152,94 @@ class QuoteController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Lưu báo giá và gửi yêu cầu phê duyệt thành công!',
-            // 'download_url' => route('staff.quote.pdf', $repairOrder->id),
         ]);
     }
 
-    /**
-     * Show the detailed quote view for Staff.
-     * This view is read-only and displays customer approval statuses.
-     */
     public function show($id)
     {
-        $order = \App\Models\RepairOrder::with([
-            'vehicle.user', 
-            'tasks.items', 
-            'tasks.children.items' // Load children and their items (proposed fixes & parts)
+        $order = RepairOrder::with([
+            'vehicle.user',
+            'tasks.items',
+            'tasks.children.items',
         ])->findOrFail($id);
 
         return view('staff.quote.show', compact('order'));
     }
 
-    private function quoteWarnings(\App\Models\RepairOrder $order): array
+    private function resolveOrCreateQuotedTask(RepairOrder $repairOrder, int $parentTaskId, array $fix): RepairTask
+    {
+        $childTask = null;
+
+        if (! empty($fix['task_id'])) {
+            $childTask = RepairTask::where('repair_order_id', $repairOrder->id)
+                ->where('parent_id', $parentTaskId)
+                ->where('id', $fix['task_id'])
+                ->first();
+        }
+
+        if ($childTask) {
+            $proposedAction = $fix['title'] ?? '';
+            $originalDesc = $fix['description'] ?? '';
+            $finalDesc = '';
+
+            if ($proposedAction) {
+                $finalDesc .= 'Đề xuất sửa chữa: '.$proposedAction;
+            }
+            if ($originalDesc) {
+                $finalDesc .= ($finalDesc ? "\n" : '').'Ghi chú báo lỗi: '.$originalDesc;
+            }
+
+            $childTask->update([
+                'severity' => $fix['severity'] ?? 'medium',
+                'description' => $finalDesc,
+                'labor_cost' => $fix['labor_cost'] ?? 0,
+                'status' => 'pending',
+                'customer_approval_status' => 'pending',
+            ]);
+
+            return $childTask;
+        }
+
+        return RepairTask::create([
+            'repair_order_id' => $repairOrder->id,
+            'parent_id' => $parentTaskId,
+            'title' => $fix['title'] ?? 'Đề xuất sửa chữa',
+            'type' => 'repair',
+            'status' => 'pending',
+            'customer_approval_status' => 'pending',
+            'service_id' => null,
+            'labor_cost' => $fix['labor_cost'] ?? 0,
+            'severity' => $fix['severity'] ?? 'medium',
+            'description' => $fix['description'] ?? null,
+        ]);
+    }
+
+    private function syncTaskParts(RepairOrder $repairOrder, RepairTask $childTask, array $parts): void
+    {
+        RepairOrderItem::where('repair_task_id', $childTask->id)->delete();
+
+        foreach ($parts as $part) {
+            $partName = trim($part['name'] ?? '');
+            $partPrice = isset($part['price']) ? (float) $part['price'] : 0;
+            $partQty = isset($part['qty']) ? max((int) $part['qty'], 1) : 1;
+
+            if ($partName === '' || ($partName === 'Phụ tùng kèm theo' && $partPrice <= 0)) {
+                continue;
+            }
+
+            RepairOrderItem::create([
+                'repair_order_id' => $repairOrder->id,
+                'repair_task_id' => $childTask->id,
+                'name' => $partName,
+                'quantity' => $partQty,
+                'unit_price' => $partPrice,
+                'cost_price' => 0,
+                'subtotal' => $partPrice * $partQty,
+            ]);
+        }
+    }
+
+    private function quoteWarnings(RepairOrder $order): array
     {
         $order->loadMissing(['vehicle.user', 'customer', 'items', 'tasks.items', 'tasks.children', 'vhcReport.defects']);
 
@@ -284,5 +278,22 @@ class QuoteController extends Controller
         }
 
         return $warnings;
+    }
+
+    private function quoteTasks(RepairOrder $order): Collection
+    {
+        $order->loadMissing('tasks.items');
+
+        return $order->tasks
+            ->whereNotNull('parent_id')
+            ->filter(fn ($task) => (float) ($task->labor_cost ?? 0) > 0 || $task->items->isNotEmpty())
+            ->values();
+    }
+
+    private function quoteTotal(Collection $quoteTasks): float
+    {
+        return (float) $quoteTasks->sum(
+            fn ($task) => (float) ($task->labor_cost ?? 0) + (float) $task->items->sum('subtotal')
+        );
     }
 }

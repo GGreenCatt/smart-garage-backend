@@ -144,6 +144,11 @@
                 <span class="font-medium">Bảng Vận Hành</span>
             </a>
 
+            <a href="{{ route('admin.appointments.index') }}" class="sidebar-link flex items-center gap-3 px-3 py-3 rounded-lg text-slate-600 dark:text-slate-400 font-medium hover:bg-gray-100 dark:hover:bg-white/5 hover:text-indigo-600 dark:hover:text-white {{ request()->routeIs('admin.appointments.*') ? 'active' : '' }}">
+                <i class="fas fa-calendar-check w-6 text-center"></i>
+                <span class="font-medium">Lịch Hẹn</span>
+            </a>
+
             <a href="{{ route('admin.repair_orders.index') }}" class="sidebar-link flex items-center gap-3 px-3 py-3 rounded-lg text-slate-600 dark:text-slate-400 font-medium hover:bg-gray-100 dark:hover:bg-white/5 hover:text-indigo-600 dark:hover:text-white {{ request()->routeIs('admin.repair_orders.*') ? 'active' : '' }}">
                 <i class="fas fa-clipboard-list w-6 text-center"></i>
                 <span class="font-medium">Phiếu Sửa Chữa</span>
@@ -170,6 +175,16 @@
             </a>
 
             <div class="px-3 mt-8 mb-2 text-xs font-bold text-slate-500 uppercase tracking-wider">Báo Cáo</div>
+
+            <a href="{{ route('admin.revenue.index') }}" class="sidebar-link flex items-center gap-3 px-3 py-3 rounded-lg text-slate-500 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-white/5 hover:text-indigo-600 dark:hover:text-white {{ request()->routeIs('admin.revenue.*') ? 'active' : '' }}">
+                <i class="fas fa-sack-dollar w-6 text-center"></i>
+                <span class="font-medium">Doanh Thu</span>
+            </a>
+
+            <a href="{{ route('admin.notifications.index') }}" class="sidebar-link flex items-center gap-3 px-3 py-3 rounded-lg text-slate-500 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-white/5 hover:text-indigo-600 dark:hover:text-white {{ request()->routeIs('admin.notifications.*') ? 'active' : '' }}">
+                <i class="fas fa-bell w-6 text-center"></i>
+                <span class="font-medium">Thông Báo</span>
+            </a>
             
              <a href="{{ route('admin.staff.logs') }}" class="sidebar-link flex items-center gap-3 px-3 py-3 rounded-lg text-slate-500 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-white/5 hover:text-indigo-600 dark:hover:text-white {{ request()->routeIs('admin.staff.logs') ? 'active' : '' }}">
                 <i class="fas fa-history w-6 text-center"></i>
@@ -221,11 +236,22 @@
                 </form>
                 @endif
 
+                @php
+                    $adminUnreadNotifications = 0;
+                    if (\App\Models\Setting::get('enable_notifications', '1') == '1') {
+                        $adminUnreadNotifications = \App\Models\Notification::where('notifiable_type', \App\Models\User::class)
+                            ->where('notifiable_id', auth()->id())
+                            ->whereNull('read_at')
+                            ->count();
+                    }
+                @endphp
                 @if(\App\Models\Setting::get('enable_notifications', '1') == '1')
-                <button class="w-10 h-10 rounded-full bg-gray-100 dark:bg-[#1e293b] text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-slate-700 transition flex items-center justify-center relative">
+                <a href="{{ route('admin.notifications.index') }}" class="w-10 h-10 rounded-full bg-gray-100 dark:bg-[#1e293b] text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-slate-700 transition flex items-center justify-center relative">
                     <i class="fas fa-bell"></i>
-                    <span class="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full"></span>
-                </button>
+                    @if($adminUnreadNotifications > 0)
+                        <span class="absolute top-2 right-2 min-w-4 h-4 px-1 rounded-full bg-red-500 text-white text-[10px] font-black leading-4 text-center">{{ $adminUnreadNotifications > 9 ? '9+' : $adminUnreadNotifications }}</span>
+                    @endif
+                </a>
                 @endif
 
                 <div class="h-8 w-px bg-gray-200 dark:bg-[#1e293b]"></div>

@@ -208,6 +208,11 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     // Repair Order Tasks
     Route::post('/repair-orders/{repairOrder}/tasks', [App\Http\Controllers\Admin\RepairOrderController::class, 'storeTask'])->name('repair_orders.tasks.store');
     Route::patch('/repair-tasks/{task}', [App\Http\Controllers\Admin\RepairOrderController::class, 'updateTaskStatus'])->name('repair_tasks.update');
+
+    // Notifications
+    Route::get('/notifications', [App\Http\Controllers\Admin\NotificationController::class, 'index'])->name('notifications.index');
+    Route::post('/notifications/{id}/read', [App\Http\Controllers\Admin\NotificationController::class, 'read'])->name('notifications.read');
+    Route::post('/notifications/read-all', [App\Http\Controllers\Admin\NotificationController::class, 'readAll'])->name('notifications.readAll');
     
     // Inventory
     Route::resource('suppliers', App\Http\Controllers\Admin\SupplierController::class)->except(['create', 'show', 'edit']);
@@ -230,6 +235,10 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     
     // Promotions (Marketing)
     Route::resource('promotions', App\Http\Controllers\Admin\PromotionController::class);
+
+    // Revenue
+    Route::get('revenue', [App\Http\Controllers\Admin\RevenueController::class, 'index'])->name('revenue.index');
+    Route::get('revenue/{repairOrder}', [App\Http\Controllers\Admin\RevenueController::class, 'show'])->name('revenue.show');
 
     // SOS & Map
     Route::get('sos', [App\Http\Controllers\Admin\SosController::class, 'index'])->name('sos.index');

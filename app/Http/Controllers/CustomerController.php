@@ -109,6 +109,14 @@ class CustomerController extends Controller
     // 3D View for a specific vehicle
     public function vehicleDetail($id)
     {
+        if (request()->routeIs('guest.*')) {
+            $vehicle = Vehicle::findOrFail($id);
+            $this->authorizeSignedVehicleOrder($vehicle);
+            $backUrl = route('home');
+
+            return view('customer.vehicle.3d_view', compact('vehicle', 'backUrl'));
+        }
+
         $vehicle = $this->customerVehiclesQuery(auth()->user())->findOrFail($id);
         $backUrl = route('customer.dashboard');
         return view('customer.vehicle.3d_view', compact('vehicle', 'backUrl'));
@@ -116,6 +124,25 @@ class CustomerController extends Controller
 
     public function getVehicleInspection($id, \Illuminate\Http\Request $request)
     {
+        if ($request->routeIs('guest.*')) {
+            $vehicle = Vehicle::findOrFail($id);
+            $order = $this->resolveSignedVehicleOrder($vehicle);
+
+            if (! $order) {
+                return response()->json(['defects' => []]);
+            }
+
+            $report = \App\Models\VhcReport::where('repair_order_id', $order->id)
+                ->where('status', 'published')
+                ->first();
+
+            if (! $report) {
+                return response()->json(['defects' => []]);
+            }
+
+            return response()->json(['defects' => $report->defects]);
+        }
+
         $vehicle = $this->customerVehiclesQuery(auth()->user())->findOrFail($id);
 
         $orderId = $request->input('order_id');
@@ -168,6 +195,31 @@ class CustomerController extends Controller
                     });
             })
             ->orderBy('created_at', 'desc');
+    }
+
+    private function authorizeSignedVehicleOrder(Vehicle $vehicle): void
+    {
+        if (! request()->filled('order_id')) {
+            return;
+        }
+
+        abort_unless($this->resolveSignedVehicleOrder($vehicle), 404);
+    }
+
+    private function resolveSignedVehicleOrder(Vehicle $vehicle): ?RepairOrder
+    {
+        $orderId = request()->input('order_id');
+
+        if (! $orderId) {
+            return RepairOrder::where('vehicle_id', $vehicle->id)
+                ->where('status', '!=', 'completed')
+                ->latest()
+                ->first();
+        }
+
+        return RepairOrder::where('id', $orderId)
+            ->where('vehicle_id', $vehicle->id)
+            ->first();
     }
 
 }

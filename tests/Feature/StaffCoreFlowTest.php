@@ -375,6 +375,66 @@ class StaffCoreFlowTest extends TestCase
         ]);
     }
 
+    public function test_staff_can_update_appointment_response_without_completing_it_manually(): void
+    {
+        $staff = User::factory()->create(['role' => 'staff', 'role_id' => Role::where('slug', 'staff')->value('id')]);
+        $customer = User::factory()->create([
+            'role' => 'customer',
+            'role_id' => Role::where('slug', 'customer')->value('id'),
+        ]);
+        $appointment = Appointment::create([
+            'customer_id' => $customer->id,
+            'vehicle_name' => 'Toyota Vios',
+            'license_plate' => '51G-12345',
+            'scheduled_at' => now()->addDay(),
+            'status' => 'pending',
+            'reason' => 'Kiểm tra xe',
+        ]);
+
+        $this->actingAs($staff)
+            ->put(route('staff.appointments.update', $appointment), [
+                'status' => 'confirmed',
+                'admin_notes' => 'Garage đã xác nhận lịch hẹn.',
+            ])
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('appointments', [
+            'id' => $appointment->id,
+            'status' => 'confirmed',
+            'admin_notes' => 'Garage đã xác nhận lịch hẹn.',
+        ]);
+
+        $this->actingAs($staff)
+            ->put(route('staff.appointments.update', $appointment), [
+                'status' => 'completed',
+            ])
+            ->assertSessionHasErrors('status');
+
+        $this->assertSame('confirmed', $appointment->fresh()->status);
+    }
+
+    public function test_staff_cannot_convert_no_show_appointment_to_repair_order(): void
+    {
+        $staff = User::factory()->create(['role' => 'staff', 'role_id' => Role::where('slug', 'staff')->value('id')]);
+        $customer = User::factory()->create([
+            'role' => 'customer',
+            'role_id' => Role::where('slug', 'customer')->value('id'),
+        ]);
+        $appointment = Appointment::create([
+            'customer_id' => $customer->id,
+            'vehicle_name' => 'Toyota Vios',
+            'license_plate' => '51G-12345',
+            'scheduled_at' => now()->addDay(),
+            'status' => 'no_show',
+        ]);
+
+        $this->actingAs($staff)
+            ->post(route('staff.appointments.convert', $appointment))
+            ->assertSessionHasErrors('error');
+
+        $this->assertSame(0, RepairOrder::count());
+    }
+
     public function test_staff_appointments_index_renders_with_services_schema(): void
     {
         $staff = User::factory()->create(['role' => 'staff', 'role_id' => Role::where('slug', 'staff')->value('id')]);

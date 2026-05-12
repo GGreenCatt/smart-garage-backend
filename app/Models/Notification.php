@@ -19,6 +19,15 @@ class Notification extends Model
         'read_at' => 'datetime'
     ];
 
+    protected static function booted(): void
+    {
+        static::creating(function (self $notification) {
+            if (empty($notification->id)) {
+                $notification->id = (string) \Illuminate\Support\Str::uuid();
+            }
+        });
+    }
+
     public function setAttribute($key, $value)
     {
         if ($key === 'id' && empty($value)) {

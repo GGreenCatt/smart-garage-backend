@@ -6,20 +6,102 @@
 
 @push('styles')
 <style>
+    .staff-dashboard-command {
+        display: none;
+    }
+    .staff-status-pill {
+        border: 1px solid rgba(148, 163, 184, .28);
+        background: rgba(255, 255, 255, .86);
+    }
+    .staff-list-section-header {
+        transition: background-color .18s ease, color .18s ease;
+    }
+    .dark .staff-status-pill {
+        background: rgba(15, 23, 42, .78);
+        border-color: rgba(51, 65, 85, .8);
+    }
     @media (max-width: 767px) {
         .staff-dashboard-workspace {
             min-height: calc(100dvh - 4rem);
             padding-bottom: calc(5rem + env(safe-area-inset-bottom));
             overflow-x: hidden;
+            background: #f8fafc;
+        }
+        .dark .staff-dashboard-workspace {
+            background: #020617;
+        }
+        .staff-dashboard-command {
+            display: block;
+            position: sticky;
+            top: 0;
+            z-index: 30;
+            border-bottom: 1px solid rgba(148, 163, 184, .24);
+            background: rgba(248, 250, 252, .94);
+            padding: .75rem .75rem .65rem;
+            backdrop-filter: blur(14px);
+        }
+        .dark .staff-dashboard-command {
+            background: rgba(2, 6, 23, .92);
+        }
+        .staff-dashboard-command-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: .5rem;
+        }
+        .staff-dashboard-command-button {
+            min-height: 2.65rem;
+            border-radius: .85rem;
+            border: 1px solid rgba(148, 163, 184, .32);
+            background: #fff;
+            color: #334155;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: .35rem;
+            font-size: .75rem;
+            font-weight: 900;
+        }
+        .dark .staff-dashboard-command-button {
+            background: #0f172a;
+            color: #e2e8f0;
+            border-color: rgba(51, 65, 85, .9);
+        }
+        .staff-dashboard-counts {
+            display: flex;
+            gap: .5rem;
+            overflow-x: auto;
+            padding: .65rem .05rem .1rem;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+        }
+        .staff-dashboard-counts::-webkit-scrollbar {
+            display: none;
+        }
+        .staff-status-pill {
+            min-width: max-content;
+            border-radius: 999px;
+            padding: .4rem .65rem;
+            display: inline-flex;
+            align-items: center;
+            gap: .4rem;
+            font-size: .68rem;
+            font-weight: 900;
+            color: #475569;
+            box-shadow: 0 8px 18px rgba(15, 23, 42, .05);
+        }
+        .dark .staff-status-pill {
+            color: #cbd5e1;
         }
         #leftPanel {
             width: 100% !important;
             flex: 0 0 auto;
-            height: min(52dvh, 31rem);
-            max-height: min(52dvh, 31rem);
+            height: min(46dvh, 28rem);
+            max-height: min(46dvh, 28rem);
             overflow: hidden;
             border-right: 0 !important;
             border-bottom: 1px solid rgba(148, 163, 184, .24);
+            border-radius: 0 0 1.15rem 1.15rem;
+            box-shadow: 0 16px 34px rgba(15, 23, 42, .08);
         }
         #leftPanel > .p-4 {
             padding: .75rem !important;
@@ -58,6 +140,7 @@
             gap: .5rem !important;
             padding-top: .625rem !important;
             padding-bottom: .625rem !important;
+            border-radius: 0 0 1rem 1rem;
         }
         .staff-mobile-filter-toggle {
             display: flex !important;
@@ -79,6 +162,9 @@
         }
         .staff-mobile-list-toggle {
             display: flex !important;
+            position: sticky;
+            top: 0;
+            z-index: 20;
         }
         #leftPanel.is-list-collapsed .staff-mobile-list-chevron {
             transform: rotate(180deg);
@@ -93,9 +179,13 @@
             overflow: visible !important;
         }
         .order-item {
-            min-height: 72px;
-            padding: .875rem !important;
-            padding-right: 2.75rem !important;
+            min-height: 68px;
+            padding: .8rem .85rem !important;
+            padding-right: 2.65rem !important;
+            margin: .4rem .55rem;
+            border-radius: .95rem;
+            border-width: 1px !important;
+            box-shadow: 0 10px 22px rgba(15, 23, 42, .04);
         }
         .order-item .opacity-0 {
             opacity: 1 !important;
@@ -113,6 +203,15 @@
         .order-item .font-bold.text-lg {
             overflow-wrap: anywhere;
             line-height: 1.25rem !important;
+        }
+        .staff-list-section-header {
+            position: sticky;
+            top: 0;
+            margin: .45rem .55rem .25rem;
+            border: 1px solid rgba(148, 163, 184, .24) !important;
+            border-radius: .85rem;
+            padding: .7rem .75rem !important;
+            box-shadow: 0 8px 18px rgba(15, 23, 42, .04);
         }
         .staff-task-modal-header,
         .staff-task-modal-footer,
@@ -134,6 +233,29 @@
 @section('full-width-content')
 <!-- Main Workspace -->
 <div class="staff-dashboard-workspace flex flex-1 flex-col overflow-y-auto md:h-full md:flex-row md:overflow-hidden">
+    <div class="staff-dashboard-command md:hidden">
+        <div class="staff-dashboard-command-grid">
+            <button type="button" class="staff-dashboard-command-button" onclick="toggleStaffMobileFilter()">
+                <span class="material-icons-round !text-[17px]">tune</span>
+                <span>Lọc</span>
+            </button>
+            <button type="button" class="staff-dashboard-command-button" onclick="toggleStaffMobileList(false)">
+                <span class="material-icons-round !text-[17px]">format_list_bulleted</span>
+                <span>Xe</span>
+            </button>
+            <button type="button" class="staff-dashboard-command-button" onclick="toggleStaffMobileList(true); document.getElementById('order-details-container')?.scrollIntoView({ behavior: 'smooth', block: 'start' });">
+                <span class="material-icons-round !text-[17px]">article</span>
+                <span>Chi tiết</span>
+            </button>
+        </div>
+        <div class="staff-dashboard-counts">
+            <span class="staff-status-pill"><span class="size-2 rounded-full bg-teal-500"></span>Chờ {{ $waiting->count() }}</span>
+            <span class="staff-status-pill"><span class="size-2 rounded-full bg-indigo-500"></span>Đang sửa {{ $inProgress->count() }}</span>
+            <span class="staff-status-pill"><span class="size-2 rounded-full bg-amber-500"></span>Chờ duyệt {{ $pendingApproval->count() }}</span>
+            <span class="staff-status-pill"><span class="size-2 rounded-full bg-green-500"></span>Đã duyệt {{ $approved->count() }}</span>
+            <span class="staff-status-pill"><span class="size-2 rounded-full bg-slate-400"></span>Hoàn tất {{ $ready->count() }}</span>
+        </div>
+    </div>
     <!-- Left Panel: Master List -->
     <aside id="leftPanel" class="w-[400px] flex flex-col border-r border-gray-200 dark:border-[#1e293b] bg-white dark:bg-[#0B1120] z-10 transition-all duration-300 relative">
         <!-- Quick Add & Search Dock -->
@@ -196,7 +318,7 @@
         <!-- Scrollable List -->
         <div class="staff-order-list-scroll flex-1 overflow-y-auto custom-scrollbar">
             <!-- Section: New Arrivals (Waiting) -->
-            <div onclick="toggleSection('new-arrivals')" class="sticky top-0 z-10 bg-gray-100/95 dark:bg-[#0B1120]/95 backdrop-blur-sm px-4 py-2 border-b border-gray-200 dark:border-[#1e293b] flex justify-between items-center group cursor-pointer select-none">
+            <div onclick="toggleSection('new-arrivals')" class="staff-list-section-header sticky top-0 z-10 bg-gray-100/95 dark:bg-[#0B1120]/95 backdrop-blur-sm px-4 py-2 border-b border-gray-200 dark:border-[#1e293b] flex justify-between items-center group cursor-pointer select-none">
                 <h3 class="text-xs font-bold text-teal-600 dark:text-teal-400 uppercase tracking-wider flex items-center gap-2">
                     <span id="icon-new-arrivals" class="material-icons-round !text-[16px] transition-transform duration-300">expand_more</span>
                     <span class="size-2 rounded-full bg-teal-500 animate-pulse"></span>
@@ -228,7 +350,7 @@
             </div>
 
             <!-- Section: In Progress (In Repair) -->
-            <div onclick="toggleSection('in-progress')" class="sticky top-0 z-10 bg-gray-100/95 dark:bg-[#0B1120]/95 backdrop-blur-sm px-4 py-2 border-y border-gray-200 dark:border-[#1e293b] flex justify-between items-center mt-2 cursor-pointer select-none">
+            <div onclick="toggleSection('in-progress')" class="staff-list-section-header sticky top-0 z-10 bg-gray-100/95 dark:bg-[#0B1120]/95 backdrop-blur-sm px-4 py-2 border-y border-gray-200 dark:border-[#1e293b] flex justify-between items-center mt-2 cursor-pointer select-none">
                 <h3 class="text-xs font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider flex items-center gap-2">
                     <span id="icon-in-progress" class="material-icons-round !text-[16px] transition-transform duration-300">expand_more</span>
                     <span class="material-icons-round !text-[14px]">build</span>
@@ -281,7 +403,7 @@
             </div>
 
             <!-- Section: Waiting Customer Approval -->
-            <div onclick="toggleSection('pending-approval')" class="sticky top-0 z-10 bg-gray-100/95 dark:bg-[#0B1120]/95 backdrop-blur-sm px-4 py-2 border-y border-gray-200 dark:border-[#1e293b] flex justify-between items-center mt-2 cursor-pointer select-none">
+            <div onclick="toggleSection('pending-approval')" class="staff-list-section-header sticky top-0 z-10 bg-gray-100/95 dark:bg-[#0B1120]/95 backdrop-blur-sm px-4 py-2 border-y border-gray-200 dark:border-[#1e293b] flex justify-between items-center mt-2 cursor-pointer select-none">
                 <h3 class="text-xs font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider flex items-center gap-2">
                     <span id="icon-pending-approval" class="material-icons-round !text-[16px] transition-transform duration-300">expand_more</span>
                     <span class="material-icons-round !text-[14px]">hourglass_top</span>
@@ -307,7 +429,7 @@
             </div>
 
             <!-- Section: Customer Approved -->
-            <div onclick="toggleSection('approved')" class="sticky top-0 z-10 bg-gray-100/95 dark:bg-[#0B1120]/95 backdrop-blur-sm px-4 py-2 border-y border-gray-200 dark:border-[#1e293b] flex justify-between items-center mt-2 cursor-pointer select-none">
+            <div onclick="toggleSection('approved')" class="staff-list-section-header sticky top-0 z-10 bg-gray-100/95 dark:bg-[#0B1120]/95 backdrop-blur-sm px-4 py-2 border-y border-gray-200 dark:border-[#1e293b] flex justify-between items-center mt-2 cursor-pointer select-none">
                 <h3 class="text-xs font-bold text-green-600 dark:text-green-400 uppercase tracking-wider flex items-center gap-2">
                     <span id="icon-approved" class="material-icons-round !text-[16px] transition-transform duration-300">expand_more</span>
                     <span class="material-icons-round !text-[14px]">verified</span>
@@ -341,8 +463,9 @@
 
         <!-- Completed Tab -->
         <div class="border-b border-gray-200 dark:border-[#1e293b] bg-gray-50 dark:bg-[#020617]/50">
-            <div class="px-4 py-3 flex justify-between items-center cursor-pointer hover:bg-gray-100 dark:hover:bg-white/5 transition-colors" onclick="toggleSection('list-ready', this)">
+            <div class="staff-list-section-header px-4 py-3 flex justify-between items-center cursor-pointer hover:bg-gray-100 dark:hover:bg-white/5 transition-colors" onclick="toggleSection('ready')">
                 <h3 class="text-xs font-bold text-gray-500 dark:text-gray-400 flex items-center gap-2">
+                    <span id="icon-ready" class="material-icons-round !text-[14px] transition-transform duration-300">expand_more</span>
                     <span class="material-icons-round !text-[14px]">done_all</span>
                     <span class="tracking-wider uppercase">HOÀN THÀNH / CHỜ GIAO</span>
                 </h3>
@@ -409,6 +532,15 @@
 
         const shouldOpen = forceOpen ?? !dock.classList.contains('is-open');
         dock.classList.toggle('is-open', shouldOpen);
+        if (shouldOpen) {
+            const panel = document.getElementById('leftPanel');
+            if (panel) {
+                panel.classList.remove('is-list-collapsed');
+                const listLabel = panel.querySelector('[data-list-toggle-label]');
+                if (listLabel) listLabel.textContent = 'áº¨n';
+                localStorage.setItem('staffMobileListCollapsed', 'false');
+            }
+        }
         const label = dock.querySelector('[data-filter-toggle-label]');
         if (label) label.textContent = shouldOpen ? 'Đóng' : 'Mở';
         localStorage.setItem('staffMobileFilterOpen', shouldOpen ? 'true' : 'false');
@@ -420,6 +552,15 @@
 
         const shouldCollapse = forceCollapsed ?? !panel.classList.contains('is-list-collapsed');
         panel.classList.toggle('is-list-collapsed', shouldCollapse);
+        if (!shouldCollapse) {
+            const dock = document.getElementById('staffMobileFilterDock');
+            if (dock) {
+                dock.classList.remove('is-open');
+                const filterLabel = dock.querySelector('[data-filter-toggle-label]');
+                if (filterLabel) filterLabel.textContent = 'Má»Ÿ';
+                localStorage.setItem('staffMobileFilterOpen', 'false');
+            }
+        }
         const label = panel.querySelector('[data-list-toggle-label]');
         if (label) label.textContent = shouldCollapse ? 'Hiện' : 'Ẩn';
         localStorage.setItem('staffMobileListCollapsed', shouldCollapse ? 'true' : 'false');
@@ -447,8 +588,10 @@
     document.addEventListener('DOMContentLoaded', () => {
         if (window.matchMedia('(max-width: 767px)').matches) {
             toggleStaffMobileFilter(false);
-            toggleStaffMobileList(true);
+            const storedListCollapsed = localStorage.getItem('staffMobileListCollapsed');
+            toggleStaffMobileList(storedListCollapsed === null ? true : storedListCollapsed === 'true');
         }
+        restoreStaffSections();
 
         // Hide badges that were previously clicked
         const viewedOrders = JSON.parse(localStorage.getItem('viewedOrders') || '[]');
@@ -480,14 +623,29 @@
     function toggleSection(id) {
         const list = document.getElementById(`list-${id}`);
         const icon = document.getElementById(`icon-${id}`);
+        if (!list) return;
         
         if (list.classList.contains('hidden')) {
             list.classList.remove('hidden');
-            icon.style.transform = 'rotate(0deg)';
+            if (icon) icon.style.transform = 'rotate(0deg)';
+            localStorage.setItem(`staffSection:${id}`, 'open');
         } else {
             list.classList.add('hidden');
-            icon.style.transform = 'rotate(-90deg)';
+            if (icon) icon.style.transform = 'rotate(-90deg)';
+            localStorage.setItem(`staffSection:${id}`, 'closed');
         }
+    }
+
+    function restoreStaffSections() {
+        ['new-arrivals', 'in-progress', 'pending-approval', 'approved', 'ready'].forEach(id => {
+            const storageKey = `staffSection:${id}`;
+            const state = localStorage.getItem(storageKey);
+            if (state !== 'closed') return;
+            const list = document.getElementById(`list-${id}`);
+            const icon = document.getElementById(`icon-${id}`);
+            if (list) list.classList.add('hidden');
+            if (icon) icon.style.transform = 'rotate(-90deg)';
+        });
     }
 
     function toggleLeftPanel() {
