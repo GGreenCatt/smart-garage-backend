@@ -172,7 +172,7 @@ class StaffController extends Controller
     public function storeVehicle(\Illuminate\Http\Request $request)
     {
         if (! $this->canManageStaffOrderFlow()) {
-            return response()->json(['success' => false, 'message' => 'Ká»¹ thuáº­t viÃªn khÃ´ng cÃ³ quyá»n tiáº¿p nháº­n xe má»›i.'], 403);
+            return response()->json(['success' => false, 'message' => 'Kỹ thuật viên không có quyền tiếp nhận xe mới.'], 403);
         }
 
         // Validation (Simulated for speed, add proper rules later)
@@ -202,7 +202,7 @@ class StaffController extends Controller
         $inspectionOptions = $request->input('inspection_options', []);
         
         if (!empty($inspectionOptions['general'])) {
-            $title = !empty($inspectionOptions['use_3d']) ? 'Kiá»ƒm tra tá»•ng quÃ¡t (3D)' : 'Kiá»ƒm tra tá»•ng quÃ¡t';
+            $title = !empty($inspectionOptions['use_3d']) ? 'Kiểm tra tổng quát (3D)' : 'Kiểm tra tổng quát';
             \App\Models\RepairTask::create([
                 'repair_order_id' => $order->id,
                 'title' => $title,
@@ -214,7 +214,7 @@ class StaffController extends Controller
         if (!empty($inspectionOptions['cabin'])) {
             \App\Models\RepairTask::create([
                 'repair_order_id' => $order->id,
-                'title' => 'Kiá»ƒm tra bÃªn trong khoang lÃ¡i',
+                'title' => 'Kiểm tra bên trong khoang lái',
                 'type' => 'general',
                 'status' => 'pending',
             ]);
@@ -223,13 +223,13 @@ class StaffController extends Controller
         if (!empty($inspectionOptions['engine'])) {
             \App\Models\RepairTask::create([
                 'repair_order_id' => $order->id,
-                'title' => 'Kiá»ƒm tra Ä‘á»™ng cÆ¡',
+                'title' => 'Kiểm tra động cơ',
                 'type' => 'general',
                 'status' => 'pending',
             ]);
         }
 
-        $this->logOrderActivity($order, 'STAFF_ORDER_INTAKE', 'Tiáº¿p nháº­n xe vÃ  táº¡o order ban Ä‘áº§u.');
+        $this->logOrderActivity($order, 'STAFF_ORDER_INTAKE', 'Tiếp nhận xe và tạo order ban đầu.');
 
         return response()->json([
             'success' => true,
@@ -303,10 +303,12 @@ class StaffController extends Controller
 
         // 1. Find or Create UNIQUE Parent VHC Task (Reuse existing if available)
         // Improved Logic: Search by Title OR Type to catch existing tasks created without type
-        // ALSO: Check for "Kiá»ƒm tra tá»•ng quÃ¡t (VHC)" which seems to be an alternative title in the system
+        // Also check legacy mojibake titles and the VHC variant to avoid duplicate parent tasks.
         $parentTask = \App\Models\RepairTask::where('repair_order_id', $order->id)
             ->where(function ($query) {
                 $query->where('type', 'vhc')
+                      ->orWhere('title', 'Kiểm tra tổng quát (3D)')
+                      ->orWhere('title', 'Kiểm tra tổng quát (VHC)')
                       ->orWhere('title', 'Kiá»ƒm tra tá»•ng quÃ¡t (3D)')
                       ->orWhere('title', 'Kiá»ƒm tra tá»•ng quÃ¡t (VHC)');
             })
@@ -316,7 +318,7 @@ class StaffController extends Controller
             $parentTask = \App\Models\RepairTask::create([
                 'repair_order_id' => $order->id,
                 'type' => 'vhc',
-                'title' => 'Kiá»ƒm tra tá»•ng quÃ¡t (3D)', // Standardized Title
+                'title' => 'Kiểm tra tổng quát (3D)', // Standardized Title
                 'status' => 'pending'
             ]);
         }
@@ -358,7 +360,7 @@ class StaffController extends Controller
             ]);
         }
 
-        $this->logOrderActivity($order, 'STAFF_VHC_SAVED', 'LÆ°u VHC ' . $status . ' vá»›i ' . count($request->input('defects', [])) . ' defect.');
+        $this->logOrderActivity($order, 'STAFF_VHC_SAVED', 'Lưu VHC ' . $status . ' với ' . count($request->input('defects', [])) . ' defect.');
 
         return response()->json(['success' => true]);
     }
@@ -532,7 +534,7 @@ class StaffController extends Controller
     public function storeTask(Request $request, $orderId)
     {
         if (! $this->canManageStaffOrderFlow()) {
-            return response()->json(['success' => false, 'message' => 'Ká»¹ thuáº­t viÃªn khÃ´ng cÃ³ quyá»n thÃªm task bÃ¡o giÃ¡.'], 403);
+            return response()->json(['success' => false, 'message' => 'Kỹ thuật viên không có quyền thêm task báo giá.'], 403);
         }
 
         $order = \App\Models\RepairOrder::findOrFail($orderId);
@@ -554,7 +556,7 @@ class StaffController extends Controller
             'status' => 'pending'
         ]);
 
-        $this->logOrderActivity($order, 'STAFF_TASK_CREATED', "ThÃªm task {$task->title}.");
+        $this->logOrderActivity($order, 'STAFF_TASK_CREATED', "Thêm task {$task->title}.");
 
         return response()->json(['success' => true]);
     }
@@ -594,7 +596,7 @@ class StaffController extends Controller
         
         // Touch the order to update timestamp
         $task->repairOrder->touch();
-        $this->logOrderActivity($task->repairOrder, 'STAFF_TASK_STATUS_UPDATED', "Cáº­p nháº­t task {$task->title} tá»« {$oldStatus} sang {$status}.");
+        $this->logOrderActivity($task->repairOrder, 'STAFF_TASK_STATUS_UPDATED', "Cập nhật task {$task->title} từ {$oldStatus} sang {$status}.");
         
         return response()->json(['success' => true]);
     }
@@ -1252,7 +1254,7 @@ class StaffController extends Controller
         ]);
 
         $task->update($validated);
-        $this->logOrderActivity($task->repairOrder, 'STAFF_TASK_UPDATED', "Cáº­p nháº­t chi tiáº¿t task {$task->title}.");
+        $this->logOrderActivity($task->repairOrder, 'STAFF_TASK_UPDATED', "Cập nhật chi tiết task {$task->title}.");
 
         return response()->json(['success' => true]);
     }
@@ -1281,7 +1283,7 @@ class StaffController extends Controller
         $title = $task->title;
         $order = $task->repairOrder;
         $task->delete();
-        $this->logOrderActivity($order, 'STAFF_TASK_DELETED', "XÃ³a task {$title}.");
+        $this->logOrderActivity($order, 'STAFF_TASK_DELETED', "Xóa task {$title}.");
 
         return response()->json(['success' => true]);
     }
@@ -1389,7 +1391,7 @@ class StaffController extends Controller
             
             // Touch order to update timestamp
             $task->repairOrder->touch();
-            $this->logOrderActivity($task->repairOrder, 'STAFF_TASK_TOGGLED', "Chuyá»ƒn task {$task->title} sang {$task->status}.");
+            $this->logOrderActivity($task->repairOrder, 'STAFF_TASK_TOGGLED', "Chuyển task {$task->title} sang {$task->status}.");
             return response()->json(['success' => true, 'status' => $task->status]);
         }
         return response()->json(['success' => false], 404);
@@ -1459,24 +1461,24 @@ class StaffController extends Controller
         $order = \App\Models\RepairOrder::find($id);
         if ($order) {
             if ($order->isLockedForStaffChanges()) {
-                return response()->json(['success' => false, 'message' => 'ÄÆ¡n Ä‘Ã£ khÃ³a, khÃ´ng thá»ƒ yÃªu cáº§u há»— trá»£.'], 409);
+                return response()->json(['success' => false, 'message' => 'Đơn đã khóa, không thể yêu cầu hỗ trợ.'], 409);
             }
 
-            $content = $request->input('content') ?? 'KhÃ´ng rÃµ lÃ½ do';
+            $content = $request->input('content') ?? 'Không rõ lý do';
             
             $order->tasks()->create([
-                'title' => "YÃªu cáº§u há»— trá»£: $content",
+                'title' => "Yêu cầu hỗ trợ: $content",
                 'type' => 'support',
                 'status' => 'pending'
             ]);
             
             $order->touch();
-            $this->logOrderActivity($order, 'STAFF_SUPPORT_REQUESTED', "YÃªu cáº§u há»— trá»£: {$content}.");
+            $this->logOrderActivity($order, 'STAFF_SUPPORT_REQUESTED', "Yêu cầu hỗ trợ: {$content}.");
 
             \App\Services\NotificationService::notifyAllStaff(
                 'support_requested',
-                'YÃªu cáº§u há»— trá»£',
-                "Ká»¹ thuáº­t viÃªn Ä‘ang chá» há»— trá»£ cho Ä‘Æ¡n '#{$order->id}'.",
+                'Yêu cầu hỗ trợ',
+                "Kỹ thuật viên đang chờ hỗ trợ cho đơn '#{$order->id}'.",
                 route('staff.order.show', $order->id),
                 'fas fa-life-ring'
             );
@@ -1492,7 +1494,7 @@ class StaffController extends Controller
         $task = \App\Models\RepairTask::find($id);
         if ($task) {
             if ($task->mechanic_id && $task->mechanic_id != Auth::id()) {
-                return response()->json(['success' => false, 'message' => 'Nhiá»‡m vá»¥ nÃ y Ä‘Ã£ Ä‘Æ°á»£c nháº­n bá»Ÿi ngÆ°á»i khÃ¡c!']);
+                return response()->json(['success' => false, 'message' => 'Nhiệm vụ này đã được nhận bởi người khác!']);
             }
             
             $task->mechanic_id = Auth::id();

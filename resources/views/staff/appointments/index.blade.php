@@ -32,8 +32,44 @@
         ],
     ];
 
-    $statusCounts = $appointments->groupBy('status')->map->count();
-    $todayCount = $appointments->filter(fn ($appt) => $appt->scheduled_at?->isToday())->count();
+    $now = now();
+    $sortedAppointments = $appointments
+        ->sort(function ($first, $second) use ($now) {
+            $firstDate = $first->scheduled_at;
+            $secondDate = $second->scheduled_at;
+
+            if (! $firstDate && ! $secondDate) {
+                return 0;
+            }
+
+            if (! $firstDate) {
+                return 1;
+            }
+
+            if (! $secondDate) {
+                return -1;
+            }
+
+            $firstIsUpcoming = $firstDate->greaterThanOrEqualTo($now);
+            $secondIsUpcoming = $secondDate->greaterThanOrEqualTo($now);
+
+            if ($firstIsUpcoming !== $secondIsUpcoming) {
+                return $firstIsUpcoming ? -1 : 1;
+            }
+
+            return $firstIsUpcoming
+                ? $firstDate->timestamp <=> $secondDate->timestamp
+                : $secondDate->timestamp <=> $firstDate->timestamp;
+        })
+        ->values();
+    $statusCounts = $sortedAppointments->groupBy('status')->map->count();
+    $appointmentsByStatus = $sortedAppointments->groupBy(fn ($appt) => $appt->status ?? 'unknown');
+    $statusOrder = ['pending', 'confirmed', 'completed', 'cancelled', 'no_show'];
+    $orderedStatuses = collect($statusOrder)
+        ->filter(fn ($status) => $appointmentsByStatus->has($status))
+        ->merge($appointmentsByStatus->keys()->diff($statusOrder))
+        ->values();
+    $todayCount = $sortedAppointments->filter(fn ($appt) => $appt->scheduled_at?->isToday())->count();
     $pendingCount = $statusCounts->get('pending', 0);
     $confirmedCount = $statusCounts->get('confirmed', 0);
 @endphp
@@ -127,190 +163,201 @@
         </form>
     </div>
 
-    <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
-        <div class="hidden overflow-x-auto lg:block">
-            <table class="w-full text-left">
-                <thead>
-                    <tr class="border-b border-slate-200 bg-slate-50 text-xs font-black uppercase tracking-wider text-slate-500 dark:border-slate-800 dark:bg-slate-950/60 dark:text-slate-400">
-                        <th class="px-5 py-4">Khách hàng</th>
-                        <th class="px-5 py-4">Xe</th>
-                        <th class="px-5 py-4">Dịch vụ / yêu cầu</th>
-                        <th class="px-5 py-4">Thời gian</th>
-                        <th class="px-5 py-4">Trạng thái</th>
-                        <th class="px-5 py-4 text-right">Thao tác</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
-                    @forelse($appointments as $appt)
-                        @php
-                            $config = $statusConfig[$appt->status] ?? ['label' => 'Không rõ', 'badge' => 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700', 'dot' => 'bg-slate-400'];
-                            $vehicleLabel = $appt->vehicle
-                                ? trim(($appt->vehicle->license_plate ?? '') . ' - ' . ($appt->vehicle->model ?? ''))
-                                : trim(($appt->license_plate ?? 'Chưa rõ biển số') . ' - ' . ($appt->vehicle_name ?? 'Chưa rõ xe'));
-                        @endphp
-                        <tr class="transition hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
-                            <td class="px-5 py-4">
-                                <div class="flex items-center gap-3">
-                                    <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-100 text-sm font-black text-indigo-700 dark:bg-indigo-500/10 dark:text-indigo-300">
-                                        {{ mb_substr($appt->customer->name ?? 'K', 0, 1) }}
+    @if($appointments->isEmpty())
+        <div class="rounded-2xl border border-slate-200 bg-white px-6 py-16 text-center shadow-sm dark:border-slate-800 dark:bg-slate-900">
+            <div class="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-100 text-slate-400 dark:bg-slate-800">
+                <i class="fas fa-calendar-xmark text-2xl"></i>
+            </div>
+            <h3 class="mt-4 text-lg font-black text-slate-800 dark:text-white">Chưa có lịch hẹn phù hợp</h3>
+            <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Thử đổi bộ lọc hoặc kiểm tra lại các lịch khách mới đặt.</p>
+        </div>
+    @else
+        <div class="space-y-5">
+            @foreach($orderedStatuses as $status)
+                @php
+                    $groupAppointments = $appointmentsByStatus->get($status, collect());
+                    $config = $statusConfig[$status] ?? ['label' => 'Không rõ', 'badge' => 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700', 'dot' => 'bg-slate-400'];
+                    $isPendingGroup = $status === 'pending';
+                @endphp
+
+                <section class="overflow-hidden rounded-2xl border bg-white shadow-sm dark:bg-slate-900 {{ $isPendingGroup ? 'border-amber-200 ring-1 ring-amber-100 dark:border-amber-500/30 dark:ring-amber-500/10' : 'border-slate-200 dark:border-slate-800' }}">
+                    <div class="flex flex-col gap-3 border-b px-5 py-4 sm:flex-row sm:items-center sm:justify-between {{ $isPendingGroup ? 'border-amber-100 bg-amber-50/70 dark:border-amber-500/20 dark:bg-amber-500/10' : 'border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-950/60' }}">
+                        <div class="flex items-center gap-3">
+                            <span class="h-3 w-3 rounded-full {{ $config['dot'] }}"></span>
+                            <div>
+                                <h2 class="text-base font-black text-slate-900 dark:text-white">{{ $config['label'] }}</h2>
+                                <p class="mt-0.5 text-xs font-semibold text-slate-500 dark:text-slate-400">
+                                    {{ $groupAppointments->count() }} lịch hẹn trong nhóm này
+                                </p>
+                            </div>
+                        </div>
+                        @if($isPendingGroup)
+                            <span class="inline-flex w-fit items-center gap-2 rounded-full border border-amber-200 bg-white px-3 py-1 text-xs font-black text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300">
+                                <i class="fas fa-bolt text-[10px]"></i>
+                                Ưu tiên xử lý
+                            </span>
+                        @endif
+                    </div>
+
+                    <div class="hidden overflow-x-auto lg:block">
+                        <table class="w-full text-left">
+                            <thead>
+                                <tr class="border-b border-slate-200 bg-white text-xs font-black uppercase tracking-wider text-slate-500 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400">
+                                    <th class="px-5 py-4">Khách hàng</th>
+                                    <th class="px-5 py-4">Xe</th>
+                                    <th class="px-5 py-4">Dịch vụ / yêu cầu</th>
+                                    <th class="px-5 py-4">Thời gian</th>
+                                    <th class="px-5 py-4 text-right">Thao tác</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+                                @foreach($groupAppointments as $appt)
+                                    @php
+                                        $vehicleLabel = $appt->vehicle
+                                            ? trim(($appt->vehicle->license_plate ?? '') . ' - ' . ($appt->vehicle->model ?? ''))
+                                            : trim(($appt->license_plate ?? 'Chưa rõ biển số') . ' - ' . ($appt->vehicle_name ?? 'Chưa rõ xe'));
+                                    @endphp
+                                    <tr class="transition hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
+                                        <td class="px-5 py-4">
+                                            <div class="flex items-center gap-3">
+                                                <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-100 text-sm font-black text-indigo-700 dark:bg-indigo-500/10 dark:text-indigo-300">
+                                                    {{ mb_substr($appt->customer->name ?? 'K', 0, 1) }}
+                                                </div>
+                                                <div class="min-w-0">
+                                                    <div class="truncate font-black text-slate-900 dark:text-white">{{ $appt->customer->name ?? 'Khách lẻ' }}</div>
+                                                    <div class="mt-0.5 text-xs font-semibold text-slate-500 dark:text-slate-400">{{ $appt->customer->phone ?? 'Chưa có SĐT' }}</div>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td class="px-5 py-4">
+                                            <div class="font-black uppercase text-slate-800 dark:text-slate-100">{{ $appt->vehicle->license_plate ?? $appt->license_plate ?? 'Chưa rõ' }}</div>
+                                            <div class="mt-0.5 text-xs font-semibold text-slate-500 dark:text-slate-400">{{ $appt->vehicle->model ?? $appt->vehicle_name ?? 'Chưa rõ xe' }}</div>
+                                        </td>
+                                        <td class="max-w-sm px-5 py-4">
+                                            <div class="font-bold text-slate-800 dark:text-slate-100">{{ $appt->service->name ?? 'Tư vấn thêm' }}</div>
+                                            <div class="mt-1 truncate text-xs font-medium text-slate-500 dark:text-slate-400" title="{{ $appt->reason }}">{{ $appt->reason ?: 'Khách chưa ghi yêu cầu cụ thể' }}</div>
+                                        </td>
+                                        <td class="px-5 py-4">
+                                            <div class="font-black text-indigo-600 dark:text-indigo-300">{{ $appt->scheduled_at?->format('H:i') ?? '--:--' }}</div>
+                                            <div class="mt-0.5 text-xs font-semibold text-slate-500 dark:text-slate-400">{{ $appt->scheduled_at?->format('d/m/Y') ?? 'Chưa có ngày' }}</div>
+                                        </td>
+                                        <td class="px-5 py-4">
+                                            <div class="flex items-center justify-end gap-2">
+                                                @if($appt->status === 'pending')
+                                                    <form action="{{ route('staff.appointments.update', $appt->id) }}" method="POST">
+                                                        @csrf
+                                                        @method('PUT')
+                                                        <input type="hidden" name="status" value="confirmed">
+                                                        <button type="submit" class="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 transition hover:bg-emerald-100 dark:bg-emerald-500/10 dark:text-emerald-300" title="Xác nhận lịch">
+                                                            <i class="fas fa-check"></i>
+                                                        </button>
+                                                    </form>
+                                                @endif
+
+                                                @if(in_array($appt->status, ['pending', 'confirmed']))
+                                                    <form action="{{ route('staff.appointments.convert', $appt->id) }}" method="POST" onsubmit="return confirm('Tiếp nhận xe và tạo lệnh sửa chữa?');">
+                                                        @csrf
+                                                        <button type="submit" class="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 transition hover:bg-indigo-100 dark:bg-indigo-500/10 dark:text-indigo-300" title="Tiếp nhận xe">
+                                                            <i class="fas fa-file-invoice"></i>
+                                                        </button>
+                                                    </form>
+                                                    <form action="{{ route('staff.appointments.update', $appt->id) }}" method="POST" onsubmit="return confirm('Hủy lịch hẹn này?');">
+                                                        @csrf
+                                                        @method('PUT')
+                                                        <input type="hidden" name="status" value="cancelled">
+                                                        <button type="submit" class="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-red-50 text-red-600 transition hover:bg-red-100 dark:bg-red-500/10 dark:text-red-300" title="Hủy lịch">
+                                                            <i class="fas fa-times"></i>
+                                                        </button>
+                                                    </form>
+                                                @endif
+
+                                                <button type="button" onclick='openEditModal(@js([
+                                                    "id" => $appt->id,
+                                                    "scheduled_at" => $appt->scheduled_at?->format("Y-m-d\TH:i"),
+                                                    "service_id" => $appt->service_id,
+                                                    "reason" => $appt->reason,
+                                                    "notes" => $appt->notes,
+                                                    "admin_notes" => $appt->admin_notes,
+                                                    "status" => $appt->status,
+                                                    "vehicle" => $vehicleLabel,
+                                                ]))' class="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-600 transition hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700" title="Chỉnh sửa">
+                                                    <i class="fas fa-pen"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="divide-y divide-slate-100 dark:divide-slate-800 lg:hidden">
+                        @foreach($groupAppointments as $appt)
+                            @php
+                                $vehicleLabel = $appt->vehicle
+                                    ? trim(($appt->vehicle->license_plate ?? '') . ' - ' . ($appt->vehicle->model ?? ''))
+                                    : trim(($appt->license_plate ?? 'Chưa rõ biển số') . ' - ' . ($appt->vehicle_name ?? 'Chưa rõ xe'));
+                            @endphp
+                            <div class="p-4">
+                                <div class="flex items-start justify-between gap-3">
+                                    <div>
+                                        <div class="font-black text-slate-900 dark:text-white">{{ $appt->customer->name ?? 'Khách lẻ' }}</div>
+                                        <div class="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400">{{ $appt->customer->phone ?? 'Chưa có SĐT' }}</div>
                                     </div>
-                                    <div class="min-w-0">
-                                        <div class="truncate font-black text-slate-900 dark:text-white">{{ $appt->customer->name ?? 'Khách lẻ' }}</div>
-                                        <div class="mt-0.5 text-xs font-semibold text-slate-500 dark:text-slate-400">{{ $appt->customer->phone ?? 'Chưa có SĐT' }}</div>
+                                    <span class="inline-flex shrink-0 items-center gap-2 rounded-full border px-3 py-1 text-xs font-black {{ $config['badge'] }}">
+                                        <span class="h-2 w-2 rounded-full {{ $config['dot'] }}"></span>
+                                        {{ $config['label'] }}
+                                    </span>
+                                </div>
+
+                                <div class="mt-4 grid gap-3 rounded-xl bg-slate-50 p-3 text-sm dark:bg-slate-950/60">
+                                    <div class="flex items-center justify-between gap-3">
+                                        <span class="font-bold text-slate-500 dark:text-slate-400">Xe</span>
+                                        <span class="text-right font-black uppercase text-slate-800 dark:text-slate-100">{{ $appt->vehicle->license_plate ?? $appt->license_plate ?? 'Chưa rõ' }}</span>
+                                    </div>
+                                    <div class="flex items-center justify-between gap-3">
+                                        <span class="font-bold text-slate-500 dark:text-slate-400">Dịch vụ</span>
+                                        <span class="text-right font-bold text-slate-800 dark:text-slate-100">{{ $appt->service->name ?? 'Tư vấn thêm' }}</span>
+                                    </div>
+                                    <div class="flex items-center justify-between gap-3">
+                                        <span class="font-bold text-slate-500 dark:text-slate-400">Thời gian</span>
+                                        <span class="text-right font-black text-indigo-600 dark:text-indigo-300">{{ $appt->scheduled_at?->format('H:i d/m/Y') ?? 'Chưa có ngày' }}</span>
                                     </div>
                                 </div>
-                            </td>
-                            <td class="px-5 py-4">
-                                <div class="font-black uppercase text-slate-800 dark:text-slate-100">{{ $appt->vehicle->license_plate ?? $appt->license_plate ?? 'Chưa rõ' }}</div>
-                                <div class="mt-0.5 text-xs font-semibold text-slate-500 dark:text-slate-400">{{ $appt->vehicle->model ?? $appt->vehicle_name ?? 'Chưa rõ xe' }}</div>
-                            </td>
-                            <td class="max-w-sm px-5 py-4">
-                                <div class="font-bold text-slate-800 dark:text-slate-100">{{ $appt->service->name ?? 'Tư vấn thêm' }}</div>
-                                <div class="mt-1 truncate text-xs font-medium text-slate-500 dark:text-slate-400" title="{{ $appt->reason }}">{{ $appt->reason ?: 'Khách chưa ghi yêu cầu cụ thể' }}</div>
-                            </td>
-                            <td class="px-5 py-4">
-                                <div class="font-black text-indigo-600 dark:text-indigo-300">{{ $appt->scheduled_at?->format('H:i') ?? '--:--' }}</div>
-                                <div class="mt-0.5 text-xs font-semibold text-slate-500 dark:text-slate-400">{{ $appt->scheduled_at?->format('d/m/Y') ?? 'Chưa có ngày' }}</div>
-                            </td>
-                            <td class="px-5 py-4">
-                                <span class="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-black {{ $config['badge'] }}">
-                                    <span class="h-2 w-2 rounded-full {{ $config['dot'] }}"></span>
-                                    {{ $config['label'] }}
-                                </span>
-                            </td>
-                            <td class="px-5 py-4">
-                                <div class="flex items-center justify-end gap-2">
+
+                                <div class="mt-4 flex flex-wrap justify-end gap-2">
                                     @if($appt->status === 'pending')
                                         <form action="{{ route('staff.appointments.update', $appt->id) }}" method="POST">
                                             @csrf
                                             @method('PUT')
                                             <input type="hidden" name="status" value="confirmed">
-                                            <button type="submit" class="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 transition hover:bg-emerald-100 dark:bg-emerald-500/10 dark:text-emerald-300" title="Xác nhận lịch">
-                                                <i class="fas fa-check"></i>
-                                            </button>
+                                            <button type="submit" class="rounded-xl bg-emerald-50 px-3 py-2 text-sm font-black text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-300">Xác nhận</button>
                                         </form>
                                     @endif
-
                                     @if(in_array($appt->status, ['pending', 'confirmed']))
                                         <form action="{{ route('staff.appointments.convert', $appt->id) }}" method="POST" onsubmit="return confirm('Tiếp nhận xe và tạo lệnh sửa chữa?');">
                                             @csrf
-                                            <button type="submit" class="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 transition hover:bg-indigo-100 dark:bg-indigo-500/10 dark:text-indigo-300" title="Tiếp nhận xe">
-                                                <i class="fas fa-file-invoice"></i>
-                                            </button>
-                                        </form>
-                                        <form action="{{ route('staff.appointments.update', $appt->id) }}" method="POST" onsubmit="return confirm('Hủy lịch hẹn này?');">
-                                            @csrf
-                                            @method('PUT')
-                                            <input type="hidden" name="status" value="cancelled">
-                                            <button type="submit" class="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-red-50 text-red-600 transition hover:bg-red-100 dark:bg-red-500/10 dark:text-red-300" title="Hủy lịch">
-                                                <i class="fas fa-times"></i>
-                                            </button>
+                                            <button type="submit" class="rounded-xl bg-indigo-600 px-3 py-2 text-sm font-black text-white">Tiếp nhận</button>
                                         </form>
                                     @endif
-
                                     <button type="button" onclick='openEditModal(@js([
                                         "id" => $appt->id,
                                         "scheduled_at" => $appt->scheduled_at?->format("Y-m-d\TH:i"),
                                         "service_id" => $appt->service_id,
                                         "reason" => $appt->reason,
-                                            "notes" => $appt->notes,
-                                            "admin_notes" => $appt->admin_notes,
+                                        "notes" => $appt->notes,
+                                        "admin_notes" => $appt->admin_notes,
                                         "status" => $appt->status,
                                         "vehicle" => $vehicleLabel,
-                                    ]))' class="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-600 transition hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700" title="Chỉnh sửa">
-                                        <i class="fas fa-pen"></i>
-                                    </button>
+                                    ]))' class="rounded-xl bg-slate-100 px-3 py-2 text-sm font-black text-slate-700 dark:bg-slate-800 dark:text-slate-200">Sửa</button>
                                 </div>
-                            </td>
-                        </tr>
-                    @empty
-                        <tr>
-                            <td colspan="6" class="px-6 py-16 text-center">
-                                <div class="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-100 text-slate-400 dark:bg-slate-800">
-                                    <i class="fas fa-calendar-xmark text-2xl"></i>
-                                </div>
-                                <h3 class="mt-4 text-lg font-black text-slate-800 dark:text-white">Chưa có lịch hẹn phù hợp</h3>
-                                <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Thử đổi bộ lọc hoặc kiểm tra lại các lịch khách mới đặt.</p>
-                            </td>
-                        </tr>
-                    @endforelse
-                </tbody>
-            </table>
+                            </div>
+                        @endforeach
+                    </div>
+                </section>
+            @endforeach
         </div>
-
-        <div class="divide-y divide-slate-100 dark:divide-slate-800 lg:hidden">
-            @forelse($appointments as $appt)
-                @php
-                    $config = $statusConfig[$appt->status] ?? ['label' => 'Không rõ', 'badge' => 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700', 'dot' => 'bg-slate-400'];
-                    $vehicleLabel = $appt->vehicle
-                        ? trim(($appt->vehicle->license_plate ?? '') . ' - ' . ($appt->vehicle->model ?? ''))
-                        : trim(($appt->license_plate ?? 'Chưa rõ biển số') . ' - ' . ($appt->vehicle_name ?? 'Chưa rõ xe'));
-                @endphp
-                <div class="p-4">
-                    <div class="flex items-start justify-between gap-3">
-                        <div>
-                            <div class="font-black text-slate-900 dark:text-white">{{ $appt->customer->name ?? 'Khách lẻ' }}</div>
-                            <div class="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400">{{ $appt->customer->phone ?? 'Chưa có SĐT' }}</div>
-                        </div>
-                        <span class="inline-flex shrink-0 items-center gap-2 rounded-full border px-3 py-1 text-xs font-black {{ $config['badge'] }}">
-                            <span class="h-2 w-2 rounded-full {{ $config['dot'] }}"></span>
-                            {{ $config['label'] }}
-                        </span>
-                    </div>
-
-                    <div class="mt-4 grid gap-3 rounded-xl bg-slate-50 p-3 text-sm dark:bg-slate-950/60">
-                        <div class="flex items-center justify-between gap-3">
-                            <span class="font-bold text-slate-500 dark:text-slate-400">Xe</span>
-                            <span class="text-right font-black uppercase text-slate-800 dark:text-slate-100">{{ $appt->vehicle->license_plate ?? $appt->license_plate ?? 'Chưa rõ' }}</span>
-                        </div>
-                        <div class="flex items-center justify-between gap-3">
-                            <span class="font-bold text-slate-500 dark:text-slate-400">Dịch vụ</span>
-                            <span class="text-right font-bold text-slate-800 dark:text-slate-100">{{ $appt->service->name ?? 'Tư vấn thêm' }}</span>
-                        </div>
-                        <div class="flex items-center justify-between gap-3">
-                            <span class="font-bold text-slate-500 dark:text-slate-400">Thời gian</span>
-                            <span class="text-right font-black text-indigo-600 dark:text-indigo-300">{{ $appt->scheduled_at?->format('H:i d/m/Y') ?? 'Chưa có ngày' }}</span>
-                        </div>
-                    </div>
-
-                    <div class="mt-4 flex flex-wrap justify-end gap-2">
-                        @if($appt->status === 'pending')
-                            <form action="{{ route('staff.appointments.update', $appt->id) }}" method="POST">
-                                @csrf
-                                @method('PUT')
-                                <input type="hidden" name="status" value="confirmed">
-                                <button type="submit" class="rounded-xl bg-emerald-50 px-3 py-2 text-sm font-black text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-300">Xác nhận</button>
-                            </form>
-                        @endif
-                        @if(in_array($appt->status, ['pending', 'confirmed']))
-                            <form action="{{ route('staff.appointments.convert', $appt->id) }}" method="POST" onsubmit="return confirm('Tiếp nhận xe và tạo lệnh sửa chữa?');">
-                                @csrf
-                                <button type="submit" class="rounded-xl bg-indigo-600 px-3 py-2 text-sm font-black text-white">Tiếp nhận</button>
-                            </form>
-                        @endif
-                        <button type="button" onclick='openEditModal(@js([
-                            "id" => $appt->id,
-                            "scheduled_at" => $appt->scheduled_at?->format("Y-m-d\TH:i"),
-                            "service_id" => $appt->service_id,
-                            "reason" => $appt->reason,
-                            "notes" => $appt->notes,
-                            "admin_notes" => $appt->admin_notes,
-                            "status" => $appt->status,
-                            "vehicle" => $vehicleLabel,
-                        ]))' class="rounded-xl bg-slate-100 px-3 py-2 text-sm font-black text-slate-700 dark:bg-slate-800 dark:text-slate-200">Sửa</button>
-                    </div>
-                </div>
-            @empty
-                <div class="px-6 py-14 text-center">
-                    <div class="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-100 text-slate-400 dark:bg-slate-800">
-                        <i class="fas fa-calendar-xmark text-2xl"></i>
-                    </div>
-                    <h3 class="mt-4 text-lg font-black text-slate-800 dark:text-white">Chưa có lịch hẹn phù hợp</h3>
-                    <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Thử đổi bộ lọc hoặc kiểm tra lại các lịch khách mới đặt.</p>
-                </div>
-            @endforelse
-        </div>
-    </div>
+    @endif
 </div>
 
 <dialog id="editModal" class="m-auto w-full max-w-3xl bg-transparent p-4 backdrop:bg-slate-950/70 backdrop:backdrop-blur-sm">
