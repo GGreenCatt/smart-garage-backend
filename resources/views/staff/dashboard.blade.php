@@ -467,7 +467,7 @@
                 <h3 class="text-xs font-bold text-gray-500 dark:text-gray-400 flex items-center gap-2">
                     <span id="icon-ready" class="material-icons-round !text-[14px] transition-transform duration-300">expand_more</span>
                     <span class="material-icons-round !text-[14px]">done_all</span>
-                    <span class="tracking-wider uppercase">HOÀN THÀNH / CHỜ GIAO</span>
+                    <span class="tracking-wider uppercase">CHỜ THANH TOÁN / BÀN GIAO</span>
                 </h3>
                 <span class="text-xs font-mono text-gray-500 dark:text-gray-400">{{ $ready->count() }}</span>
             </div>

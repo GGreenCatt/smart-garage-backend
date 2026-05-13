@@ -26,6 +26,8 @@ class SettingController extends Controller
             'garage_name' => 'nullable|string|max:255',
             'garage_phone' => 'nullable|string|max:50',
             'garage_address' => 'nullable|string|max:500',
+            'garage_latitude' => 'nullable|numeric|between:-90,90',
+            'garage_longitude' => 'nullable|numeric|between:-180,180',
             'garage_logo' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:5120',
             'tax_rate' => 'nullable|numeric|min:0|max:100',
             'currency_symbol' => 'nullable|string|max:10',
@@ -48,7 +50,7 @@ class SettingController extends Controller
         }
 
         $groups = [
-            'general' => ['garage_name', 'garage_phone', 'garage_address'],
+            'general' => ['garage_name', 'garage_phone', 'garage_address', 'garage_latitude', 'garage_longitude'],
             'finance' => ['tax_rate', 'currency_symbol', 'invoice_prefix'],
             'transfer' => ['bank_id', 'bank_account_no', 'bank_account_name', 'vietqr_template', 'qr_payment_content'],
             'system' => ['maintenance_mode', 'enable_notifications', 'enable_3d_check'],

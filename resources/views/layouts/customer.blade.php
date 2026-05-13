@@ -35,6 +35,10 @@
     @php
         $primaryColor = \App\Models\Setting::get('portal_color_primary', '#06b6d4');
         $accentColor = \App\Models\Setting::get('portal_color_accent', '#10b981');
+        $garageName = \App\Models\Setting::get('garage_name', 'Smart Garage');
+        $garageAddress = \App\Models\Setting::get('garage_address', 'Dia chi garage dang cap nhat');
+        $garagePhone = \App\Models\Setting::get('garage_phone', '1900 1234');
+        $garageEmail = \App\Models\Setting::get('garage_email', 'contact@smartgarage.vn');
     @endphp
     <style>
         :root {
@@ -125,7 +129,7 @@
             <div class="space-y-4">
                 <div class="flex items-center gap-2">
                     <div class="w-8 h-8 bg-cyan-600 rounded flex items-center justify-center text-white font-bold">S</div>
-                    <span class="text-xl font-bold text-white">SmartGarage</span>
+                    <span class="text-xl font-bold text-white">{{ $garageName }}</span>
                 </div>
                 <p class="text-slate-500 text-sm">Hệ thống chăm sóc xe thông minh hàng đầu Việt Nam.</p>
             </div>
@@ -141,9 +145,9 @@
             <div>
                 <h4 class="text-white font-bold mb-4">Liên Hệ</h4>
                 <ul class="space-y-2 text-sm text-slate-500">
-                    <li class="flex items-center gap-2"><i class="fas fa-map-marker-alt w-4"></i> 123 Đường ABC, Hà Nội</li>
-                    <li class="flex items-center gap-2"><i class="fas fa-phone w-4"></i> 1900 1234</li>
-                    <li class="flex items-center gap-2"><i class="fas fa-envelope w-4"></i> contact@smartgarage.vn</li>
+                    <li class="flex items-start gap-2"><i class="fas fa-map-marker-alt w-4 mt-0.5"></i> <span>{{ $garageAddress }}</span></li>
+                    <li class="flex items-center gap-2"><i class="fas fa-phone w-4"></i> {{ $garagePhone }}</li>
+                    <li class="flex items-center gap-2"><i class="fas fa-envelope w-4"></i> {{ $garageEmail }}</li>
                 </ul>
             </div>
             <div>

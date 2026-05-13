@@ -3,6 +3,7 @@
 @section('title', 'Cài Đặt Hệ Thống')
 
 @section('content')
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
 <style>
     .settings-switch {
         position: relative;
@@ -42,10 +43,14 @@
         background: #6366f1;
     }
 
-    .settings-switch input:checked + .settings-slider:before {
-        transform: translateX(22px);
-    }
-</style>
+	    .settings-switch input:checked + .settings-slider:before {
+	        transform: translateX(22px);
+	    }
+
+	    .garage-location-map .leaflet-control-attribution {
+	        font-size: 10px;
+	    }
+	</style>
 
 <div class="flex h-full flex-col">
     <div class="mb-8 flex flex-col gap-4 px-2 lg:flex-row lg:items-end lg:justify-between">
@@ -127,11 +132,33 @@
                                 <span class="mb-2 block text-sm font-bold text-slate-400">Số điện thoại</span>
                                 <input name="garage_phone" class="w-full rounded-xl border border-slate-800 bg-slate-900 px-4 py-3 text-white outline-none transition focus:border-indigo-500" type="text" value="{{ \App\Models\Setting::get('garage_phone', '') }}">
                             </label>
-                            <label class="block">
-                                <span class="mb-2 block text-sm font-bold text-slate-400">Địa chỉ</span>
-                                <input name="garage_address" class="w-full rounded-xl border border-slate-800 bg-slate-900 px-4 py-3 text-white outline-none transition focus:border-indigo-500" type="text" value="{{ \App\Models\Setting::get('garage_address', '') }}">
-                            </label>
-                        </div>
+	                            <label class="block">
+	                                <span class="mb-2 block text-sm font-bold text-slate-400">Địa chỉ</span>
+	                                <input name="garage_address" id="garageAddress" class="w-full rounded-xl border border-slate-800 bg-slate-900 px-4 py-3 text-white outline-none transition focus:border-indigo-500" type="text" value="{{ \App\Models\Setting::get('garage_address', '') }}" placeholder="Nhập địa chỉ garage">
+	                            </label>
+	                            <div class="md:col-span-2 rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
+	                                <div class="mb-3 flex items-center justify-between gap-3">
+	                                    <div>
+	                                        <span class="block text-sm font-bold text-slate-300">Vị trí garage trên bản đồ</span>
+	                                        <span class="mt-1 block text-xs text-slate-500">Nhập địa chỉ rồi tìm trên bản đồ, hoặc bấm/kéo điểm đánh dấu để tinh chỉnh vị trí.</span>
+	                                    </div>
+	                                    <div class="flex shrink-0 flex-wrap justify-end gap-2">
+	                                        <button type="button" onclick="findGarageAddress()" class="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs font-black text-emerald-200 transition hover:bg-emerald-500/20">
+	                                            Tìm địa chỉ
+	                                        </button>
+	                                        <button type="button" onclick="useCurrentGarageLocation()" class="rounded-xl border border-indigo-500/30 bg-indigo-500/10 px-3 py-2 text-xs font-black text-indigo-200 transition hover:bg-indigo-500/20">
+	                                            Vị trí hiện tại
+	                                        </button>
+	                                    </div>
+	                                </div>
+	                                <div id="garageLocationMap" class="garage-location-map h-72 overflow-hidden rounded-2xl border border-slate-800 bg-slate-950"></div>
+	                                <input name="garage_latitude" id="garageLatitude" type="hidden" value="{{ \App\Models\Setting::get('garage_latitude', '') }}">
+	                                <input name="garage_longitude" id="garageLongitude" type="hidden" value="{{ \App\Models\Setting::get('garage_longitude', '') }}">
+	                                <div id="garageLocationStatus" class="mt-3 rounded-xl border border-slate-800 bg-slate-950 px-4 py-3 text-xs font-semibold text-slate-400">
+	                                    Chọn vị trí trên bản đồ để lưu vị trí garage.
+	                                </div>
+	                            </div>
+	                        </div>
 
                         <label class="relative flex min-h-56 cursor-pointer flex-col items-center justify-center overflow-hidden rounded-2xl border-2 border-dashed border-slate-800 bg-slate-900/60 p-6 text-center transition hover:border-indigo-500/60 hover:bg-slate-900">
                             @if(\App\Models\Setting::get('garage_logo'))
@@ -291,5 +318,124 @@
             </form>
         </div>
     </div>
-</div>
-@endsection
+	</div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const latInput = document.getElementById('garageLatitude');
+    const lngInput = document.getElementById('garageLongitude');
+    const statusEl = document.getElementById('garageLocationStatus');
+    const defaultLat = parseFloat(latInput.value) || 10.7769;
+    const defaultLng = parseFloat(lngInput.value) || 106.7009;
+
+    window.garageLocationMap = L.map('garageLocationMap').setView([defaultLat, defaultLng], 15);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '&copy; OpenStreetMap'
+    }).addTo(window.garageLocationMap);
+
+    window.garageLocationMarker = L.marker([defaultLat, defaultLng], { draggable: true }).addTo(window.garageLocationMap);
+
+    const setGarageLocation = (lat, lng) => {
+        latInput.value = Number(lat).toFixed(6);
+        lngInput.value = Number(lng).toFixed(6);
+        window.garageLocationMarker.setLatLng([lat, lng]);
+        statusEl.innerText = `Đã chọn vị trí: ${Number(lat).toFixed(6)}, ${Number(lng).toFixed(6)}`;
+    };
+
+    window.garageLocationMarker.on('dragend', event => {
+        const position = event.target.getLatLng();
+        setGarageLocation(position.lat, position.lng);
+        reverseGarageLocation(position.lat, position.lng);
+    });
+
+    window.garageLocationMap.on('click', event => {
+        setGarageLocation(event.latlng.lat, event.latlng.lng);
+        reverseGarageLocation(event.latlng.lat, event.latlng.lng);
+    });
+
+    [latInput, lngInput].forEach(input => {
+        input.addEventListener('change', () => {
+            const lat = parseFloat(latInput.value);
+            const lng = parseFloat(lngInput.value);
+            if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+            window.garageLocationMap.setView([lat, lng], 15);
+            window.garageLocationMarker.setLatLng([lat, lng]);
+        });
+    });
+});
+
+async function findGarageAddress() {
+    const addressInput = document.getElementById('garageAddress');
+    const statusEl = document.getElementById('garageLocationStatus');
+    const query = addressInput.value.trim();
+
+    if (!query) {
+        Swal.fire('Thiếu địa chỉ', 'Vui lòng nhập địa chỉ garage trước khi tìm.', 'warning');
+        return;
+    }
+
+    statusEl.innerText = 'Đang tìm địa chỉ trên bản đồ...';
+
+    try {
+        const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=vn&q=${encodeURIComponent(query)}`, {
+            headers: { 'Accept': 'application/json' }
+        });
+        const results = await response.json();
+
+        if (!Array.isArray(results) || results.length === 0) {
+            statusEl.innerText = 'Không tìm thấy địa chỉ. Hãy nhập cụ thể hơn hoặc bấm trực tiếp trên bản đồ.';
+            Swal.fire('Không tìm thấy', 'Không tìm thấy địa chỉ này trên bản đồ. Hãy nhập cụ thể hơn.', 'warning');
+            return;
+        }
+
+        const lat = parseFloat(results[0].lat);
+        const lng = parseFloat(results[0].lon);
+        document.getElementById('garageLatitude').value = lat.toFixed(6);
+        document.getElementById('garageLongitude').value = lng.toFixed(6);
+        window.garageLocationMap.setView([lat, lng], 16);
+        window.garageLocationMarker.setLatLng([lat, lng]);
+        addressInput.value = results[0].display_name || query;
+        statusEl.innerText = `Đã tìm thấy vị trí: ${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+    } catch (error) {
+        statusEl.innerText = 'Không thể tìm địa chỉ lúc này. Hãy bấm trực tiếp trên bản đồ.';
+        Swal.fire('Lỗi tìm địa chỉ', 'Không thể tìm địa chỉ lúc này. Vui lòng thử lại hoặc chọn trên bản đồ.', 'error');
+    }
+}
+
+async function reverseGarageLocation(lat, lng) {
+    const statusEl = document.getElementById('garageLocationStatus');
+    try {
+        const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lng)}`, {
+            headers: { 'Accept': 'application/json' }
+        });
+        const data = await response.json();
+        if (data.display_name) {
+            document.getElementById('garageAddress').value = data.display_name;
+            statusEl.innerText = `Đã chọn: ${data.display_name}`;
+        }
+    } catch (error) {
+        statusEl.innerText = `Đã chọn vị trí: ${Number(lat).toFixed(6)}, ${Number(lng).toFixed(6)}`;
+    }
+}
+
+function useCurrentGarageLocation() {
+    if (!navigator.geolocation) {
+        Swal.fire('Không hỗ trợ', 'Trình duyệt không hỗ trợ lấy vị trí hiện tại.', 'warning');
+        return;
+    }
+
+    navigator.geolocation.getCurrentPosition(position => {
+        const lat = position.coords.latitude;
+        const lng = position.coords.longitude;
+        document.getElementById('garageLatitude').value = lat.toFixed(6);
+        document.getElementById('garageLongitude').value = lng.toFixed(6);
+        window.garageLocationMap.setView([lat, lng], 16);
+        window.garageLocationMarker.setLatLng([lat, lng]);
+        reverseGarageLocation(lat, lng);
+    }, () => {
+        Swal.fire('Không lấy được vị trí', 'Vui lòng cho phép quyền vị trí hoặc bấm trực tiếp trên bản đồ.', 'error');
+    }, { enableHighAccuracy: true, timeout: 10000 });
+}
+</script>
+	@endsection

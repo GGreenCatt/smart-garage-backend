@@ -4,188 +4,287 @@
 
 @section('styles')
 <style>
-    .hero-bg { background: radial-gradient(circle at top right, #1e293b 0%, #0f172a 100%); }
-    .animated-grid {
-        background-size: 50px 50px;
-        background-image: linear-gradient(to right, rgba(255, 255, 255, 0.05) 1px, transparent 1px),
-                          linear-gradient(to bottom, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
-        mask-image: linear-gradient(to bottom, black 40%, transparent 100%);
+    html { scroll-behavior: smooth; }
+
+    .home-surface {
+        background:
+            linear-gradient(180deg, rgba(15, 23, 42, 0.92) 0%, rgba(15, 23, 42, 0.98) 42%, #0f172a 100%),
+            url('https://images.unsplash.com/photo-1487754180451-c456f719a1fc?auto=format&fit=crop&w=1800&q=85') center top / cover no-repeat;
     }
-    .float-animation { animation: float 6s ease-in-out infinite; }
-    @keyframes float {
-        0% { transform: translateY(0px); }
-        50% { transform: translateY(-20px); }
-        100% { transform: translateY(0px); }
+
+    .hero-panel {
+        background: rgba(2, 6, 23, 0.62);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        box-shadow: 0 28px 90px rgba(2, 6, 23, 0.42);
+        backdrop-filter: blur(18px);
     }
-    .feature-icon {
-        background: linear-gradient(135deg, rgba(6, 182, 212, 0.1), rgba(59, 130, 246, 0.1));
-        border: 1px solid rgba(6, 182, 212, 0.2);
+
+    .stat-tile,
+    .service-tile,
+    .workflow-step,
+    .trust-tile {
+        background: rgba(15, 23, 42, 0.74);
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        box-shadow: 0 18px 50px rgba(2, 6, 23, 0.24);
+    }
+
+    .service-tile,
+    .workflow-step,
+    .trust-tile {
+        transition: transform 180ms ease, border-color 180ms ease, background-color 180ms ease;
+    }
+
+    .service-tile:hover,
+    .workflow-step:hover,
+    .trust-tile:hover {
+        transform: translateY(-4px);
+        border-color: color-mix(in srgb, var(--brand-primary) 52%, transparent);
+        background: rgba(15, 23, 42, 0.9);
+    }
+
+    .brand-gradient-text {
+        color: transparent;
+        background: linear-gradient(135deg, var(--brand-primary), var(--brand-accent));
+        -webkit-background-clip: text;
+        background-clip: text;
+    }
+
+    .brand-gradient-bg {
+        background: linear-gradient(135deg, var(--brand-primary), var(--brand-accent));
+    }
+
+    .vehicle-frame {
+        min-height: 460px;
+        background:
+            linear-gradient(180deg, rgba(2, 6, 23, 0.18), rgba(2, 6, 23, 0.88)),
+            url('https://images.unsplash.com/photo-1599256630445-67b5772b1204?auto=format&fit=crop&w=1100&q=85') center / cover no-repeat;
+    }
+
+    .scan-line {
+        animation: scanLine 3.2s ease-in-out infinite;
+    }
+
+    @keyframes scanLine {
+        0%, 100% { transform: translateX(0); opacity: 0.45; }
+        50% { transform: translateX(310px); opacity: 1; }
+    }
+
+    @media (max-width: 767px) {
+        .home-surface { background-position: 56% top; }
+        .vehicle-frame { min-height: 340px; }
+        @keyframes scanLine {
+            0%, 100% { transform: translateX(0); opacity: 0.45; }
+            50% { transform: translateX(220px); opacity: 1; }
+        }
     }
 </style>
 @endsection
 
 @section('content')
-<!-- Hero Section -->
-<section class="relative min-h-screen pt-32 pb-20 px-6 flex items-center hero-bg overflow-hidden">
-    <div class="absolute inset-0 animated-grid pointer-events-none"></div>
-    <div class="absolute top-20 right-0 w-[500px] h-[500px] bg-cyan-500/20 rounded-full blur-[120px] pointer-events-none"></div>
-    <div class="absolute bottom-0 left-0 w-[500px] h-[500px] bg-blue-600/10 rounded-full blur-[120px] pointer-events-none"></div>
+<main class="home-surface overflow-hidden">
+    <section class="relative min-h-screen px-6 pt-28 pb-16 flex items-center">
+        <div class="max-w-7xl mx-auto w-full grid lg:grid-cols-[1.02fr_0.98fr] gap-10 xl:gap-14 items-center">
+            <div class="max-w-3xl">
+                <div class="inline-flex items-center gap-3 rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm font-semibold text-slate-100 backdrop-blur-md">
+                    <span class="h-2.5 w-2.5 rounded-full bg-brand-accent"></span>
+                    Garage số hóa cho khách hàng hiện đại
+                </div>
 
-    <div class="max-w-7xl mx-auto grid md:grid-cols-2 gap-16 items-center relative z-10">
-        <div class="space-y-8">
-            <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-cyan-900/30 border border-cyan-500/30 text-cyan-400 font-medium text-sm">
-                <span class="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
-                Hệ thống quản lý thông minh 4.0
-            </div>
-            <h1 class="text-5xl md:text-7xl font-black leading-tight text-white">
-                Chăm Sóc Xe <br>
-                <span class="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">Chuẩn Tương Lai</span>
-            </h1>
-            <p class="text-lg text-slate-400 max-w-xl leading-relaxed">
-                Trải nghiệm dịch vụ sửa chữa minh bạch tuyệt đối với công nghệ 3D Visual Check, theo dõi tiến độ thời gian thực và báo cáo chi tiết trực quan.
-            </p>
+                <h1 class="mt-7 text-4xl sm:text-5xl lg:text-6xl font-black leading-[1.04] text-white">
+                    Chăm sóc xe minh bạch, nhanh gọn và dễ theo dõi.
+                </h1>
 
-            <div class="flex flex-col sm:flex-row gap-4">
-                {{-- 
-                <button onclick="openLoginModal()" class="px-8 py-4 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white rounded-xl font-bold text-lg shadow-xl shadow-cyan-900/30 transition transform hover:-translate-y-1">
-                    Đặt Lịch Ngay
-                </button>
-                --}}
-                <a href="#features" class="px-8 py-4 bg-white/5 hover:bg-white/10 text-white rounded-xl font-bold text-lg border border-white/10 transition backdrop-blur-md flex items-center justify-center">
-                    Tìm Hiểu Thêm
-                </a>
-            </div>
+                <p class="mt-6 max-w-2xl text-base sm:text-lg leading-8 text-slate-300">
+                    Smart Garage giúp khách hàng đặt lịch, gửi yêu cầu cứu hộ, nhận báo giá và theo dõi tiến độ sửa chữa trên một cổng thông tin trực quan.
+                </p>
 
-            <div class="pt-8 border-t border-white/10 flex gap-8">
-                <div> <div class="text-3xl font-black text-white">50+</div> <div class="text-sm text-slate-500">Điểm kiểm tra</div> </div>
-                <div> <div class="text-3xl font-black text-white">100%</div> <div class="text-sm text-slate-500">Minh bạch giá</div> </div>
-                <div> <div class="text-3xl font-black text-white">24/7</div> <div class="text-sm text-slate-500">Hỗ trợ khẩn cấp</div> </div>
-            </div>
-        </div>
+                <div class="mt-8 flex flex-col sm:flex-row gap-3">
+                    @guest
+                        <button onclick="openLoginModal()" class="inline-flex items-center justify-center gap-3 rounded-xl brand-gradient-bg px-6 py-4 text-base font-bold text-white shadow-xl shadow-cyan-950/40 transition hover:-translate-y-0.5">
+                            <i class="fas fa-calendar-check"></i>
+                            Đặt lịch / Đăng nhập
+                        </button>
+                    @else
+                        <a href="{{ route('customer.dashboard') }}" class="inline-flex items-center justify-center gap-3 rounded-xl brand-gradient-bg px-6 py-4 text-base font-bold text-white shadow-xl shadow-cyan-950/40 transition hover:-translate-y-0.5">
+                            <i class="fas fa-gauge-high"></i>
+                            Vào bảng điều khiển
+                        </a>
+                    @endguest
+                    <a href="{{ route('customer.sos.index') }}" class="inline-flex items-center justify-center gap-3 rounded-xl border border-red-400/35 bg-red-500/12 px-6 py-4 text-base font-bold text-red-100 transition hover:bg-red-500/20">
+                        <i class="fas fa-truck-medical"></i>
+                        Cứu hộ khẩn cấp
+                    </a>
+                    <a href="#features" class="inline-flex items-center justify-center gap-3 rounded-xl border border-white/15 bg-white/10 px-6 py-4 text-base font-bold text-white transition hover:bg-white/15">
+                        <i class="fas fa-arrow-down"></i>
+                        Xem dịch vụ
+                    </a>
+                </div>
 
-        <div class="relative hidden md:block" style="perspective: 1000px;">
-            <div class="float-animation relative z-10 w-full aspect-square rounded-3xl glass border-white/20 overflow-hidden flex items-center justify-center p-8 shadow-2xl shadow-cyan-900/20">
-                <div class="text-center space-y-4">
-                    <div class="text-6xl text-cyan-500 font-black tracking-widest ">3D TECH</div>
-                    <div class="text-sm text-slate-400 uppercase tracking-widest">Visual Inspection System</div>
-                    <div class="w-64 h-32 bg-gradient-to-r from-slate-800 to-slate-900 rounded-lg mx-auto border border-slate-700 relative overflow-hidden">
-                        <div class="absolute inset-0 flex items-center justify-center text-slate-600 text-xs">[Mô hình xe 3D xoay vòng]</div>
-                        <div class="absolute top-0 bottom-0 w-1 bg-cyan-500/50 shadow-[0_0_15px_rgba(6,182,212,0.8)] animate-[scan_2s_ease-in-out_infinite]"></div>
+                <div class="mt-10 grid grid-cols-3 gap-3 sm:gap-4 max-w-2xl">
+                    <div class="stat-tile rounded-xl p-4">
+                        <div class="text-2xl sm:text-3xl font-black text-white">24/7</div>
+                        <div class="mt-1 text-xs sm:text-sm text-slate-400">Cứu hộ</div>
+                    </div>
+                    <div class="stat-tile rounded-xl p-4">
+                        <div class="text-2xl sm:text-3xl font-black text-white">3D</div>
+                        <div class="mt-1 text-xs sm:text-sm text-slate-400">Kiểm tra xe</div>
+                    </div>
+                    <div class="stat-tile rounded-xl p-4">
+                        <div class="text-2xl sm:text-3xl font-black text-white">100%</div>
+                        <div class="mt-1 text-xs sm:text-sm text-slate-400">Rõ chi phí</div>
                     </div>
                 </div>
             </div>
 
-            <div class="absolute -top-6 -right-6 glass p-4 rounded-xl border-l-4 border-l-green-500 animate-pulse delay-700 z-20 shadow-xl">
-                <div class="text-xs text-slate-400">Trạng thái</div>
-                <div class="font-bold text-white">Đã hoàn thành 100%</div>
-            </div>
-            <div class="absolute bottom-6 -left-6 glass p-4 rounded-xl border-l-4 border-l-cyan-500 animate-pulse delay-1000 z-20 shadow-xl">
-                <div class="text-xs text-slate-400">Kỹ thuật viên</div>
-                <div class="font-bold text-white">Đang thực hiện kiểm tra...</div>
+            <div class="hero-panel rounded-2xl p-4 sm:p-5">
+                <div class="vehicle-frame relative overflow-hidden rounded-xl">
+                    <div class="absolute inset-x-6 top-6 flex flex-wrap gap-3">
+                        <div class="rounded-lg bg-slate-950/72 px-4 py-3 backdrop-blur">
+                            <p class="text-xs text-slate-400">Tình trạng</p>
+                            <p class="mt-1 font-bold text-white">Đang kiểm tra tổng quát</p>
+                        </div>
+                        <div class="rounded-lg bg-slate-950/72 px-4 py-3 backdrop-blur">
+                            <p class="text-xs text-slate-400">Báo giá</p>
+                            <p class="mt-1 font-bold text-brand-accent">Chờ phê duyệt</p>
+                        </div>
+                    </div>
+
+                    <div class="absolute left-8 right-8 bottom-8">
+                        <div class="rounded-xl bg-slate-950/78 p-5 backdrop-blur">
+                            <div class="flex items-center justify-between gap-4">
+                                <div>
+                                    <p class="text-sm text-slate-400">Quy trình sửa chữa</p>
+                                    <p class="mt-1 text-xl font-black text-white">Theo dõi realtime</p>
+                                </div>
+                                <div class="h-12 w-12 rounded-xl brand-gradient-bg flex items-center justify-center text-white">
+                                    <i class="fas fa-screwdriver-wrench"></i>
+                                </div>
+                            </div>
+                            <div class="mt-5 h-2 overflow-hidden rounded-full bg-white/10">
+                                <div class="h-full w-[72%] rounded-full brand-gradient-bg"></div>
+                            </div>
+                            <div class="mt-4 grid grid-cols-3 gap-3 text-xs text-slate-300">
+                                <span>Nhập xe</span>
+                                <span>Kiểm tra</span>
+                                <span class="text-right text-brand-accent">Báo giá</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="scan-line absolute top-0 bottom-0 left-8 w-1 bg-cyan-300/80 shadow-[0_0_30px_rgba(103,232,249,0.9)]"></div>
+                </div>
             </div>
         </div>
-    </div>
-</section>
+    </section>
 
-<!-- Features Section -->
-<section id="features" class="py-24 bg-slate-900 relative">
-    <div class="max-w-7xl mx-auto px-6">
-        <div class="text-center mb-16 space-y-4">
-            <span class="text-cyan-500 font-bold tracking-wider text-sm">CÔNG NGHỆ TIÊN TIẾN</span>
-            <h2 class="text-4xl font-black text-white">Giải Pháp Toàn Diện Cho Xe Của Bạn</h2>
-            <p class="text-slate-400 max-w-2xl mx-auto">Chúng tôi áp dụng những công nghệ hiện đại nhất để đảm bảo sự chính xác, minh bạch và an toàn tuyệt đối.</p>
-        </div>
+    <section id="features" class="bg-slate-950/85 px-6 py-20 border-t border-white/10">
+        <div class="max-w-7xl mx-auto">
+            <div class="max-w-3xl">
+                <span class="text-sm font-bold uppercase tracking-widest text-brand-primary">Dịch vụ nổi bật</span>
+                <h2 class="mt-4 text-3xl sm:text-4xl font-black text-white">Mỗi điểm chạm được thiết kế để khách hàng yên tâm hơn.</h2>
+                <p class="mt-4 text-slate-400 leading-7">Bố cục mới tập trung vào các hành động guest cần nhất: đặt lịch, gọi cứu hộ, xem quy trình và hiểu rõ lợi ích.</p>
+            </div>
 
-        <div class="grid md:grid-cols-3 gap-8">
-            <!-- Feature 1 -->
-            <div class="glass-card p-8 rounded-2xl group">
-                <div class="w-14 h-14 rounded-xl feature-icon flex items-center justify-center mb-6 group-hover:scale-110 transition">
-                    <i class="fas fa-cube text-2xl text-cyan-400"></i>
-                </div>
-                <h3 class="text-xl font-bold text-white mb-3 group-hover:text-cyan-400 transition">3D VHC Technology</h3>
-                <p class="text-slate-400 text-sm leading-relaxed mb-4">Công nghệ kiểm tra xe trực quan với mô hình 3D, đánh dấu chính xác vị trí lỗi và hiển thị trực tiếp trên giao diện người dùng.</p>
-                <ul class="text-sm text-slate-500 space-y-2">
-                    <li class="flex items-center gap-2"><i class="fas fa-check text-cyan-500 text-xs"></i> Quan sát trực quan 360 độ</li>
-                    <li class="flex items-center gap-2"><i class="fas fa-check text-cyan-500 text-xs"></i> Đánh dấu lỗi chính xác</li>
-                </ul>
-            </div>
-            <!-- Feature 2 -->
-            <div class="glass-card p-8 rounded-2xl group">
-                <div class="w-14 h-14 rounded-xl feature-icon flex items-center justify-center mb-6 group-hover:scale-110 transition">
-                    <i class="fas fa-chart-line text-2xl text-blue-400"></i>
-                </div>
-                <h3 class="text-xl font-bold text-white mb-3 group-hover:text-cyan-400 transition">Real-time Tracking</h3>
-                <p class="text-slate-400 text-sm leading-relaxed mb-4">Theo dõi tiến độ sửa chữa theo thời gian thực. Cập nhật từng bước từ khi nhận xe đến khi hoàn thành.</p>
-            </div>
-             <!-- Feature 3 -->
-             <div class="glass-card p-8 rounded-2xl group">
-                <div class="w-14 h-14 rounded-xl feature-icon flex items-center justify-center mb-6 group-hover:scale-110 transition">
-                    <i class="fas fa-file-invoice-dollar text-2xl text-green-400"></i>
-                </div>
-                <h3 class="text-xl font-bold text-white mb-3 group-hover:text-cyan-400 transition">Minh Bạch Chi Phí</h3>
-                <p class="text-slate-400 text-sm leading-relaxed mb-4">Hệ thống báo giá tự động và minh bạch. Khách hàng duyệt báo giá trước khi thực hiện sửa chữa.</p>
+            <div class="mt-10 grid md:grid-cols-3 gap-5">
+                <article class="service-tile rounded-xl p-6">
+                    <div class="h-12 w-12 rounded-xl bg-cyan-500/12 text-brand-primary flex items-center justify-center text-xl">
+                        <i class="fas fa-cube"></i>
+                    </div>
+                    <h3 class="mt-5 text-xl font-black text-white">Kiểm tra 3D VHC</h3>
+                    <p class="mt-3 text-sm leading-7 text-slate-400">Đánh dấu vị trí lỗi trực quan, giúp khách hàng hiểu rõ tình trạng xe trước khi phê duyệt sửa chữa.</p>
+                </article>
+
+                <article class="service-tile rounded-xl p-6">
+                    <div class="h-12 w-12 rounded-xl bg-emerald-500/12 text-brand-accent flex items-center justify-center text-xl">
+                        <i class="fas fa-file-invoice-dollar"></i>
+                    </div>
+                    <h3 class="mt-5 text-xl font-black text-white">Báo giá minh bạch</h3>
+                    <p class="mt-3 text-sm leading-7 text-slate-400">Từng hạng mục, phụ tùng và công sửa chữa được trình bày rõ ràng để khách hàng chủ động quyết định.</p>
+                </article>
+
+                <article class="service-tile rounded-xl p-6">
+                    <div class="h-12 w-12 rounded-xl bg-red-500/12 text-red-300 flex items-center justify-center text-xl">
+                        <i class="fas fa-location-dot"></i>
+                    </div>
+                    <h3 class="mt-5 text-xl font-black text-white">SOS trên bản đồ</h3>
+                    <p class="mt-3 text-sm leading-7 text-slate-400">Gửi vị trí và thông tin sự cố nhanh chóng để đội cứu hộ tiếp nhận, cập nhật trạng thái và điều phối kịp thời.</p>
+                </article>
             </div>
         </div>
-    </div>
-</section>
+    </section>
 
-<!-- Process Section -->
-<section id="process" class="py-24 bg-[#0f172a] relative border-t border-white/5">
-    <div class="max-w-7xl mx-auto px-6 grid md:grid-cols-2 gap-16 items-center">
-        <div class="space-y-8">
-            <span class="text-cyan-500 font-bold tracking-wider text-sm">QUY TRÌNH CHUẨN</span>
-            <h2 class="text-4xl font-black text-white">Đơn Giản Hóa <br> Quy Trình Sửa Chữa</h2>
-            <div class="space-y-6">
+    <section id="process" class="px-6 py-20 bg-slate-900">
+        <div class="max-w-7xl mx-auto grid lg:grid-cols-[0.9fr_1.1fr] gap-10 items-start">
+            <div>
+                <span class="text-sm font-bold uppercase tracking-widest text-brand-primary">Quy trình</span>
+                <h2 class="mt-4 text-3xl sm:text-4xl font-black text-white">Từ tiếp nhận đến bàn giao, mỗi bước đều có dữ liệu.</h2>
+                <p class="mt-4 text-slate-400 leading-7">Trang chủ mới giải thích ngắn gọn cách garage vận hành, tránh dàn trải và giúp guest biết nên bắt đầu từ đâu.</p>
+            </div>
+
+            <div class="grid sm:grid-cols-2 gap-5">
                 @foreach([
-                    ['1', 'Tiếp Nhận Xe', 'Đến trực tiếp garage. Staff tiếp nhận xe và khởi tạo hồ sơ điện tử.'],
-                    ['2', 'Kiểm Tra 3D Visual Check', 'Kỹ thuật viên kiểm tra toàn diện, ghi nhận lỗi trực quan trên mô hình 3D.'],
-                    ['3', 'Báo Giá & Phê Duyệt', 'Nhận báo giá chi tiết qua App/Link. Khách hàng xác nhận hạng mục sửa chữa.'],
-                    ['4', 'Sửa Chữa & Bàn Giao', 'Theo dõi tiến độ realtime. Nhận xe và thanh toán minh bạch.']
+                    ['01', 'Đặt lịch hoặc gửi SOS', 'Khách hàng chọn lịch hẹn hoặc gửi yêu cầu cứu hộ nếu đang gặp sự cố trên đường.'],
+                    ['02', 'Tiếp nhận và kiểm tra', 'Nhân viên tạo hồ sơ, ghi nhận thông tin xe và thực hiện kiểm tra tổng quát.'],
+                    ['03', 'Gửi báo giá để phê duyệt', 'Hệ thống gửi danh sách hạng mục, chi phí và ghi chú kỹ thuật cho khách hàng.'],
+                    ['04', 'Sửa chữa và bàn giao', 'Khách hàng theo dõi tiến độ, nhận thông báo và xem lịch sử sửa chữa sau bàn giao.'],
                 ] as $step)
-                <div class="flex gap-4 group">
-                    <div class="w-12 h-12 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-cyan-500 font-bold text-lg group-hover:bg-cyan-500 group-hover:text-white transition shadow-lg shadow-cyan-900/10">{{ $step[0] }}</div>
-                    <div>
-                        <h4 class="text-white font-bold text-lg mb-1 group-hover:text-cyan-400 transition">{{ $step[1] }}</h4>
-                        <p class="text-slate-400 text-sm">{{ $step[2] }}</p>
-                    </div>
-                </div>
+                    <article class="workflow-step rounded-xl p-6">
+                        <div class="text-sm font-black brand-gradient-text">{{ $step[0] }}</div>
+                        <h3 class="mt-3 text-lg font-black text-white">{{ $step[1] }}</h3>
+                        <p class="mt-3 text-sm leading-7 text-slate-400">{{ $step[2] }}</p>
+                    </article>
                 @endforeach
             </div>
         </div>
+    </section>
 
-        <div class="relative">
-            <div class="absolute inset-0 bg-cyan-500/10 blur-3xl rounded-full pointer-events-none"></div>
-            <img src="https://images.unsplash.com/photo-1530046339160-ce3e530c7d2f?ixlib=rb-1.2.1&auto=format&fit=crop&w=1000&q=80" alt="Process" class="relative rounded-2xl border border-slate-700 shadow-2xl skew-y-3 hover:skew-y-0 transition duration-500 grayscale hover:grayscale-0 block opacity-80 hover:opacity-100">
-            <div class="absolute -bottom-10 -left-10 glass p-6 rounded-xl border-t border-t-cyan-500 max-w-xs animate-bounce delay-[2000ms]">
-                <div class="flex items-center gap-3 mb-2">
-                    <div class="w-10 h-10 rounded-full bg-green-500/20 flex items-center justify-center text-green-500"><i class="fas fa-magic"></i></div>
-                    <div>
-                        <div class="text-xs text-slate-400">Thời gian trung bình</div>
-                        <div class="font-bold text-white text-lg">Giảm 40%</div>
-                    </div>
-                </div>
-                <p class="text-xs text-slate-500">So với quy trình truyền thống nhờ công nghệ và quy trình tối ưu.</p>
+    <section id="why-us" class="px-6 py-20 bg-slate-950 border-t border-white/10">
+        <div class="max-w-7xl mx-auto grid lg:grid-cols-[1.05fr_0.95fr] gap-10 items-center">
+            <div>
+                <span class="text-sm font-bold uppercase tracking-widest text-brand-primary">Cam kết</span>
+                <h2 class="mt-4 text-3xl sm:text-4xl font-black text-white">Không chỉ sửa xe, mà còn làm rõ toàn bộ trải nghiệm dịch vụ.</h2>
+                <p class="mt-4 text-slate-400 leading-7">Giao diện mới cân bằng giữa hình ảnh garage, lợi ích sản phẩm và những hành động chính, giúp guest ra quyết định nhanh hơn.</p>
             </div>
-        </div>
-    </div>
-</section>
 
-<!-- Why Us Section -->
-<section id="why-us" class="py-24 bg-slate-900 border-t border-white/5">
-    <div class="max-w-7xl mx-auto px-6">
-        <div class="bg-gradient-to-r from-blue-900/40 to-cyan-900/40 rounded-3xl p-12 border border-white/10 relative overflow-hidden text-center">
-            <div class="absolute top-0 right-0 w-64 h-64 bg-blue-500/10 blur-[80px]"></div>
-            <div class="absolute bottom-0 left-0 w-64 h-64 bg-cyan-500/10 blur-[80px]"></div>
-            <div class="relative z-10 max-w-3xl mx-auto space-y-8">
-                <h2 class="text-3xl md:text-5xl font-black text-white">Bạn Đã Sẵn Sàng Trải Nghiệm?</h2>
-                <p class="text-lg text-slate-300">Đừng để việc chăm sóc xe trở thành nỗi lo. Hãy để SmartGarage đồng hành cùng bạn trên mọi hành trình.</p>
-                <div class="flex flex-col sm:flex-row justify-center gap-4">
-                    <button onclick="openLoginModal()" class="px-8 py-4 bg-white text-slate-900 rounded-xl font-bold text-lg hover:bg-slate-100 transition">Đăng Ký Thành Viên</button>
+            <div class="grid sm:grid-cols-2 gap-5">
+                <div class="trust-tile rounded-xl p-6">
+                    <i class="fas fa-shield-halved text-2xl text-brand-accent"></i>
+                    <h3 class="mt-4 font-black text-white">Lưu lịch sử rõ ràng</h3>
+                    <p class="mt-2 text-sm leading-6 text-slate-400">Hồ sơ xe, báo giá và trạng thái được gom về một nơi sau khi khách hàng đăng nhập.</p>
+                </div>
+                <div class="trust-tile rounded-xl p-6">
+                    <i class="fas fa-headset text-2xl text-brand-primary"></i>
+                    <h3 class="mt-4 font-black text-white">Hỗ trợ nhanh</h3>
+                    <p class="mt-2 text-sm leading-6 text-slate-400">Khách hàng có lối vào SOS nổi bật và thông tin liên hệ luôn sẵn sàng ở footer.</p>
                 </div>
             </div>
         </div>
-    </div>
-</section>
+
+        <div class="max-w-7xl mx-auto mt-14 rounded-2xl border border-white/12 bg-white/[0.06] p-6 sm:p-8 lg:p-10">
+            <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+                <div>
+                    <h2 class="text-2xl sm:text-3xl font-black text-white">Sẵn sàng để bắt đầu chăm sóc xe thông minh?</h2>
+                    <p class="mt-3 text-slate-400">Đăng nhập hoặc tạo tài khoản để đặt lịch và theo dõi hồ sơ sửa chữa.</p>
+                </div>
+                <div class="flex flex-col sm:flex-row gap-3">
+                    @guest
+                        <button onclick="openLoginModal()" class="inline-flex items-center justify-center gap-3 rounded-xl brand-gradient-bg px-6 py-4 font-bold text-white">
+                            <i class="fas fa-user-plus"></i>
+                            Tạo tài khoản
+                        </button>
+                    @else
+                        <a href="{{ route('customer.dashboard') }}" class="inline-flex items-center justify-center gap-3 rounded-xl brand-gradient-bg px-6 py-4 font-bold text-white">
+                            <i class="fas fa-gauge-high"></i>
+                            Mở dashboard
+                        </a>
+                    @endguest
+                    <a href="{{ route('customer.sos.index') }}" class="inline-flex items-center justify-center gap-3 rounded-xl border border-white/15 px-6 py-4 font-bold text-white hover:bg-white/10">
+                        <i class="fas fa-truck-medical"></i>
+                        Cần cứu hộ
+                    </a>
+                </div>
+            </div>
+        </div>
+    </section>
+</main>
 @endsection
-
-

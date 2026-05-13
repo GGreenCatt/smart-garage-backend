@@ -103,16 +103,6 @@ class StaffController extends Controller
                 default => ucfirst((string) $order->status),
             };
 
-            $order->status_label = match ($order->status) {
-                RepairOrder::STATUS_PENDING => 'Chờ tiếp nhận',
-                RepairOrder::STATUS_IN_PROGRESS => 'Đang kiểm tra',
-                RepairOrder::STATUS_PENDING_APPROVAL => 'Chờ khách duyệt',
-                RepairOrder::STATUS_APPROVED => 'Khách đã duyệt',
-                RepairOrder::STATUS_COMPLETED => $order->payment_status === 'paid' ? 'Đã thanh toán' : 'Chờ thanh toán',
-                RepairOrder::STATUS_CANCELLED => 'Đã hủy',
-                default => ucfirst((string) $order->status),
-            };
-
             return $order;
         });
 
@@ -120,7 +110,9 @@ class StaffController extends Controller
         $inProgress = $orders->where('status', RepairOrder::STATUS_IN_PROGRESS);
         $pendingApproval = $orders->where('status', RepairOrder::STATUS_PENDING_APPROVAL);
         $approved = $orders->where('status', RepairOrder::STATUS_APPROVED);
-        $ready = $orders->where('status', RepairOrder::STATUS_COMPLETED);
+        $ready = $orders
+            ->where('status', RepairOrder::STATUS_COMPLETED)
+            ->whereNull('delivered_at');
         
         $allVehicles = \App\Models\Vehicle::all();
         
@@ -129,6 +121,9 @@ class StaffController extends Controller
         $selectedOrder = null;
         if ($selectedId) {
             $selectedOrder = $orders->firstWhere('id', $selectedId);
+            if ($selectedOrder && $selectedOrder->status === RepairOrder::STATUS_COMPLETED && $selectedOrder->delivered_at) {
+                $selectedOrder = null;
+            }
         }
         if (!$selectedOrder) {
             $selectedOrder = $approved->first() ?? $pendingApproval->first() ?? $inProgress->first() ?? $waiting->first() ?? $ready->first();
